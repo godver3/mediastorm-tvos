@@ -27,6 +27,8 @@ struct ShelfConfig: Decodable, Hashable {
     /// Which calendar sources a recently-aired shelf takes (watchlist only when unset).
     let calendarSources: CalendarSources?
     let listUrl: String?
+    /// A library shelf's library (`type: library`).
+    let libraryId: String?
     let addonManifestUrl: String?
     let addonCatalogType: String?
     let addonCatalogId: String?
@@ -58,6 +60,15 @@ struct ShelfConfig: Decodable, Hashable {
     }
 
     var title: String { name?.isEmpty == false ? name! : id }
+
+    /// A library shelf's library: `type: library` with `libraryId`, or the legacy
+    /// `local-library-<id>` shelf (as the Expo app reads them). Nil for other shelves.
+    var libraryID: String? {
+        guard type == "library" || type == "local-library" else { return nil }
+        if let id = libraryId?.trimmingCharacters(in: .whitespaces), !id.isEmpty { return id }
+        let prefix = "local-library-"
+        return id.hasPrefix(prefix) ? String(id.dropFirst(prefix.count)) : nil
+    }
 
     /// The `display-list` query for a remote list shelf, as the server builds it for Home
     /// (`startupDisplayListQueryForShelf`), without paging. Nil for other shelves.

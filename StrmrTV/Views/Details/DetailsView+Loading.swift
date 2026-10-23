@@ -7,6 +7,7 @@ extension DetailsView {
     /// One `/details-bundle` call: metadata plus per-episode watched / resume, up-next and
     /// the top-level resume. Also re-run after playback to refresh progress.
     func load() async {
+        startLibraryLookup()
         do {
             let bundle = try await APIClient.shared.detailsBundle(target)
             if target.isMovie {

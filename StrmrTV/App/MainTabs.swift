@@ -71,6 +71,7 @@ struct MainTabs: View {
                     NavigationStack {
                         ListsView()
                             .navigationDestination(for: BrowseList.self) { ListPage(list: $0).pinsSideMenu() }
+                            .navigationDestination(for: LibraryShowTarget.self) { LibraryShowView(target: $0).pinsSideMenu() }
                             .navigationDestination(for: DetailsTarget.self, destination: details)
                             .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
                     }
@@ -149,6 +150,7 @@ struct MainTabs: View {
                 .navigationDestination(for: DetailsTarget.self, destination: details)
                 .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
                 .navigationDestination(for: BrowseList.self) { ListPage(list: $0).pinsSideMenu() }
+                .navigationDestination(for: LibraryShowTarget.self) { LibraryShowView(target: $0).pinsSideMenu() }
         }
         .pinsSideMenu()
         .environment(\.homeAction) { homeAction($0, view: view, path: path) }

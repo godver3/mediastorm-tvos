@@ -37,6 +37,8 @@ enum BrowseList: Hashable {
     case remote(id: String, name: String, query: [String: String])
     /// A streaming service's top lists; the grid switches between them (`BrowseOptions.part`).
     case service(StreamingService)
+    /// A local, Plex or Jellyfin library, paged from `/api/library` (`APIClient.libraryPage`).
+    case library(LibraryRef)
 
     /// The server's AI picks for a description (`display-list?source=custom-ai&q=`), cached
     /// server-side per description, so paging and sorting don't ask again.
@@ -62,6 +64,7 @@ enum BrowseList: Hashable {
         case let .decade(decade, kind): "\(String(decade))s \(kind.noun)"
         case let .remote(_, name, _): name
         case let .service(service): service.name
+        case let .library(library): library.name
         }
     }
 
@@ -91,6 +94,7 @@ enum BrowseList: Hashable {
         case .custom, .watchlist, .permanentPrequeue, .continueWatching, .hidden: .item
         case .similar: .title
         case .topTen, .trending, .popularOnServer, .personalized, .genre, .decade, .remote, .service: .ranked
+        case .library: .title  // not read: libraries page through `libraryPage`
         }
     }
 
@@ -102,7 +106,14 @@ enum BrowseList: Hashable {
         case .custom, .watchlist, .permanentPrequeue: [.default, .added, .name, .year, .duration, .rating]
         case .genre, .decade, .remote, .service, .trending: [.default, .name, .year, .rating]
         case .topTen, .popularOnServer, .personalized, .similar, .continueWatching, .hidden: []
+        case .library: [.default, .added, .name, .year]
         }
+    }
+
+    /// The A–Z index under a Name sort: the profile's own lists and libraries.
+    var indexesLetters: Bool {
+        if case .library = self { return true }
+        return filters
     }
 
     /// Movies / Shows, watch status, genre facets and the A–Z index (the profile's own lists).
@@ -138,6 +149,7 @@ enum BrowseList: Hashable {
         case let .decade(decade, kind): ["source": "decade", "decade": String(decade), "mediaType": kind.mediaType]
         case let .remote(_, _, query): query
         case let .service(service): ["source": "mdblist", "name": service.name, "url": service.lists.first?.url ?? ""]
+        case .library: [:]
         }
     }
 }
@@ -207,11 +219,13 @@ extension BrowseKind {
 enum BrowseEntry: Identifiable, Hashable {
     case title(Title)
     case item(WatchlistItem)
+    case library(LibraryEntry)
 
     var id: String {
         switch self {
         case let .title(title): title.id
         case let .item(item): item.id
+        case let .library(entry): entry.id
         }
     }
 
@@ -219,6 +233,7 @@ enum BrowseEntry: Identifiable, Hashable {
         switch self {
         case let .title(title): title.textPoster?.url ?? title.poster?.url
         case let .item(item): item.textPosterUrl ?? item.posterUrl
+        case let .library(entry): entry.group.posterURL
         }
     }
 
@@ -226,6 +241,7 @@ enum BrowseEntry: Identifiable, Hashable {
         switch self {
         case let .title(title): title.backdrop?.url
         case let .item(item): item.backdropUrl
+        case let .library(entry): entry.group.backdropURL
         }
     }
 }

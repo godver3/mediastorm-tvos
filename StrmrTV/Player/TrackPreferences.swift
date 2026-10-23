@@ -24,12 +24,22 @@ struct TrackPreferences {
     var isClientPick = false
     /// The subtitle (or Off) was picked by hand in the source list: no automatic online search.
     var subtitlePickedByHand = false
+    /// A library file: no server pick, so the player chooses from the file's own streams on this
+    /// device (`devicePick`) once the engine has read them.
+    var pickOnDevice = false
     /// The server's selection this was made from (nil from legacy servers).
     let selection: TrackSelection?
 
     /// No backend preference: the engine falls back to the device language for audio and
     /// leaves subtitles off.
     static let none = TrackPreferences(selection: nil)
+
+    /// A library file's starting point: picked on the device after the engine loads.
+    static var library: TrackPreferences {
+        var tracks = TrackPreferences(selection: nil)
+        tracks.pickOnDevice = true
+        return tracks
+    }
 
     init(selection: TrackSelection?) {
         self.selection = selection
@@ -142,17 +152,7 @@ extension TrackPreferences {
                            subtitles: [ClientTrackSelector.Stream]) -> TrackPreferences? {
         let store = TrackSettingsStore.shared
         guard store.overridesTracks else { return nil }
-        let server = store.server
-        var allowed = server.allowedLanguages
-        // An explicit audio language is honoured even if the profile's list leaves it out.
-        if let audio = store.audioLanguage, !allowed.contains(where: { TrackPreferences.sameLanguage($0, audio) }), !allowed.isEmpty {
-            allowed.insert(audio, at: 0)
-        }
-        let preferences = ClientTrackSelector.Preferences(
-            audioLanguage: store.audioLanguage ?? selection?.audioLanguage ?? server.audioLanguage,
-            allowedLanguages: allowed,
-            subtitleLanguage: store.subtitleLanguage ?? selection?.subtitleLanguage ?? server.subtitleLanguage,
-            subtitleMode: store.subtitleMode ?? selection?.subtitleMode ?? server.subtitleMode ?? "off")
+        let preferences = devicePreferences(over: selection)
         let client = ClientTrackSelector.select(audio: audio, subtitles: subtitles, preferences: preferences)
         let keepAudio = store.audioLanguage == nil && selection != nil
         let keepSubtitle = store.subtitleMode == nil && store.subtitleLanguage == nil && selection != nil
@@ -169,6 +169,38 @@ extension TrackPreferences {
             + "subtitles \(preferences.subtitleMode) \(preferences.subtitleLanguage ?? "-") -> \(merged.subtitle?.streamIndex ?? -1) "
             + "(server audio \(selection?.audio?.streamIndex ?? -1), subtitle \(selection?.subtitle?.streamIndex ?? -1))")
         return tracks
+    }
+
+    /// A library file's tracks: the profile's languages, under Settings › Playback's overrides,
+    /// choosing from the file's own streams as the server's selector would.
+    @MainActor
+    static func devicePick(audio: [ClientTrackSelector.Stream], subtitles: [ClientTrackSelector.Stream]) -> TrackPreferences {
+        let preferences = devicePreferences(over: nil)
+        var tracks = TrackPreferences(selection: ClientTrackSelector.select(audio: audio, subtitles: subtitles,
+                                                                            preferences: preferences))
+        tracks.isClientPick = true
+        AppLog(category: "player").notice(
+            "library tracks: audio \(preferences.audioLanguage ?? "-") -> \(tracks.audio?.streamIndex ?? -1), "
+            + "subtitles \(preferences.subtitleMode) \(preferences.subtitleLanguage ?? "-") -> \(tracks.subtitle?.streamIndex ?? -1)")
+        return tracks
+    }
+
+    /// The languages to pick with: this device's overrides, else the server's `selection`, else
+    /// the profile's values.
+    @MainActor
+    private static func devicePreferences(over selection: TrackSelection?) -> ClientTrackSelector.Preferences {
+        let store = TrackSettingsStore.shared
+        let server = store.server
+        var allowed = server.allowedLanguages
+        // An explicit audio language is honoured even if the profile's list leaves it out.
+        if let audio = store.audioLanguage, !allowed.contains(where: { TrackPreferences.sameLanguage($0, audio) }), !allowed.isEmpty {
+            allowed.insert(audio, at: 0)
+        }
+        return ClientTrackSelector.Preferences(
+            audioLanguage: store.audioLanguage ?? selection?.audioLanguage ?? server.audioLanguage,
+            allowedLanguages: allowed,
+            subtitleLanguage: store.subtitleLanguage ?? selection?.subtitleLanguage ?? server.subtitleLanguage,
+            subtitleMode: store.subtitleMode ?? selection?.subtitleMode ?? server.subtitleMode ?? "off")
     }
 
     /// The overrides against a prequeue's track lists, before the engine loads (so the hardware

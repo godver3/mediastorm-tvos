@@ -65,8 +65,13 @@ struct DetailsView: View {
     @State var prequeueOverrides: (streamPath: String?, overrides: ManualTrackOverrides) = (nil, ManualTrackOverrides())
     @State var prequeueTrackPreferences = ManualTrackPreferences()
     @State var showPrequeueTracks = false
+    /// The title's copies in the profile's libraries and the lookup for them (`DetailsView+Library`).
+    @State var libraryVersions: LibraryVersions?
+    @State var libraryLookup: Task<LibraryVersions?, Never>?
+    @State var versionsPicker: VersionsTarget?
+    @State var pendingVersion: PendingVersion?
 
-    enum DetailsAction: Hashable { case primary, startOver, chooseSource, tracks, trailer, watchlist, lists, watched, more }
+    enum DetailsAction: Hashable { case primary, startOver, versions, chooseSource, tracks, trailer, watchlist, lists, watched, more }
 
     /// Every focusable on the page, so moves between rows can be steered.
     enum DetailsFocus: Hashable {
@@ -222,6 +227,7 @@ struct DetailsView: View {
             Task { await load() }
         }
         .fullScreenCover(isPresented: $showPrequeueTracks) { prequeueTracksPage }
+        .modifier(libraryVersionsPresentation)
         .fullScreenCover(item: $sourcePicker) { picker in
             SourcePickerView(title: target, episode: picker.episode, contentPreference: contentPreference) { source, tracks in
                 choose(source, tracks: tracks, episode: picker.episode)
@@ -335,53 +341,5 @@ struct DetailsView: View {
         }
         if let g = title?.genres, !g.isEmpty { parts.append(g.prefix(3).joined(separator: ", ")) }
         return parts.joined(separator: "  ·  ")
-    }
-
-    // MARK: Row focus
-
-    /// Where focus enters a row from another row. Actions always start at Play; seasons and
-    /// episodes start at the current one, then at whichever was last focused there.
-    func entry(_ row: Row) -> DetailsFocus? {
-        switch row {
-        case .overview: return .overview
-        case .actions: return .action(.primary)
-        case .immersive: return .immersive
-        case .seasons:
-            let remembered = lastSeasonChip.flatMap { n in visibleSeasons.contains { $0.number == n } ? n : nil }
-            return (remembered ?? currentSeason?.number).map(DetailsFocus.season)
-        case .episodes:
-            return currentSeason.flatMap(episodeEntry).map(DetailsFocus.episode)
-        case .related(let row):
-            let ids = relatedIDs(row)
-            let id = lastRelated[row].flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
-            return id.map { .related(row, $0) }
-        }
-    }
-
-    /// The episode last focused in `season`, else the one Play targets, else the first.
-    func episodeEntry(_ season: Season) -> String? {
-        if let id = lastEpisode[season.number], season.episodes.contains(where: { $0.id == id }) { return id }
-        if let ep = primaryEpisode, season.episodes.contains(where: { $0.id == ep.id }) { return ep.id }
-        return season.episodes.first?.id
-    }
-
-    /// Up / Down between rows lands on the row's entry rather than the geometrically nearest
-    /// item; moves within a row are remembered for the next return.
-    func steerFocus(from old: DetailsFocus?, to new: DetailsFocus?) {
-        // Out of the immersive catcher, focus goes back to where it was.
-        guard let new else { return }
-        focusInHeader = Self.isHeader(new.row)
-        guard old != .immersive else { return }
-        if let old, old.row != new.row, let target = entry(new.row), target != new {
-            focus = target
-            return
-        }
-        switch new {
-        case .overview, .action, .immersive: break
-        case .season(let number): lastSeasonChip = number
-        case .episode(let id):
-            if let season = currentSeason?.number { lastEpisode[season] = id }
-        case .related(let row, let id): lastRelated[row] = id
-        }
     }
 }

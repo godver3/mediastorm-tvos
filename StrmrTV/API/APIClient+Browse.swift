@@ -51,6 +51,9 @@ extension APIClient {
     /// other lists ignore it.
     func browsePage(_ list: BrowseList, options: BrowseOptions = BrowseOptions(), limit: Int, offset: Int = 0,
                     extra: [String: String] = [:], phase: ShelfPhase? = nil) async throws -> BrowsePage {
+        if case let .library(library) = list {
+            return try await libraryPage(library, options: options, limit: limit, offset: offset)
+        }
         var query = list.query.merging(options.query(for: list)) { _, new in new }.merging(extra) { _, new in new }
         query["limit"] = String(limit)
         query["offset"] = String(offset)

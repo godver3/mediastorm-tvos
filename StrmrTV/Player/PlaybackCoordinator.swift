@@ -53,7 +53,9 @@ final class PlaybackCoordinator: ObservableObject {
 
     /// Plays through the prequeue. `picks`, made on details for the stream its prequeue
     /// resolved, are laid over the server's selection when Play resolves that same stream.
+    /// A movie or episode with a library copy plays that instead (`playLibrary`).
     func play(_ request: PlaybackRequest, picks: PrequeuePick? = nil) {
+        if let version = request.preferredLibraryVersion { return playLibrary(request, version: version) }
         begin(request, stage: String(localized: "Searching…")) { [self] in
             let resolved = try await resolveStream(request)
             guard let path = resolved.streamPath else { throw APIError.notReady("Stream resolved without a path") }
@@ -76,6 +78,10 @@ final class PlaybackCoordinator: ObservableObject {
     /// re-picks the previous source's audio and subtitle languages from the new source's tracks.
     func play(_ request: PlaybackRequest, source: SourceResult, tracks manual: ManualTrackPick? = nil,
               carry: TrackCarry? = nil) {
+        // A stream picked over a library copy (Switch Source) is no longer that copy.
+        var streamed = request
+        streamed.libraryVersion = nil
+        let request = streamed
         begin(request, stage: String(localized: "Preparing…"), carry: carry) { [self] in
             let resolved = try await api.resolveSource(source, titleID: request.title.titleID,
                                                        startOffset: request.startPosition)
@@ -97,9 +103,9 @@ final class PlaybackCoordinator: ObservableObject {
         resolvingDetail = nil
     }
 
-    private func begin(_ request: PlaybackRequest, stage: String, carry: TrackCarry? = nil,
-                       resolve: @escaping @MainActor () async throws -> (path: String, tracks: TrackPreferences,
-                                                                         source: SourceSwitch.Current)) {
+    func begin(_ request: PlaybackRequest, stage: String, carry: TrackCarry? = nil,
+               resolve: @escaping @MainActor () async throws -> (path: String, tracks: TrackPreferences,
+                                                                 source: SourceSwitch.Current)) {
         guard resolving == nil else { return }
         let id = UUID()
         resolveID = id
@@ -173,6 +179,7 @@ final class PlaybackCoordinator: ObservableObject {
     /// Starts resolving `request` on the server ahead of time (the player calls this near the
     /// end of an episode), so the next episode starts quickly. Failures are left for `play`.
     func prefetch(_ request: PlaybackRequest) {
+        guard request.preferredLibraryVersion == nil else { return }  // plays its library copy
         let key = request.prequeueKey
         guard prefetched?.key != key else { return }
         prefetched = (key, "")
@@ -190,6 +197,7 @@ final class PlaybackCoordinator: ObservableObject {
     /// Play starts quickly, unless the profile turned prequeue off (`disablePrequeue`). At most
     /// once per title and profile every ten minutes.
     func prewarm(_ target: DetailsTarget) {
+        guard !target.fromLibrary else { return }  // Play uses the library's copy
         let profile = api.profileID
         if let warmed, warmed.titleID == target.titleID, warmed.profile == profile,
            Date().timeIntervalSince(warmed.started) < 600 { return }
@@ -374,7 +382,7 @@ final class PlaybackCoordinator: ObservableObject {
                                tracks: TrackPreferences, source: SourceSwitch.Current, carry: TrackCarry?,
                                previewsEnabled: Bool, completion: @escaping () -> Void) {
         guard let presenter = Self.topViewController() else { return completion() }
-        let url = api.streamURL(for: path, metadata: request.streamMetadataQuery)
+        let url = api.streamURL(for: path, metadata: request.streamMetadata(path: path))
         let player = PlayerViewController(engine: engine, request: request, url: url,
                                           streamPath: path, tracks: tracks, previewsEnabled: previewsEnabled)
         player.currentSource = source

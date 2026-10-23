@@ -21,6 +21,8 @@ enum HomeSource: Equatable, Sendable {
     case liveFavorites
     /// Today's Top 10 in the hero (`HomeShelf.promotedTopTenID`).
     case promotedTopTen
+    /// A local, Plex or Jellyfin library's newest titles.
+    case library(LibraryRef)
 
     struct HubLink: Equatable, Sendable {
         let id: String
@@ -71,7 +73,10 @@ enum HomeSource: Equatable, Sendable {
             if let max = config.maxItemsPerProfile, max > 0 { query["maxItemsPerProfile"] = String(max) }
             self = .list(.remote(id: config.id, name: config.title, query: query), ranked: false)
         default:
-            if config.type == "collection-hub" {
+            if let libraryID = config.libraryID {
+                let named = config.name?.isEmpty == false
+                self = .library(LibraryRef(id: libraryID, name: named ? config.title : String(localized: "Recently Added")))
+            } else if config.type == "collection-hub" {
                 let byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
                 let links = (config.collectionItems ?? [])
                     .filter { $0.enabled != false }

@@ -17,6 +17,8 @@ struct DetailsTarget: Hashable {
     /// Known up front from Continue Watching and search, so details can show it at once.
     let logoURL: String?
     let overview: String?
+    /// Opened from a library card: the page plays the library's copy, so it starts no prequeue.
+    var fromLibrary = false
 
     init(titleID: String, name: String, isMovie: Bool, year: Int?, tmdbID: String?, imdbID: String?,
          tvdbID: String?, posterURL: String?, textPosterURL: String?, backdropURL: String?,
@@ -102,8 +104,10 @@ struct DetailsTarget: Hashable {
 
 enum Artwork {
     /// TMDB "original" backdrops are multi-megabyte; w1280 is plenty for a 1080p UI.
+    /// Server-relative art (`/api/…`, Plex and Jellyfin posters) becomes a `ServerArtwork` URL.
     static func url(_ raw: String?, size: String = "w1280") -> URL? {
         guard let raw else { return nil }
+        if raw.hasPrefix("/api/") { return ServerArtwork.url(raw) }
         return raw.replacingOccurrences(of: "/t/p/original/", with: "/t/p/\(size)/").asURL
     }
 

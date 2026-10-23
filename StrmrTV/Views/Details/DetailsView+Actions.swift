@@ -31,6 +31,7 @@ extension DetailsView {
                 }
                 .focused($focus, equals: .action(.startOver))
             }
+            versionsButton
             // Secondary actions are icon-only, as on the Expo details page; the labels stay
             // for VoiceOver and the focus engine.
             Button { sourcePicker = SourcePickerTarget(episode: target.isMovie ? nil : primaryEpisode) } label: {
@@ -170,7 +171,7 @@ extension DetailsView {
     }
 
     func play(episode: Episode?, from start: StartPoint?) {
-        playback.play(request(episode, from: start), picks: prequeuePick)
+        playPreferringLibrary(episode, from: start)
     }
 
     func request(_ episode: Episode?, from start: StartPoint?) -> PlaybackRequest {
@@ -183,7 +184,8 @@ extension DetailsView {
                                 alternates: title?.backdrops?.map(\.url) ?? [],
                                 showing: title?.backdrop?.url ?? target.backdropURL,
                                 seed: artSeed),
-                            logoURL: title?.logo?.url))
+                            logoURL: title?.logo?.url),
+                        library: libraryVersions)
     }
 
     func episodeInfo(_ ep: Episode) -> PlaybackRequest.EpisodeInfo {

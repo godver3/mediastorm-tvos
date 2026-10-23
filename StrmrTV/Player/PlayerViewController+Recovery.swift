@@ -93,7 +93,8 @@ extension PlayerViewController {
         let duration = lastKnownDuration
         guard duration > 0, position > 0 else { return }
         let body = request.progressReport(position: position, duration: duration,
-                                          paused: paused ?? (engine.state == .paused), ended: ended)
+                                          paused: paused ?? (engine.state == .paused), ended: ended,
+                                          sourcePath: streamPath)
         // Keep the request alive if the app is on its way into the background (sleep).
         let background = UIApplication.shared.beginBackgroundTask(withName: "progress")
         Task {

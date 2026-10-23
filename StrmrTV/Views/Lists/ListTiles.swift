@@ -12,13 +12,17 @@ struct TileSpec {
     var art: TileArt?
     /// Drawn on a plain panel instead of artwork (streaming services, hub cards without art).
     var logo: String?
+    /// Under the name when there is no count (a library's source and kind).
+    var subtitle: String?
 
-    init(_ list: BrowseList, title: String? = nil, count: Int? = nil, art: TileArt? = nil, logo: String? = nil) {
+    init(_ list: BrowseList, title: String? = nil, count: Int? = nil, art: TileArt? = nil, logo: String? = nil,
+         subtitle: String? = nil) {
         self.list = list
         self.title = title
         self.count = count
         self.art = art
         self.logo = logo
+        self.subtitle = subtitle
     }
 }
 
@@ -60,7 +64,7 @@ struct TileRow: View {
                 LazyHStack(spacing: 48) {
                     ForEach(Array(tiles.enumerated()), id: \.element.list) { index, tile in
                         ListTile(list: tile.list, title: tile.title ?? tile.list.title, count: tile.count,
-                                 given: tile.art, logo: tile.logo, position: index)
+                                 given: tile.art, logo: tile.logo, position: index, subtitle: tile.subtitle)
                             .focused($focused, equals: .tile(tile.list))
                     }
                     if let onNewList {
@@ -93,6 +97,7 @@ struct ListTile: View {
     /// Place in the row. Neighbouring lists often share a top title (the same blockbuster
     /// leads Action, Adventure and 2020s), so each tile takes a different one of its first few.
     let position: Int
+    var subtitle: String?
 
     static let size = CGSize(width: 480, height: 270)
 
@@ -129,6 +134,8 @@ struct ListTile: View {
             if let count {
                 Text(count == 1 ? String(localized: "1 title") : String(localized: "\(count) titles"))
                     .font(.caption).foregroundStyle(.secondary)
+            } else if let subtitle {
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 22)

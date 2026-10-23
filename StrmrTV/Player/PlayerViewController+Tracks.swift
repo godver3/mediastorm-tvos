@@ -22,10 +22,15 @@ extension PlayerViewController {
     /// source carries no track lists): picked from the engine's tracks, and the audio pick
     /// then switches in place like a menu pick.
     func applyDeviceTrackOverrides() {
+        let audio = engine.audioTracks.filter { !$0.isExternal }.map(ClientTrackSelector.Stream.init)
+        let subtitles = OnlineSubtitles.containerTracks(engine.subtitleTracks).map(ClientTrackSelector.Stream.init)
+        // A library file has no server pick at all: the profile's languages choose here.
+        if tracks.pickOnDevice {
+            tracks = TrackPreferences.devicePick(audio: audio, subtitles: subtitles)
+            return
+        }
         guard !tracks.isClientPick,
-              let picked = TrackPreferences.overridden(
-                  tracks.selection, audio: engine.audioTracks.filter { !$0.isExternal }.map(ClientTrackSelector.Stream.init),
-                  subtitles: OnlineSubtitles.containerTracks(engine.subtitleTracks).map(ClientTrackSelector.Stream.init))
+              let picked = TrackPreferences.overridden(tracks.selection, audio: audio, subtitles: subtitles)
         else { return }
         tracks = picked
     }

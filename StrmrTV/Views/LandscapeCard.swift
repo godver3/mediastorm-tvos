@@ -54,6 +54,10 @@ struct LandscapeCard: View {
                 Button { LivePlayback.play(channel, program: program) } label: { artwork }
                     .cardLift()
                     .accessibilityLabel("\(card.title), \(card.subtitle)")
+            case let .library(entry):
+                LibraryEntryLink(entry: entry) { artwork }
+                    .cardLift()
+                    .accessibilityLabel("\(card.title), \(card.subtitle)")
             }
 
             if text == .below { CardCaption(title: card.title, subtitle: card.subtitle, width: width) }

@@ -70,7 +70,13 @@ enum ImagePipeline {
         let delay = UserDefaults.standard.double(forKey: "StrmrImageDelay")
         if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
         #endif
-        let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
+        let request: URLRequest
+        if url.scheme == ServerArtwork.scheme {
+            guard let authorized = await ServerArtwork.request(for: url) else { return nil }
+            request = authorized
+        } else {
+            request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
+        }
         guard let (data, _) = try? await URLSession.shared.data(for: request),
               let source = UIImage(data: data) else { return nil }
 

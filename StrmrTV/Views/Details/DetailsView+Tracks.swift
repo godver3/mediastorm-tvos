@@ -6,6 +6,7 @@ extension DetailsView {
     /// The page's prequeue, while it resolves or once it lists tracks for the episode Play
     /// targets; nil hides the button.
     var warmPrequeue: WarmPrequeue? {
+        guard primaryVersions.isEmpty else { return nil }  // Play uses a library copy
         guard let warm = playback.warm, warm.titleID == target.titleID,
               warm.profile == APIClient.shared.profileID else { return nil }
         switch warm.phase {

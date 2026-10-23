@@ -8,6 +8,7 @@ struct ListsView: View {
     @EnvironmentObject private var watchlist: WatchlistStore
     @EnvironmentObject private var titles: TitleStateStore
     @EnvironmentObject private var listShelves: ListShelvesStore
+    @ObservedObject private var libraries = LibrariesStore.shared
     @State private var kind: BrowseKind = .movies
     @State private var naming = false
     @State private var newName = ""
@@ -30,6 +31,13 @@ struct ListsView: View {
                     if let createError {
                         Text(createError).font(.callout).foregroundStyle(.red).padding(.horizontal, 80)
                     }
+                }
+
+                // The profile's local, Plex and Jellyfin libraries, each opening its titles.
+                if !libraries.libraries.isEmpty {
+                    TileRow(title: String(localized: "Libraries"), tiles: libraries.libraries.map { library in
+                        TileSpec(.library(library.ref), subtitle: library.tileSubtitle)
+                    })
                 }
 
                 // Rows from the shelf config wait for it, rather than showing the default
@@ -78,6 +86,7 @@ struct ListsView: View {
             Task { await store.refresh() }
             Task { await titles.refreshHidden() }
             Task { await listShelves.refresh() }
+            Task { await libraries.refresh() }
             Task { await titles.refreshContinueWatching() }
         }
         .alert("New List", isPresented: $naming) {

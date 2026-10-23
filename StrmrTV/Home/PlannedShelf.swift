@@ -12,8 +12,8 @@ struct PlannedShelf: Identifiable, Sendable {
 
     var id: String { config.id }
 
-    /// The enabled shelves in order, minus those the app can't show yet (watch rooms,
-    /// libraries) and those a kids profile doesn't get. A curated kids profile gets a row per
+    /// The enabled shelves in order, minus those the app can't show yet (watch rooms) and
+    /// those a kids profile doesn't get. A curated kids profile gets a row per
     /// allowed list instead of the open-ended ones (trending, Top 10, streaming services).
     static func plan(_ settings: HomeSettings, profile: Profile?) -> [PlannedShelf] {
         let isKids = profile?.isKidsProfile == true
@@ -218,6 +218,14 @@ struct PlannedShelf: Identifiable, Sendable {
         case .liveFavorites:
             let cards = try await APIClient.shared.favoriteChannelCards(limit: cap)
             return HomeShelf(id: id, title: config.title, cards: cards, cap: cap)
+
+        case let .library(library):
+            // Newest first for every source (Plex and Jellyfin default to A–Z), in the view's media type.
+            let page = try await APIClient.shared.libraryGroups(library.id, limit: wanted, sort: "created",
+                                                                mediaType: settings.filter.mediaType)
+            let cards = page.groups.map { HomeCard(library: LibraryEntry(library: library, group: $0)) }
+            return HomeShelf(id: id, title: library.name, cards: cards, total: limited ? min(cards.count, cap) : page.total,
+                             cap: cap, list: limited ? nil : .library(library), exploreFirst: exploreFirst)
 
         case .promotedTopTen:
             // Ten ranked titles, no explore card: the hero steps through them.

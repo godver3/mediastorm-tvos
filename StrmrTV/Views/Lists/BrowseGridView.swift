@@ -23,8 +23,9 @@ struct BrowseGridView: View {
     /// for the current options.
     @State private var loadingFor: BrowseOptions?
     @State private var gridWidth: CGFloat = 0
-    /// The random pick, pushed as its details page.
+    /// The random pick, pushed as its details page (an unmatched library show: its episodes).
     @State private var pick: DetailsTarget?
+    @State private var pickedShow: LibraryShowTarget?
     @State private var isPicking = false
     /// `store.revision` the entries were loaded at; a hide, set-aside or watched change reloads.
     @State private var loadedRevision: Int?
@@ -44,7 +45,7 @@ struct BrowseGridView: View {
             if let actionError {
                 Text(actionError).font(.callout).foregroundStyle(.red)
             }
-            if list.filters, options.sort == .name, !letters.isEmpty {
+            if list.indexesLetters, options.sort == .name, !letters.isEmpty {
                 LetterIndex(letters: letters, selection: $options.letter)
             }
             if !entries.isEmpty {
@@ -55,6 +56,7 @@ struct BrowseGridView: View {
                     case let .item(item):
                         PosterCard(item: item, width: width,
                                    onRemoveFromList: removeAction(item))
+                    case let .library(entry): LibraryPosterCard(entry: entry, width: width)
                     }
                 }
             } else if let loadError {
@@ -89,6 +91,7 @@ struct BrowseGridView: View {
             PlaybackCoordinator.shared.prewarm(target)
             return DetailsView(target: target)
         }
+        .navigationDestination(item: $pickedShow) { LibraryShowView(target: $0) }
     }
 
     private var hasControls: Bool { !list.sorts.isEmpty || list.filters || list.offersRandom || list.parts.count > 1 }
@@ -227,16 +230,28 @@ struct BrowseGridView: View {
         defer { isPicking = false }
         let count = total ?? fetched
         guard count > 0 else { return }
-        let offset = Int.random(in: 0..<count)
-        let entry: BrowseEntry? = if offset < entries.count, fetched == entries.count {
-            entries[offset]
-        } else {
-            try? await APIClient.shared.browsePage(list, options: options, limit: 1, offset: offset).entries.first
-        }
-        guard let entry else { return }
-        pick = switch entry {
-        case let .title(title): DetailsTarget(title)
-        case let .item(item): DetailsTarget(item)
+        // A library's unmatched files have no page to open: try a few other picks.
+        for _ in 0..<6 {
+            let offset = Int.random(in: 0..<count)
+            let entry: BrowseEntry? = if offset < entries.count, fetched == entries.count {
+                entries[offset]
+            } else {
+                try? await APIClient.shared.browsePage(list, options: options, limit: 1, offset: offset).entries.first
+            }
+            switch entry {
+            case nil: return
+            case let .title(title)?: pick = DetailsTarget(title)
+            case let .item(item)?: pick = DetailsTarget(item)
+            case let .library(entry)?:
+                if let target = entry.detailsTarget {
+                    pick = target
+                } else if entry.group.isShow {
+                    pickedShow = LibraryShowTarget(entry: entry)
+                } else {
+                    continue
+                }
+            }
+            return
         }
     }
 }

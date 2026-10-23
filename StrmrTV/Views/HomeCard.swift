@@ -10,6 +10,9 @@ enum HomeLink: Hashable {
     case action(HomeAction)
     /// A favorite channel (and what it airs now): tunes it in the live player.
     case channel(LiveChannel, program: EPGProgram?)
+    /// An unmatched library title, which has no details page: plays the file, or opens the
+    /// show's library episodes (`LibraryEntryLink`). Matched library titles open `details`.
+    case library(LibraryEntry)
 }
 
 enum HomeAction: String, Hashable {
@@ -124,7 +127,24 @@ struct HomeCard: Identifiable, Hashable {
         switch entry {
         case let .title(title): self.init(title)
         case let .item(item): self.init(item)
+        case let .library(entry): self.init(library: entry)
         }
+    }
+
+    /// A library title (Home library rows, library grids).
+    init(library entry: LibraryEntry) {
+        let group = entry.group
+        id = entry.id
+        link = entry.detailsTarget.map(HomeLink.details) ?? .library(entry)
+        posterURL = group.posterURL
+        title = group.title
+        subtitle = Self.kindLine(year: group.year, isMovie: !group.isShow)
+        overview = group.overview
+        backdropURL = group.backdropURL
+        logoURL = nil
+        artworkURL = group.backdropURL ?? group.posterURL
+        progress = 0
+        badge = nil
     }
 
     /// A card that isn't a title: a service or hub tile, or a Watch Something action.

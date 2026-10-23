@@ -57,8 +57,22 @@ struct PlaybackRequest {
     /// Aired episodes after this one, in order; the first is offered at the end credits.
     var following: [EpisodeInfo] = []
     var artwork = Artwork()
+    /// The title's copies in the profile's libraries: Play and Up Next play a movie's or an
+    /// episode's copy when it has one, without the prequeue.
+    var library: LibraryVersions?
+    /// The copy this playback uses (picked in the Versions list, or set as it starts).
+    var libraryVersion: LibraryVersion?
 
     var isEpisode: Bool { episode != nil }
+
+    /// The copy to play: the one picked, else this movie's or episode's best.
+    var preferredLibraryVersion: LibraryVersion? {
+        libraryVersion ?? library?.best(season: episode?.season, episode: episode?.episode)
+    }
+
+    /// An unmatched library file (a home video): its progress is keyed by its stream path, as
+    /// in the Expo app, since no catalog id names it.
+    var isUnmatchedLibraryFile: Bool { libraryVersion != nil && !title.hasCatalogIDs }
     var progressMediaType: String { isEpisode ? "episode" : "movie" }
 
     /// Exact start position in seconds (a percentage resume is applied once the duration is known).
@@ -84,7 +98,8 @@ struct PlaybackRequest {
         if let v = t.imdbID { q["imdb"] = v }
         if let v = t.tvdbID { q["tvdb"] = v }
         if let y = t.year { q["year"] = String(y) }
-        if let poster = t.posterURL, !poster.isEmpty { q["posterUrl"] = poster }
+        // Absolute art only: a library poster's server path means nothing in a notification.
+        if let poster = t.posterURL, poster.hasPrefix("http") { q["posterUrl"] = poster }
         if let episode {
             q["itemId"] = episode.itemID ?? "\(t.titleID):\(episode.code)"
             q["seriesId"] = t.titleID
@@ -101,15 +116,26 @@ struct PlaybackRequest {
         return q
     }
 
+    /// `streamMetadataQuery` for the stream at `path`: an unmatched library file goes by its path.
+    func streamMetadata(path: String) -> [String: String] {
+        var q = streamMetadataQuery
+        if isUnmatchedLibraryFile {
+            q["itemId"] = path
+            q["seriesId"] = nil
+            q["titleId"] = nil
+        }
+        return q
+    }
+
     /// The next episode from the start, if there is one. Its loading art leads with its own
-    /// still in place of this episode's.
+    /// still in place of this episode's. It plays its own library copy, if it has one.
     var nextEpisode: PlaybackRequest? {
         guard let next = following.first else { return nil }
         var art = artwork
         art.backdropURLs.removeAll { $0 == episode?.imageURL }
         if let still = next.imageURL, !still.isEmpty { art.backdropURLs.insert(still, at: 0) }
         return PlaybackRequest(title: title, episode: next, start: nil, following: Array(following.dropFirst()),
-                               artwork: art)
+                               artwork: art, library: library)
     }
 
     /// Identifies what a prequeue resolves: the title, the episode and the start point.
@@ -139,8 +165,10 @@ struct PlaybackRequest {
         return sizedArtworkURL(still ?? backdrop ?? title.posterURL, size: "w780")
     }
 
-    /// The `/api/progress` body for a position in this playback.
-    func progressReport(position: Double, duration: Double, paused: Bool, ended: Bool) -> [String: Any] {
+    /// The `/api/progress` body for a position in this playback. A library file names its
+    /// `sourcePath`, which is how the server knows to report the playback to Plex or Jellyfin.
+    func progressReport(position: Double, duration: Double, paused: Bool, ended: Bool,
+                        sourcePath: String? = nil) -> [String: Any] {
         let t = title
         var body: [String: Any] = [
             "mediaType": progressMediaType,
@@ -150,6 +178,20 @@ struct PlaybackRequest {
             "isPaused": paused,
             "playbackEnded": ended,
         ]
+        if libraryVersion != nil, let sourcePath { body["sourcePath"] = sourcePath }
+        if isUnmatchedLibraryFile, let sourcePath {
+            // Keyed by the stream path, with no catalog ids (the Expo app's rule).
+            body["itemId"] = sourcePath
+            if let ep = episode {
+                body["seasonNumber"] = ep.season
+                body["episodeNumber"] = ep.episode
+                body["seriesName"] = t.name
+                if let name = ep.name { body["episodeName"] = name }
+            } else {
+                body["movieName"] = t.name
+            }
+            return body
+        }
         var ids: [String: String] = ["titleId": t.titleID]
         if let v = t.tmdbID { ids["tmdb"] = v }
         if let v = t.imdbID { ids["imdb"] = v }
@@ -167,7 +209,7 @@ struct PlaybackRequest {
         } else {
             body["movieName"] = t.name
         }
-        if let poster = t.posterURL { body["posterUrl"] = poster }
+        if let poster = t.posterURL, poster.hasPrefix("http") { body["posterUrl"] = poster }
         return body
     }
 }

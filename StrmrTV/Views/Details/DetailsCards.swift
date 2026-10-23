@@ -75,6 +75,9 @@ struct EpisodeCard: View {
     let fallbackImage: String?
     let onChooseSource: () -> Void
     let onToggleWatched: () -> Void
+    /// The episode has a copy in the profile's libraries (Play uses it).
+    var inLibrary = false
+    var onChooseVersion: (() -> Void)?
     let action: () -> Void
 
     /// Marking an episode watched or unwatched clears its progress on the server.
@@ -107,6 +110,18 @@ struct EpisodeCard: View {
                         BadgeLabel(text: badge).padding(12)
                     }
                 }
+                .overlay(alignment: .bottomTrailing) {
+                    if inLibrary {
+                        Image(systemName: "externaldrive.fill")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .padding(.trailing, 12)
+                            .padding(.bottom, fraction > 0.01 ? 30 : 12)
+                            .accessibilityLabel("In your library")
+                    }
+                }
                 .overlay(alignment: .topTrailing) {
                     if watched {
                         Image(systemName: "checkmark.circle.fill")
@@ -124,6 +139,9 @@ struct EpisodeCard: View {
             .accessibilityLabel("Episode \(episode.episodeNumber), \(episode.name)" + (watched ? ", watched" : ""))
             .contextMenu {
                 Button { action() } label: { Label("Play", systemImage: "play.fill") }
+                if let onChooseVersion {
+                    Button(action: onChooseVersion) { Label("Choose Version", systemImage: "externaldrive") }
+                }
                 Button(action: onChooseSource) { Label("Choose Source", systemImage: "list.bullet") }
                 Button(action: onToggleWatched) {
                     Label(watched ? "Mark as Unwatched" : "Mark as Watched", systemImage: watched ? "eye.slash" : "eye")

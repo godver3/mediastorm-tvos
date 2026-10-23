@@ -38,7 +38,10 @@ extension DetailsView {
                                     watched: isWatched(ep),
                                     fallbackImage: title?.backdrop?.url ?? target.backdropURL,
                                     onChooseSource: { sourcePicker = SourcePickerTarget(episode: ep) },
-                                    onToggleWatched: { toggleWatched(ep) }
+                                    onToggleWatched: { toggleWatched(ep) },
+                                    inLibrary: !libraryVersions(for: ep).isEmpty,
+                                    onChooseVersion: libraryVersions(for: ep).isEmpty ? nil
+                                        : { versionsPicker = VersionsTarget(episode: ep) }
                                 ) {
                                     play(episode: ep, from: resumePoint(ep))
                                 }
