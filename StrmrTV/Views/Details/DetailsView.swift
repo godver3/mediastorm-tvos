@@ -1,0 +1,387 @@
+import SwiftUI
+
+struct DetailsView: View {
+    // State and helpers are internal, not private: the page is split across
+    // DetailsView+Actions.swift and DetailsView+Rows.swift.
+    let target: DetailsTarget
+
+    @ObservedObject var playback = PlaybackCoordinator.shared
+    @EnvironmentObject var watchlist: WatchlistStore
+    @EnvironmentObject var customLists: CustomListsStore
+    @EnvironmentObject var titles: TitleStateStore
+    @Environment(\.dismiss) var dismiss
+    @State var title: Title?
+    /// Fixed per page, so the loading art order doesn't reshuffle between plays.
+    @State var artSeed = UInt64.random(in: .min ... .max)
+    @State var seasons: [Season] = []
+    @State var selectedSeason: Int?
+    @State var upNext: EpisodeRef?
+    /// The episode the primary button plays: the server's up-next episode, else the first one.
+    /// Stored, not computed: long series (One Piece) make a per-render search expensive.
+    @State var primaryEpisode: Episode?
+    /// Aired regular-season episodes, for the series watch-state eye (set on load).
+    @State var airedRegularEpisodes: [Episode] = []
+    /// Server resume decision for the movie, or for `upNext`.
+    @State var resume: ResumeState?
+    @State var loadError: String?
+    /// The bundle's `inWatchlist` (nil on older servers); the store layers toggles on top.
+    @State var serverInWatchlist: Bool?
+    @State var watchlistBusy = false
+    @State var watchlistError: String?
+    /// The bundle's movie `watched` (nil on older servers or for series).
+    @State var movieWatched: Bool?
+    /// The bundle's per-title track languages, for the source picker's track defaults.
+    @State var contentPreference: ContentPreference?
+    /// Watched changes made here, shown until the reload after the write lands (by episode ID).
+    @State var watchedOverrides: [String: Bool] = [:]
+    @State var watchedBusy = false
+    @State var watchedError: String?
+    @State var showWatchState = false
+    /// The More Options dialog (`DetailsView+More`).
+    @State var showMore = false
+    /// Source picker currently shown (movie, or a specific episode).
+    @State var sourcePicker: SourcePickerTarget?
+    /// A picked source waiting on the Resume / Start Over choice.
+    @State var pendingSource: PendingSource?
+    @FocusState var focus: DetailsFocus?
+    /// The season chip last focused, where Up / Down re-enters the chip row.
+    @State var lastSeasonChip: Int?
+    /// The episode last focused in each season (by season number).
+    @State var lastEpisode: [Int: String] = [:]
+    /// More Like This, from the bundle.
+    @State var similar: [Title] = []
+    /// Movies: the collection's movies, and which collection they are for.
+    @State var collectionMovies: [Title] = []
+    @State var loadedCollectionID: Int?
+    /// The card last focused in each related row.
+    @State var lastRelated: [RelatedRow: String] = [:]
+    /// The overview shown whole over the page, blurred behind it.
+    @State var showsFullOverview = false
+    @StateObject var trailer = TrailerController()
+    /// Focus is in the header (the page's first screen). Kept across focus going nil while a
+    /// cover is up, so returning from the player doesn't scroll the page.
+    @State var focusInHeader = true
+    /// Audio & Subtitles picks for the prequeued stream, by its stream path (`DetailsView+Tracks`).
+    @State var prequeueOverrides: (streamPath: String?, overrides: ManualTrackOverrides) = (nil, ManualTrackOverrides())
+    @State var prequeueTrackPreferences = ManualTrackPreferences()
+    @State var showPrequeueTracks = false
+
+    enum DetailsAction: Hashable { case primary, startOver, chooseSource, tracks, trailer, watchlist, lists, watched, more }
+
+    /// Every focusable on the page, so moves between rows can be steered.
+    enum DetailsFocus: Hashable {
+        /// The overview, above the actions; focusable only when it is cut off.
+        case overview
+        case action(DetailsAction)
+        case season(Int)
+        case episode(String)
+        /// A card in a related row, by title ID (cast: person ID).
+        case related(RelatedRow, String)
+        /// Holds focus while the header is faded over the backdrop trailer.
+        case immersive
+
+        var row: Row {
+            switch self {
+            case .overview: .overview
+            case .action: .actions
+            case .season: .seasons
+            case .episode: .episodes
+            case .related(let row, _): .related(row)
+            case .immersive: .immersive
+            }
+        }
+    }
+
+    /// The page's two scroll stops: the first screen, and the rows below it.
+    enum PageAnchor: Hashable { case header, rows }
+
+    enum Row: Hashable { case overview, actions, seasons, episodes, related(RelatedRow), immersive }
+
+    /// The rows under the episodes, in the Expo TV page's order.
+    enum RelatedRow: Hashable { case collection, similar, cast }
+
+    struct SourcePickerTarget: Identifiable {
+        let episode: Episode?
+        var id: String { episode?.id ?? "movie" }
+    }
+
+    struct PendingSource {
+        let source: SourceResult
+        /// Tracks picked with a long press in the source list.
+        let tracks: ManualTrackPick?
+        let episode: Episode?
+        let resumeAt: StartPoint
+    }
+
+    // MARK: Derived state
+
+    var visibleSeasons: [Season] {
+        // Specials last, so the picker opens on real seasons.
+        seasons.filter { $0.number > 0 } + seasons.filter { $0.number == 0 }
+    }
+
+    var currentSeason: Season? {
+        visibleSeasons.first { $0.number == selectedSeason } ?? visibleSeasons.first
+    }
+
+    static func findPrimaryEpisode(in seasons: [Season], upNext: EpisodeRef?) -> Episode? {
+        if let upNext {
+            for season in seasons {
+                if let match = season.episodes.first(where: { isUpNext($0, upNext) }) { return match }
+            }
+        }
+        let firstSeason = seasons.filter { $0.number > 0 }.first ?? seasons.first
+        return firstSeason?.episodes.first
+    }
+
+    static func isUpNext(_ episode: Episode, _ ref: EpisodeRef) -> Bool {
+        if let a = episode.itemId, let b = ref.itemId { return a == b }
+        return episode.seasonNumber == ref.seasonNumber && episode.episodeNumber == ref.episodeNumber
+    }
+
+    /// Where to resume, per the server's `resume.eligible` decision (no client thresholds).
+    func resumePoint(_ episode: Episode?) -> StartPoint? {
+        guard let episode else { return resume?.startPoint }
+        if let own = episode.resume { return own.startPoint }
+        if let upNext, Self.isUpNext(episode, upNext) { return resume?.startPoint }
+        return nil
+    }
+
+    // MARK: Body
+
+    var body: some View {
+        ZStack {
+            Backdrop(url: Artwork.url(title?.backdrop?.url ?? target.backdropURL))
+                .overlay { TrailerBackdropVideo(trailer: trailer) }
+                .overlay { DetailsBackdropShade(hidden: trailer.immersive) }
+                .ignoresSafeArea()
+
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // First screen: the header anchored in the lower left, like the Apple TV
+                        // app. Seasons and episodes start below the fold.
+                        header
+                            // Just enough room under the actions for the focus lift; the safe
+                            // area already keeps them clear of the screen edge.
+                            .padding(.bottom, 12)
+                            .containerRelativeFrame(.vertical, alignment: .bottomLeading)
+                            .id(PageAnchor.header)
+                        VStack(alignment: .leading, spacing: 0) {
+                            if !target.isMovie && !seasons.isEmpty {
+                                episodesSection
+                                    .padding(.top, 60)  // fully below the fold until focus moves down
+                            }
+                            relatedSections
+                                .padding(.top, target.isMovie || seasons.isEmpty ? 60 : 30)
+                                .padding(.bottom, 80)
+                        }
+                        .id(PageAnchor.rows)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 80)
+                    .opacity(trailer.immersive ? 0 : 1)
+                }
+                .scrollClipDisabled()
+                // The focus engine scrolls a focused action clear of the screen edge, which
+                // floated the header up and the next row in. Scrolling is off while focus is in
+                // the header, so the actions stay at the bottom; crossing the fold scrolls the
+                // page by hand, since focus has already moved when scrolling comes back on.
+                .scrollDisabled(focusInHeader)
+                .onChange(of: focusInHeader) { _, inHeader in
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        proxy.scrollTo(inHeader ? PageAnchor.header : PageAnchor.rows, anchor: .top)
+                    }
+                }
+            }
+        }
+        .disabled(showsFullOverview)
+        .blur(radius: showsFullOverview ? 40 : 0)
+        .overlay {
+            if showsFullOverview, let overview {
+                FullTextOverlay(title: target.name, text: overview) {
+                    showsFullOverview = false
+                    focus = .overview
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: showsFullOverview)
+        // Scrolling down to the seasons collapses the tab bar, and a page popped back to
+        // doesn't scroll to bring it back. Hidden here, SwiftUI restores it on the pop.
+        .toolbar(.hidden, for: .tabBar)
+        .defaultFocus($focus, .action(.primary))
+        .onChange(of: focus) { old, new in steerFocus(from: old, to: new) }
+        .modifier(DetailsTrailerModifier(trailer: trailer, focus: $focus, playbackStarting: playback.resolving != nil,
+                                         menuOpen: menuOpen))
+        .task { await load() }
+        .onReceive(DeepLinkRouter.shared.$autoplayTitleID) { _ in autoplayIfRequested() }
+        .onChange(of: playback.sessionsEnded) {
+            // The picks were for the prequeue that just played.
+            prequeueOverrides = (nil, ManualTrackOverrides())
+            Task { await load() }
+        }
+        .fullScreenCover(isPresented: $showPrequeueTracks) { prequeueTracksPage }
+        .fullScreenCover(item: $sourcePicker) { picker in
+            SourcePickerView(title: target, episode: picker.episode, contentPreference: contentPreference) { source, tracks in
+                choose(source, tracks: tracks, episode: picker.episode)
+            }
+        }
+        .fullScreenCover(isPresented: $showWatchState) {
+            WatchStateView(series: target, seasons: seasons, currentEpisode: primaryEpisode,
+                           isWatched: isWatched) { await load() }
+        }
+        .confirmationDialog(
+            pendingSource.map { pending in pending.episode.map { "\(target.name) · \($0.code)" } ?? target.name } ?? "",
+            isPresented: Binding(get: { pendingSource != nil }, set: { if !$0 { pendingSource = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingSource
+        ) { pending in
+            Button("Resume from \(pending.resumeAt.label)") {
+                playSource(pending.source, tracks: pending.tracks, episode: pending.episode, from: pending.resumeAt)
+            }
+            Button("Start Over") {
+                playSource(pending.source, tracks: pending.tracks, episode: pending.episode, from: nil)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    // MARK: Manual source selection
+
+    /// After a manual pick: offer Resume / Start Over when there is a resume point.
+    func choose(_ source: SourceResult, tracks: ManualTrackPick?, episode: Episode?) {
+        if let resumeAt = resumePoint(episode) {
+            // Let the picker's dismissal finish before presenting the dialog.
+            Task {
+                try? await Task.sleep(for: .milliseconds(400))
+                pendingSource = PendingSource(source: source, tracks: tracks, episode: episode, resumeAt: resumeAt)
+            }
+        } else {
+            playSource(source, tracks: tracks, episode: episode, from: nil)
+        }
+    }
+
+    func playSource(_ source: SourceResult, tracks: ManualTrackPick?, episode: Episode?, from start: StartPoint?) {
+        playback.play(request(episode, from: start), source: source, tracks: tracks)
+    }
+
+    var header: some View {
+        VStack(alignment: .leading, spacing: 26) {
+            // Waits briefly for the logo (from the card, else from details) instead of
+            // showing the name first and swapping it out.
+            TitleLogo(url: Artwork.logoURL(title?.logo?.url ?? target.logoURL),
+                      pending: title == nil && loadError == nil,
+                      size: CGSize(width: 640, height: 220)) {
+                titleText.frame(width: 1000, alignment: .bottomLeading)
+            }
+            .accessibilityLabel(target.name)
+
+            HStack(spacing: 20) {
+                if let headerBadge { BadgeLabel(text: headerBadge.text, symbol: headerBadge.symbol) }
+                Text(metadataLine).font(.system(size: 26, weight: .medium)).foregroundStyle(.secondary)
+            }
+
+            if let overview {
+                // Up from the actions reaches it only when it is cut off; select shows it whole.
+                ExpandableText(text: overview, lineLimit: 3, fontSize: 26, onlyWhenTruncated: true) {
+                    showsFullOverview = true
+                }
+                .focused($focus, equals: .overview)
+                .frame(maxWidth: 1000, alignment: .leading)
+            }
+
+            if let message = loadError ?? watchlistError ?? watchedError ?? trailer.errorMessage {
+                Text(message).font(.caption).foregroundStyle(.red)
+            }
+
+            actionButtons
+                .padding(.top, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focusSection()
+                .defaultFocus($focus, .action(.primary), priority: .userInitiated)
+        }
+    }
+
+    var overview: String? { title?.overview ?? target.overview }
+
+    /// Whether a row is part of the first screen's header, where the page stays at the top.
+    static func isHeader(_ row: Row) -> Bool {
+        switch row {
+        case .overview, .actions, .immersive: true
+        case .seasons, .episodes, .related: false
+        }
+    }
+
+    /// The title's release badge, else (series) whether the episode Play targets has aired.
+    var headerBadge: CardBadge? {
+        if let title, let badge = ReleaseBadge.forTitle(title) { return badge }
+        guard !target.isMovie, let ep = primaryEpisode else { return nil }
+        return ReleaseBadge.forEpisode(airDate: ep.airedDate).map { CardBadge(text: $0) }
+    }
+
+    var titleText: some View {
+        Text(target.name).font(.system(size: 72, weight: .bold)).lineLimit(2)
+    }
+
+    var metadataLine: String {
+        var parts: [String] = []
+        if let y = title?.year ?? target.year { parts.append(String(y)) }
+        if let c = title?.certification, !c.isEmpty { parts.append(c) }
+        if let r = title?.runtimeMinutes, r > 0 { parts.append("\(r / 60 > 0 ? "\(r / 60)h " : "")\(r % 60)m") }
+        if !seasons.isEmpty {
+            let n = seasons.filter { $0.number > 0 }.count
+            parts.append(n == 1 ? "1 Season" : "\(n) Seasons")
+        }
+        if let g = title?.genres, !g.isEmpty { parts.append(g.prefix(3).joined(separator: ", ")) }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    // MARK: Row focus
+
+    /// Where focus enters a row from another row. Actions always start at Play; seasons and
+    /// episodes start at the current one, then at whichever was last focused there.
+    func entry(_ row: Row) -> DetailsFocus? {
+        switch row {
+        case .overview: return .overview
+        case .actions: return .action(.primary)
+        case .immersive: return .immersive
+        case .seasons:
+            let remembered = lastSeasonChip.flatMap { n in visibleSeasons.contains { $0.number == n } ? n : nil }
+            return (remembered ?? currentSeason?.number).map(DetailsFocus.season)
+        case .episodes:
+            return currentSeason.flatMap(episodeEntry).map(DetailsFocus.episode)
+        case .related(let row):
+            let ids = relatedIDs(row)
+            let id = lastRelated[row].flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
+            return id.map { .related(row, $0) }
+        }
+    }
+
+    /// The episode last focused in `season`, else the one Play targets, else the first.
+    func episodeEntry(_ season: Season) -> String? {
+        if let id = lastEpisode[season.number], season.episodes.contains(where: { $0.id == id }) { return id }
+        if let ep = primaryEpisode, season.episodes.contains(where: { $0.id == ep.id }) { return ep.id }
+        return season.episodes.first?.id
+    }
+
+    /// Up / Down between rows lands on the row's entry rather than the geometrically nearest
+    /// item; moves within a row are remembered for the next return.
+    func steerFocus(from old: DetailsFocus?, to new: DetailsFocus?) {
+        // Out of the immersive catcher, focus goes back to where it was.
+        guard let new else { return }
+        focusInHeader = Self.isHeader(new.row)
+        guard old != .immersive else { return }
+        if let old, old.row != new.row, let target = entry(new.row), target != new {
+            focus = target
+            return
+        }
+        switch new {
+        case .overview, .action, .immersive: break
+        case .season(let number): lastSeasonChip = number
+        case .episode(let id):
+            if let season = currentSeason?.number { lastEpisode[season] = id }
+        case .related(let row, let id): lastRelated[row] = id
+        }
+    }
+}

@@ -1,0 +1,126 @@
+name: StrmrTV
+options:
+  bundleIdPrefix: com.strmr.app
+  deploymentTarget:
+    tvOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  # AetherEngine (version + optional-component traits) via a local wrapper: Packages/StrmrEngine.
+  StrmrEngine:
+    path: Packages/StrmrEngine
+settings:
+  base:
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+targets:
+  StrmrTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: StrmrTV
+        excludes: ["**/*.example.swift.txt"]
+      - path: Shared
+    dependencies:
+      - package: StrmrEngine
+      - target: StrmrTVTopShelf
+      # Remote access over iroh: the Expo app's iroh-bridge crate.
+      - framework: Vendor/IrohBridge.xcframework
+        embed: false
+      - sdk: SystemConfiguration.framework
+      - sdk: Security.framework
+    preBuildScripts:
+      - name: Check file sizes
+        script: "if [ -x scripts/check-file-size.sh ]; then scripts/check-file-size.sh; fi"
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx
+        CODE_SIGN_ENTITLEMENTS: StrmrTV/StrmrTV.entitlements
+        INFOPLIST_FILE: StrmrTV/Info.plist
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: StrmrTV/Info.plist
+      properties:
+        CFBundleDisplayName: MediaStorm
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities: [arm64]
+        UIUserInterfaceStyle: Dark
+        UIAppSupportsHDR: true
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Strmr finds and connects to your media server on the local network.
+        NSBonjourServices: [_mediastorm._tcp]
+        # Top Shelf deep links (com.strmr.app.nx://details?… / ://play?…).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.strmr.app.nx
+            CFBundleURLSchemes: [com.strmr.app.nx]
+  StrmrTVTopShelf:
+    type: app-extension
+    platform: tvOS
+    sources:
+      - path: TopShelf
+      - path: Shared
+    dependencies:
+      - sdk: TVServices.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.topshelf
+        PRODUCT_NAME: StrmrTVTopShelf
+        INFOPLIST_FILE: TopShelf/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TopShelf/TopShelf.entitlements
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "3"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: TopShelf/Info.plist
+      properties:
+        CFBundleDisplayName: MediaStorm Top Shelf
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # App Store Connect rejects a 64-bit extension binary without it.
+        UIRequiredDeviceCapabilities: [arm64]
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.tv-top-shelf
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).TopShelfContentProvider
+  StrmrTVUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    sources: [StrmrTVUITests]
+    dependencies:
+      - target: StrmrTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.uitests
+        TEST_TARGET_NAME: StrmrTV
+        GENERATE_INFOPLIST_FILE: YES
+  # Unit tests for app logic ported from the Expo client (Home views). Hosted by the app.
+  StrmrTVTests:
+    type: bundle.unit-test
+    platform: tvOS
+    sources: [StrmrTVTests]
+    dependencies:
+      - target: StrmrTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/StrmrTV.app/StrmrTV
+        BUNDLE_LOADER: $(TEST_HOST)
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  StrmrTV:
+    build:
+      targets:
+        StrmrTV: all
+    test:
+      targets: [StrmrTVUITests, StrmrTVTests]

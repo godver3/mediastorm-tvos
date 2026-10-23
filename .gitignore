@@ -1,0 +1,8 @@
+*.xcodeproj/
+build/
+DerivedData/
+.DS_Store
+StrmrTV/App/Secrets.swift
+Vendor/
+scripts/
+docs/
