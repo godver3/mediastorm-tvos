@@ -12,10 +12,12 @@ xcodegen generate
 open StrmrTV.xcodeproj
 ```
 
-Set your own development team in Xcode to run on a device. The app links the iroh
-remote-access library at `Vendor/IrohBridge.xcframework`, which is not included in this
-repository.
+Set your own development team in Xcode to run on a device.
+
+`Vendor/IrohBridge.xcframework` is the prebuilt iroh remote-access library; the open-source
+crates it links are listed in `Vendor/THIRD_PARTY_LICENSES.txt`.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). AetherEngine is licensed separately under the LGPL v3.
+MIT. See [LICENSE](LICENSE). AetherEngine is licensed separately under the LGPL v3, and the
+crates in the iroh library under their own licences.
