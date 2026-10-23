@@ -77,16 +77,17 @@ extension DetailsView {
         }
     }
 
-    /// A copy picked in Versions: offer Resume / Start Over when there is a resume point.
+    /// A copy picked in Versions: offer Resume / Start Over when there is a resume point. Both
+    /// wait for the list's dismissal: a library file resolves fast enough that the player could
+    /// otherwise be presented over a cover still going away.
     func pickVersion(_ version: LibraryVersion, episode: Episode?) {
-        if let resumeAt = resumePoint(episode) {
-            // Let the list's dismissal finish before presenting the dialog.
-            Task {
-                try? await Task.sleep(for: .milliseconds(400))
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            if let resumeAt = resumePoint(episode) {
                 pendingVersion = PendingVersion(version: version, episode: episode, resumeAt: resumeAt)
+            } else {
+                playVersion(version, episode: episode, from: nil)
             }
-        } else {
-            playVersion(version, episode: episode, from: nil)
         }
     }
 

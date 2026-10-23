@@ -35,7 +35,11 @@ struct LibraryEntryLink<Label: View>: View {
             .fullScreenCover(item: $choice) { choice in
                 LibraryVersionsView(heading: entry.group.title, versions: choice.versions.movie,
                                     backdropURL: entry.group.backdropURL) { version in
-                    Task { await prepare(version, versions: choice.versions, group: choice.group) }
+                    Task {
+                        // Let the list's dismissal finish before a dialog or the player goes up.
+                        try? await Task.sleep(for: .milliseconds(400))
+                        await prepare(version, versions: choice.versions, group: choice.group)
+                    }
                 }
             }
             .confirmationDialog(entry.group.title,
@@ -74,8 +78,6 @@ struct LibraryEntryLink<Label: View>: View {
         do {
             let start = try await LibraryFileStart.prepare(version, versions: versions, group: group, episode: nil)
             if let resumeAt = start.resumeAt {
-                // Let a dismissing version list finish before the dialog goes up.
-                try? await Task.sleep(for: .milliseconds(400))
                 pending = Pending(start: start, resumeAt: resumeAt)
             } else {
                 start.play(from: nil)
