@@ -48,13 +48,17 @@ struct WatchlistView: View {
             VStack(alignment: .leading, spacing: 30) {
                 if let title { PageHeading(title: title) }
 
-                Picker("Show", selection: $filter) {
-                    ForEach(Filter.allCases) { Text($0.label).tag($0) }
+                // The filter centred, the card size menu at the trailing end.
+                ZStack(alignment: .trailing) {
+                    Picker("Show", selection: $filter) {
+                        ForEach(Filter.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .focused($focused, equals: .filter)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
+                    GridCardSizeMenu()
                 }
-                .pickerStyle(.segmented)
-                .focused($focused, equals: .filter)
-                .frame(maxWidth: 700)
-                .frame(maxWidth: .infinity)
                 .focusSection()
 
                 content

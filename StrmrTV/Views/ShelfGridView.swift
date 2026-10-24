@@ -85,7 +85,8 @@ struct ContinueWatchingGridView: View {
     }
 }
 
-/// A scrolling page with a heading over a card grid; reports the grid's width.
+/// A scrolling page with a heading over a card grid; reports the grid's width. The card
+/// size menu sits at the heading's trailing end.
 struct GridPage<Content: View>: View {
     let title: String
     @Binding var gridWidth: CGFloat
@@ -94,7 +95,12 @@ struct GridPage<Content: View>: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                PageHeading(title: title)
+                HStack(alignment: .firstTextBaseline) {
+                    PageHeading(title: title)
+                    Spacer(minLength: 24)
+                    GridCardSizeMenu()
+                }
+                .focusSection()
                 content
             }
             .padding(.horizontal, CardGridLayout.inset)
@@ -147,18 +153,23 @@ enum CardGridLayout {
     static let spacing: CGFloat = 48
 }
 
-/// Cards in as many columns as fit at `cardWidth`, widened to use the whole row.
+/// Cards in as many columns as fit at `cardWidth` (times the chosen grid card size),
+/// widened to use the whole row.
 struct CardGrid<Item: Identifiable, Card: View>: View {
     let items: [Item]
     let cardWidth: CGFloat
     let available: CGFloat
+    /// False for grids that aren't lists (Live's channels): they keep `cardWidth`.
+    var resizable = true
     /// Called when one of the last `nearEndRows` rows of cards comes on screen.
     var onNearEnd: (() -> Void)?
     var nearEndRows = 2
     @ViewBuilder let card: (Item, CGFloat) -> Card
+    @ObservedObject private var cardSize = GridCardSizeStore.shared
 
     private var layout: (columns: [GridItem], width: CGFloat) {
         let spacing = CardGridLayout.spacing
+        let cardWidth = resizable ? (cardWidth * cardSize.size.scale).rounded() : cardWidth
         let available = max(available, cardWidth)
         let count = max(1, Int((available + spacing) / (cardWidth + spacing)))
         let width = ((available - spacing * CGFloat(count - 1)) / CGFloat(count)).rounded(.down)
