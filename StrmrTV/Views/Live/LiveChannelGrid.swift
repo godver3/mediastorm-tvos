@@ -13,7 +13,7 @@ struct LiveChannelGrid: View {
 
     var body: some View {
         ScrollView {
-            CardGrid(items: store.visibleChannels, cardWidth: LiveChannelCard.width, available: gridWidth,
+            CardGrid(items: store.visibleChannels, cardWidth: LiveChannelCard.width, available: gridWidth, resizable: false,
                      onNearEnd: { Task { await store.loadMore() } }) { channel, width in
                 LiveChannelCard(channel: channel, width: width, now: now, focus: $focus)
             }

@@ -17,6 +17,16 @@ struct LiveChannel: Codable, Identifiable, Hashable {
     let sourceName: String?
     /// Provider-local id, sent as `channelId` when tuning.
     let playbackId: String?
+    /// The stream picked under Choose Source, for a channel that is a Stremio addon's stream
+    /// list; sent as `stremioStreamIndex` when tuning (nil lets the server pick).
+    var stremioStreamIndex: Int? = nil
+
+    /// A Stremio addon stream resource (`…/stream/….json`), which can list several streams to
+    /// choose from (Expo `isStremioStreamResourceUrl`).
+    var hasStremioSources: Bool {
+        let path = url.split(separator: "?", maxSplits: 1).first.map(String.init) ?? url
+        return url.hasPrefix("http") && path.contains("/stream/") && path.hasSuffix(".json")
+    }
 
     /// The key its EPG data is filed under (`tvgId`, else the channel id, as the Expo guide does).
     var guideKey: String { tvgId.flatMap { $0.isEmpty ? nil : $0 } ?? id }
@@ -31,6 +41,17 @@ struct LiveChannel: Codable, Identifiable, Hashable {
         }
         return URL(string: logo)
     }
+}
+
+/// One stream of a Stremio channel (`GET /api/live/stremio/streams`), by its index in the addon's list.
+struct LiveStremioStream: Decodable, Hashable, Identifiable {
+    let index: Int
+    let label: String
+    let name: String?
+    let title: String?
+    let description: String?
+
+    var id: Int { index }
 }
 
 struct LiveSource: Decodable, Hashable, Identifiable {

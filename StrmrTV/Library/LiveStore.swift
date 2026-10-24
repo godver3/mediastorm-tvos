@@ -59,6 +59,12 @@ final class LiveStore: ObservableObject {
     @Published private(set) var favorites: Set<String> = []
     @Published private(set) var hidden: Set<String> = []
     @Published private(set) var actionError: String?
+    /// A passing note under the controls ("Only one source is available."), cleared after a moment.
+    @Published var notice: String?
+    /// The Stremio channel whose streams Choose Source lists (`LiveStore+SourceChoice`).
+    @Published var sourceChoice: LiveSourceChoice?
+    var sourceChoiceTask: Task<Void, Never>?
+    var noticeClear: Task<Void, Never>?
     /// nil until known; the guide is only offered when the EPG is on.
     @Published private(set) var epgEnabled: Bool?
 

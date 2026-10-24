@@ -83,7 +83,16 @@ extension APIClient {
         if let v = channel.tvgName { q["tvgName"] = v }
         if let v = channel.group { q["category"] = v }
         if let v = channel.logo { q["liveChannelLogo"] = v }
+        if let v = channel.stremioStreamIndex, v >= 0 { q["stremioStreamIndex"] = String(v) }
         return q
+    }
+
+    /// The streams a Stremio channel's addon lists for it, for Choose Source.
+    func liveStremioStreams(_ channel: LiveChannel) async throws -> [LiveStremioStream] {
+        struct Response: Decodable { let streams: [LiveStremioStream]? }
+        let response: Response = try await send("GET", "/api/live/stremio/streams",
+                                                query: ["url": channel.url, "profileId": profileID], timeout: 60)
+        return response.streams ?? []
     }
 
     func keepLiveSessionAlive(_ sessionID: String) async {

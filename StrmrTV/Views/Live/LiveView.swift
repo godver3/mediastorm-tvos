@@ -23,6 +23,8 @@ struct LiveView: View {
     @State private var contentFocus: LiveContentFocus?
     /// The More menu's Recordings (the Expo Live drawer's Recordings action), pushed over Live.
     @State private var showsRecordings = false
+    /// The channel with the stream picked under Choose Source, tuned once the list has closed.
+    @State private var chosenSource: LiveChannel?
 
     private var showsGuide: Bool { mode == .guide && store.epgEnabled == true }
 
@@ -38,6 +40,8 @@ struct LiveView: View {
                 .onChange(of: controlFocus) { _, new in if let new { lastControl = new } }
             if let error = store.actionError ?? picker?.error {
                 Text(error).font(.callout).foregroundStyle(.red).padding(.horizontal, CardGridLayout.inset)
+            } else if let notice = store.notice {
+                Text(notice).font(.callout).foregroundStyle(.secondary).padding(.horizontal, CardGridLayout.inset)
             }
             content
         }
@@ -49,6 +53,12 @@ struct LiveView: View {
         // In the picker, Menu on the controls closes it (in the guide or grid it moves up first).
         .onExitCommand(perform: picker?.onClose)
         .navigationDestination(isPresented: $showsRecordings) { RecordingsView().pinsSideMenu() }
+        .fullScreenCover(item: $store.sourceChoice, onDismiss: tuneChosenSource) { choice in
+            LiveSourceChoicePicker(choice: choice) { stream in
+                chosenSource = choice.channel(streamIndex: stream.index)
+                store.sourceChoice = nil
+            }
+        }
         // The first run loads favorites and the EPG status, then every filter change reloads.
         .task(id: store.query) { await store.start() }
         .task {
@@ -57,6 +67,13 @@ struct LiveView: View {
                 now = Date()
             }
         }
+    }
+
+    /// Plays (or, in the multiscreen picker, picks) the channel on the chosen stream.
+    private func tuneChosenSource() {
+        guard let channel = chosenSource else { return }
+        chosenSource = nil
+        if let pick = picker?.onPick { pick.run(channel) } else { LivePlayback.play(channel, program: store.current(channel, at: Date())) }
     }
 
     @ViewBuilder private var content: some View {
@@ -248,6 +265,13 @@ struct LiveChannelMenu: View {
     @EnvironmentObject private var store: LiveStore
 
     var body: some View {
+        if channel.hasStremioSources {
+            Button {
+                store.chooseSource(channel)
+            } label: {
+                Label("Choose Source", systemImage: "square.stack.3d.up")
+            }
+        }
         Button {
             store.toggleFavorite(channel)
         } label: {
