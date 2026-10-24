@@ -3,7 +3,7 @@ import SwiftUI
 /// A tab of the top menu that can be hidden. Home and Settings always show: Home is where
 /// the app opens and Settings is where the menu is set.
 enum MenuTab: String, CaseIterable, Identifiable, Sendable {
-    case live, recordings, watchlist, lists, calendar, search
+    case live, recordings, sports, watchlist, lists, calendar, search
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum MenuTab: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .live: "Live"
         case .recordings: "Recordings"
+        case .sports: "Sports"
         case .watchlist: "Watchlist"
         case .lists: "Lists"
         case .calendar: "Calendar"
@@ -19,8 +20,8 @@ enum MenuTab: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// The Expo app's default `navigationTabVisibility` (home, watchlist, search, lists,
-    /// profiles, settings), for servers that send none. Calendar and Recordings are off unless
-    /// the profile's list names them, as in the Expo menu.
+    /// profiles, settings), for servers that send none. Calendar, Recordings and Sports are off unless
+    /// the profile's list names them, as in the Expo menu; so is Sports.
     static let serverDefault: Set<String> = ["home", "watchlist", "search", "lists", "profiles", "settings"]
 }
 

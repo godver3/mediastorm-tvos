@@ -206,6 +206,9 @@ final class APIClient: ObservableObject {
         jsonArray: [[String: Any]]? = nil,
         headers: [String: String] = [:]
     ) async throws -> Data {
+        #if DEBUG
+        if method == "GET", let fixture = SportsFixtures.response(path: path) { return fixture }
+        #endif
         var req = URLRequest(url: url(path, query: query, encodedQuery: encodedQuery))
         req.httpMethod = method
         req.timeoutInterval = timeout

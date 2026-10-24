@@ -20,7 +20,7 @@ struct MainTabs: View {
     @ObservedObject var menu = MenuTabsStore.shared
     @ObservedObject private var menuStyle = MenuStyleStore.shared
 
-    enum MainTab: Hashable { case home, homeView(String), live, recordings, watchlist, lists, calendar, search, settings }
+    enum MainTab: Hashable { case home, homeView(String), live, recordings, sports, watchlist, lists, calendar, search, settings }
 
     init() {
         let views = HomeViewsStore.shared
@@ -48,6 +48,12 @@ struct MainTabs: View {
             if menu.isVisible(.recordings) {
                 Tab("Recordings", systemImage: "record.circle", value: .recordings) {
                     NavigationStack { RecordingsView() }.pinsSideMenu()
+                }
+            }
+            // Off unless the profile's list names it, as in the Expo menu.
+            if menu.isVisible(.sports) {
+                Tab("Sports", systemImage: "trophy", value: .sports) {
+                    NavigationStack { SportsHubView() }.pinsSideMenu()
                 }
             }
             if menu.isVisible(.watchlist) {

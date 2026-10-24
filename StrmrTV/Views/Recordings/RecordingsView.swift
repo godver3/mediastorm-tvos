@@ -107,7 +107,7 @@ struct RecordingsView: View {
                         Text("\(store.count(filter))").foregroundStyle(.secondary)
                     }
                 }
-                .buttonStyle(RecordingFilterStyle(selected: store.filter == filter))
+                .buttonStyle(FilterChipStyle(selected: store.filter == filter))
                 .focused($focus, equals: .filter(filter))
                 .accessibilityIdentifier("recordings-filter-\(filter.rawValue)")
             }
@@ -237,7 +237,7 @@ private struct RecordingRowStyle: ButtonStyle {
 }
 
 /// A filter: the chosen one tinted, the focused one white (the Expo toolbar's tabs).
-private struct RecordingFilterStyle: ButtonStyle {
+struct FilterChipStyle: ButtonStyle {
     let selected: Bool
 
     func makeBody(configuration: Configuration) -> some View {
