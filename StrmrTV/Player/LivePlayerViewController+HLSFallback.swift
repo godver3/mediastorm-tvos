@@ -5,7 +5,14 @@ import Foundation
 /// before its first frame the channel is opened once more with `format=hls`. Once that has
 /// played for ten seconds the choice is remembered for the live source (`LiveHLSPreference`),
 /// and later tunes of it ask for HLS at once.
+///
+/// A direct stream that never errors but never shows a frame either (a provider that answers
+/// and then sends nothing, behind a server that already returned 200) counts as failed after
+/// `directStartDeadline`; the server's own first-byte deadline is shorter, so a current server
+/// usually reports the failure first.
 extension LivePlayerViewController {
+    static let directStartDeadline: TimeInterval = 25
+
     enum HLSMode {
         /// As the source is set up (direct or HLS).
         case asConfigured
@@ -35,6 +42,20 @@ extension LivePlayerViewController {
         engine.stop()
         tune(after: 0.3)
         return true
+    }
+
+    /// Arms the no-first-frame deadline for a direct tune.
+    func startDirectDeadline() {
+        directStartTimer?.invalidate()
+        guard tuneIsDirect else { return }
+        directStartTimer = Timer.scheduledTimer(withTimeInterval: Self.directStartDeadline, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.tunePlayed else { return }
+                let reason = "no first frame in \(Int(Self.directStartDeadline)) s"
+                guard !self.fallBackToHLS(reason) else { return }
+                self.log.error("live direct stream: \(reason)")
+            }
+        }
     }
 
     /// The fallback's first frame: still playing ten seconds on, the choice is remembered.

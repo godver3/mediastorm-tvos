@@ -40,6 +40,10 @@ final class LivePlayerViewController: EnginePlayerViewController {
     private var lastTune: Date?
     private static let retuneBudget = 3
     private static let retuneSpacing: TimeInterval = 20
+    /// A retune that has played this long has recovered: the budget is restored, so it limits
+    /// a channel that keeps failing, not one that drops out now and then over a long session.
+    private static let retuneRecovery: TimeInterval = 120
+    private var retuneRecoveryTimer: Timer?
 
     // The direct → HLS fallback (`+HLSFallback`).
     var hlsMode = HLSMode.asConfigured
@@ -47,6 +51,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var tuneIsDirect = false
     var tunePlayed = false
     var hlsProofTimer: Timer?
+    var directStartTimer: Timer?
 
     private lazy var cover = LiveLoadingCover(channel: channel, program: program)
     private lazy var telemetry = LivePlaybackTelemetry(engine: engine, log: log)
@@ -103,6 +108,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
         tuneIsDirect = false
         tunePlayed = false
         hlsProofTimer?.invalidate()
+        directStartTimer?.invalidate()
+        retuneRecoveryTimer?.invalidate()
         cover.isHidden = false
         // The new session starts with no subtitle; the pick is re-applied once it is offered.
         activeSubtitle = nil
@@ -122,6 +129,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 startKeepAlive()
                 startServerCaptions()
                 log.notice("tuning \(self.channel.name) (\(sessionID == nil ? "direct" : "hls session"))")
+                startDirectDeadline()
                 _ = try await engine.load(url: url, options: makeLoadOptions(remoteHLS: sessionID != nil))
                 engine.play()
             } catch is CancellationError {
@@ -154,6 +162,18 @@ final class LivePlayerViewController: EnginePlayerViewController {
         retuneCount += 1
         log.notice("retune \(self.retuneCount): \(reason)")
         tune()
+    }
+
+    private func startRetuneRecovery() {
+        retuneRecoveryTimer?.invalidate()
+        guard retuneCount > 0 else { return }
+        retuneRecoveryTimer = Timer.scheduledTimer(withTimeInterval: Self.retuneRecovery, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.didFinish, case .playing = self.engine.state else { return }
+                self.log.info("retune budget restored after \(Int(Self.retuneRecovery)) s of playback")
+                self.retuneCount = 0
+            }
+        }
     }
 
     private func startKeepAlive() {
@@ -196,6 +216,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
                 tunePlayed = true
+                directStartTimer?.invalidate()
+                startRetuneRecovery()
                 startHLSProof()
             }
             .store(in: &cancellables)
@@ -315,6 +337,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
         didFinish = true
         loadTask?.cancel()
         hlsProofTimer?.invalidate()
+        directStartTimer?.invalidate()
+        retuneRecoveryTimer?.invalidate()
         cancellables.removeAll()
         telemetry.stop()
         settingsHider.stop()
