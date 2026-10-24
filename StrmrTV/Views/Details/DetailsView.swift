@@ -6,6 +6,7 @@ struct DetailsView: View {
     let target: DetailsTarget
 
     @ObservedObject var playback = PlaybackCoordinator.shared
+    @ObservedObject var spoilers = SpoilerSettingsStore.shared
     @EnvironmentObject var watchlist: WatchlistStore
     @EnvironmentObject var customLists: CustomListsStore
     @EnvironmentObject var titles: TitleStateStore

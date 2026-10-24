@@ -72,6 +72,9 @@ struct EpisodeCard: View {
     let episode: Episode
     let focus: FocusState<DetailsView.DetailsFocus?>.Binding
     let watched: Bool
+    /// Spoiler settings (`SpoilerSettingsStore`): the artwork blurred, the overview hidden.
+    var hidesThumbnail = false
+    var hidesOverview = false
     let fallbackImage: String?
     let onChooseSource: () -> Void
     let onToggleWatched: () -> Void
@@ -90,6 +93,8 @@ struct EpisodeCard: View {
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: { Rectangle().fill(.quaternary) }
                 .frame(width: 400, height: 225)
+                // Opaque, so the blur doesn't fade into the page at the edges.
+                .blur(radius: hidesThumbnail ? 36 : 0, opaque: true)
                 .overlay(alignment: .bottom) {
                     if fraction > 0.01 { ProgressBar(fraction: fraction).padding(14) }
                 }
@@ -152,6 +157,8 @@ struct EpisodeCard: View {
                 Text("\(episode.episodeNumber). \(episode.name)").font(.caption.weight(.semibold)).lineLimit(1)
                 if let overview = episode.overview, !overview.isEmpty {
                     Text(overview).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
+                        .blur(radius: hidesOverview ? 5 : 0)
+                        .accessibilityHidden(hidesOverview)
                 }
             }
         }

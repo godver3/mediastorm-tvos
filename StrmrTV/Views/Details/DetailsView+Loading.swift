@@ -8,6 +8,8 @@ extension DetailsView {
     /// the top-level resume. Also re-run after playback to refresh progress.
     func load() async {
         startLibraryLookup()
+        // Read alongside the bundle, so episodes never show unhidden while it loads.
+        async let spoilerSettings: Void = target.isMovie ? () : spoilers.refresh()
         do {
             let bundle = try await APIClient.shared.detailsBundle(target)
             if target.isMovie {
@@ -15,6 +17,7 @@ extension DetailsView {
                 title = movie
             } else {
                 guard let details = bundle.seriesDetails else { throw APIError.notReady("Details unavailable") }
+                await spoilerSettings
                 title = details.title
                 seasons = details.seasons
                 upNext = bundle.upNextEpisode

@@ -35,6 +35,7 @@ struct SettingsView: View {
         .task { await checkConnection() }
         .task { await trailers.refresh() }
         .task { await TrackSettingsStore.shared.refresh() }
+        .task { await SpoilerSettingsStore.shared.refresh() }
         .confirmationDialog("Sign out of \(session.username ?? "this account")?", isPresented: $confirmSignOut) {
             Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
             Button("Cancel", role: .cancel) {}
@@ -88,6 +89,10 @@ struct SettingsView: View {
                     .accessibilityHint(Text("Plays a title's trailer behind its details page"))
                 TrackSettingsRows()
                 AtmosSettingsRows()
+            }
+
+            Section("Spoilers") {
+                SpoilerSettingsRows()
             }
 
             Section("Account") {
