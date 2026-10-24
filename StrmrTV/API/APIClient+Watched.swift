@@ -22,21 +22,35 @@ extension APIClient {
     func setWatched(_ watched: Bool, episodes: [Episode], of series: DetailsTarget,
                     scope: WatchedScope? = nil) async throws {
         guard !episodes.isEmpty else { return }
-        let updates = episodes.map { ep -> [String: Any] in
-            var update = Self.watchedBase(series, watched: watched)
-            update["mediaType"] = "episode"
-            // Without an itemId the server derives it from series + season + episode.
-            if let itemID = ep.itemId { update["itemId"] = itemID }
-            update["name"] = ep.name
-            update["seriesId"] = series.titleID
-            update["seriesName"] = series.name
-            update["seasonNumber"] = ep.seasonNumber
-            update["episodeNumber"] = ep.episodeNumber
-            return update
+        let updates = episodes.map {
+            Self.episodeUpdate(series, watched: watched, itemID: $0.itemId, name: $0.name,
+                               season: $0.seasonNumber, episode: $0.episodeNumber)
         }
         try await sendRaw("POST", "/api/users/\(Self.segment(profileID))/history/watched/bulk",
                           query: scope.map { ["scope": $0.rawValue] } ?? [:],
                           jsonArray: updates)
+    }
+
+    /// One card's episode (Continue Watching, the calendar), from a long press.
+    func setWatched(_ watched: Bool, episode: CardEpisode, of series: DetailsTarget) async throws {
+        let update = Self.episodeUpdate(series, watched: watched, itemID: episode.itemId, name: episode.name,
+                                        season: episode.seasonNumber, episode: episode.episodeNumber)
+        try await sendRaw("POST", "/api/users/\(Self.segment(profileID))/history/watched/bulk",
+                          jsonArray: [update])
+    }
+
+    private static func episodeUpdate(_ series: DetailsTarget, watched: Bool, itemID: String?, name: String?,
+                                      season: Int, episode: Int) -> [String: Any] {
+        var update = watchedBase(series, watched: watched)
+        update["mediaType"] = "episode"
+        // Without an itemId the server derives it from series + season + episode.
+        if let itemID { update["itemId"] = itemID }
+        if let name { update["name"] = name }
+        update["seriesId"] = series.titleID
+        update["seriesName"] = series.name
+        update["seasonNumber"] = season
+        update["episodeNumber"] = episode
+        return update
     }
 
     private static func watchedBase(_ title: DetailsTarget, watched: Bool) -> [String: Any] {

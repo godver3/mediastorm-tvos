@@ -96,6 +96,19 @@ extension TitleStateStore {
         }
     }
 
+    func setWatched(_ watched: Bool, episode: CardEpisode, of series: DetailsTarget) async {
+        do {
+            try await api.setWatched(watched, episode: episode, of: series)
+            log.notice("marked \(series.titleID) \(episode.code) \(watched ? "watched" : "unwatched")")
+            await refreshWatched()
+            show(toast: watched ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
+            changed(continueWatching: true)
+        } catch {
+            log.error("mark \(series.titleID) \(episode.code) watched=\(watched) failed: \(error.localizedDescription)")
+            show(toast: String(localized: "Failed to update watched state"))
+        }
+    }
+
     /// After a series' episodes were marked from the watch-state screen.
     func seriesWatchStateChanged() async {
         await refreshWatched()

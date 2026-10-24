@@ -50,6 +50,8 @@ struct HomeCard: Identifiable, Hashable {
     /// The content rating and genres, for the Home carousel's line (list titles only).
     var certification: String?
     var genres: [String] = []
+    /// The one episode the card stands for, for its long press's Mark as Watched.
+    var episode: CardEpisode?
 
     var target: DetailsTarget? {
         if case let .details(target) = link { target } else { nil }
@@ -87,6 +89,7 @@ struct HomeCard: Identifiable, Hashable {
             badge = ReleaseBadge.forTitle(status: item.status)
         }
         if !item.isMovie, let ep = item.nextEpisode {
+            episode = CardEpisode(ep)
             newEpisode = NewEpisodeBadge(airDate: ep.airDate, airDateTimeUTC: ep.airDateTimeUTC,
                                          prequeueStatus: item.prequeueStatus)
         }

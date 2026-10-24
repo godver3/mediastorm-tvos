@@ -40,7 +40,7 @@ struct LandscapeCard: View {
             case let .details(target):
                 NavigationLink(value: target) { artwork }
                     .cardLift()
-                    .contextMenu { TitleActionsMenu(target: target, onHideFromContinueWatching: onHide) }
+                    .contextMenu { TitleActionsMenu(target: target, episode: card.episode, onHideFromContinueWatching: onHide) }
                     .accessibilityLabel("\(card.title), \(card.subtitle)")
             case let .list(list):
                 NavigationLink(value: list) { artwork }

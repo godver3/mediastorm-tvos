@@ -107,7 +107,7 @@ struct CalendarPosterCard: View {
             }
             .buttonStyle(PosterFocusStyle(isFocused: isFocused))
             .focused(focus, equals: .poster(key))
-            .contextMenu { TitleActionsMenu(target: target) }
+            .contextMenu { TitleActionsMenu(target: target, episode: CardEpisode(item)) }
             .accessibilityLabel(accessibilityLabel)
             .accessibilityIdentifier("calendar-poster-\(key)")
 

@@ -68,9 +68,12 @@ struct CalendarGroup {
         let release = item.isMovie ? item.releaseType.map(Self.releaseLabel) : episode
         let subtitle = [release, dayLabel].compactMap { $0 }.joined(separator: " · ")
         let overview = count == 1 ? (item.episodeOverview ?? item.overview) : item.overview
-        return HomeCard(id: "\(item.titleID)@\(item.airDate)", target: DetailsTarget(item),
-                        title: item.title, subtitle: subtitle, overview: overview,
-                        artworkURL: item.backdropUrl ?? item.posterUrl)
+        var card = HomeCard(id: "\(item.titleID)@\(item.airDate)", target: DetailsTarget(item),
+                            title: item.title, subtitle: subtitle, overview: overview,
+                            artworkURL: item.backdropUrl ?? item.posterUrl)
+        // A day's several episodes keep only the bulk screen.
+        if count == 1 { card.episode = CardEpisode(item) }
+        return card
     }
 
     /// "Today 9:00 PM", "Tomorrow", "Tue, Oct 14".

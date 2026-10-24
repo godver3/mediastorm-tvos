@@ -1,12 +1,15 @@
 import SwiftUI
 
 /// A title card's long-press actions, in the Expo TV menu's order: Hide from Continue
-/// Watching and Set Aside (Continue Watching titles), Remove from Set Aside, Add to List…,
+/// Watching and Set Aside (Continue Watching titles), Remove from Set Aside, Manage Lists…,
 /// the watchlist toggle, Hide from This Profile (Unhide once hidden), Mark as Watched /
-/// Unwatched (movies) or the bulk watch-state screen (series), then a list's own remove.
+/// Unwatched (movies; a card's one episode), the bulk watch-state screen (series), then a
+/// list's own remove.
 struct TitleActionsMenu: View {
     @EnvironmentObject private var titles: TitleStateStore
     let target: DetailsTarget
+    /// The one episode the card stands for (Continue Watching, the calendar).
+    var episode: CardEpisode?
     /// Set by a Continue Watching row, which takes the card out with its own focus handling.
     var onHideFromContinueWatching: (() -> Void)?
     /// Set in a custom list's grid.
@@ -52,8 +55,15 @@ struct TitleActionsMenu: View {
                       systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
             }
         } else {
+            if let episode {
+                let watched = titles.isWatched(episode, of: target)
+                Button { run { await $0.setWatched(!watched, episode: episode, of: target) } } label: {
+                    Label(watched ? "Mark \(episode.code) as Unwatched" : "Mark \(episode.code) as Watched",
+                          systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+                }
+            }
             Button { titles.watchStateTarget = target } label: {
-                Label("Mark as Watched / Unwatched…", systemImage: "checkmark.circle")
+                Label("Bulk Mark as Watched…", systemImage: "checklist")
             }
         }
         if let onRemoveFromList {

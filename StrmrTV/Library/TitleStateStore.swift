@@ -99,6 +99,19 @@ final class TitleStateStore: ObservableObject {
         return ids.contains { watchedKeys.contains("movie:\($0.lowercased())") }
     }
 
+    /// One episode of a series, by its item ID or any of the series' ID forms plus
+    /// `:sXXeYY`, as the server's episode keys are built.
+    func isWatched(_ episode: CardEpisode, of series: DetailsTarget) -> Bool {
+        var seriesIDs = [series.titleID]
+        if let v = series.tvdbID { seriesIDs += ["tvdb:series:\(v)", v] }
+        if let v = series.tmdbID { seriesIDs += ["tmdb:tv:\(v)", v] }
+        if let v = series.imdbID { seriesIDs += ["imdb:\(v)", v] }
+        let suffix = String(format: ":s%02de%02d", episode.seasonNumber, episode.episodeNumber)
+        var ids = seriesIDs.map { $0 + suffix }
+        if let v = episode.itemId { ids.append(v) }
+        return ids.contains { watchedKeys.contains("episode:\($0.lowercased())") }
+    }
+
     func show(toast text: String) {
         toast = text
         toastClear?.cancel()

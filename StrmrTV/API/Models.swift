@@ -112,6 +112,35 @@ struct EpisodeRef: Decodable, Hashable {
     var code: String { String(format: "S%02dE%02d", seasonNumber, episodeNumber) }
 }
 
+/// The one episode a card stands for (Continue Watching's next episode, a calendar
+/// release), for its long press's single-episode Mark as Watched.
+struct CardEpisode: Hashable {
+    let seasonNumber: Int
+    let episodeNumber: Int
+    let name: String?
+    /// The server's item ID when the card's source sent one.
+    let itemId: String?
+
+    var code: String { String(format: "S%02dE%02d", seasonNumber, episodeNumber) }
+
+    init(seasonNumber: Int, episodeNumber: Int, name: String?, itemId: String?) {
+        self.seasonNumber = seasonNumber
+        self.episodeNumber = episodeNumber
+        self.name = name
+        self.itemId = itemId
+    }
+
+    init(_ ref: EpisodeRef) {
+        self.init(seasonNumber: ref.seasonNumber, episodeNumber: ref.episodeNumber, name: ref.title, itemId: ref.itemId)
+    }
+
+    /// A calendar release's episode; nil for a movie or a release without its numbers.
+    init?(_ item: CalendarItem) {
+        guard !item.isMovie, let season = item.seasonNumber, let number = item.episodeNumber else { return nil }
+        self.init(seasonNumber: season, episodeNumber: number, name: item.episodeTitle, itemId: nil)
+    }
+}
+
 // MARK: - Continue watching
 
 struct ContinueWatchingItem: Decodable, Identifiable, Hashable {
