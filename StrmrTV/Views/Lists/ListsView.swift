@@ -2,14 +2,14 @@ import SwiftUI
 
 /// The Lists tab: the profile's own titles (Continue Watching, Set Aside, Watchlist,
 /// Permanent Prequeue), its custom lists, the server's charts, recommendations, then TMDB
-/// genres and decades for movies or shows. Each tile opens its whole list as a grid.
+/// genres and decades for movies, shows or both. Each tile opens its whole list as a grid.
 struct ListsView: View {
     @EnvironmentObject private var store: CustomListsStore
     @EnvironmentObject private var watchlist: WatchlistStore
     @EnvironmentObject private var titles: TitleStateStore
     @EnvironmentObject private var listShelves: ListShelvesStore
     @ObservedObject private var libraries = LibrariesStore.shared
-    @State private var kind: BrowseKind = .movies
+    @State private var kind: BrowseKind?
     @State private var naming = false
     @State private var newName = ""
     @State private var createError: String?
@@ -73,8 +73,16 @@ struct ListsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .focusSection()
 
-                    TileRow(title: String(localized: "Genres"), tiles: kind.genres.map { TileSpec(.genre($0, kind)) })
-                    TileRow(title: String(localized: "Decades"), tiles: kind.decades.map { TileSpec(.decade($0, kind)) })
+                    // All shows each kind's genres, then each kind's decades, as the Expo app does.
+                    let kinds = kind.map { [$0] } ?? BrowseKind.allCases
+                    ForEach(kinds) { kind in
+                        TileRow(title: rowTitle(String(localized: "Genres"), kind),
+                                tiles: kind.genres.map { TileSpec(.genre($0, kind)) })
+                    }
+                    ForEach(kinds) { kind in
+                        TileRow(title: rowTitle(String(localized: "Decades"), kind),
+                                tiles: kind.decades.map { TileSpec(.decade($0, kind)) })
+                    }
                 }
             }
             .padding(.vertical, 40)
@@ -94,7 +102,7 @@ struct ListsView: View {
             Button("Create") { Task { await createList() } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Add titles to it with “Add to List…” on any title.")
+            Text("Add titles to it with “Manage Lists…” on any title.")
         }
     }
 
@@ -119,6 +127,12 @@ struct ListsView: View {
                                                backdrops: titles.hidden.prefix(4).compactMap(\.backdropUrl))))
         }
         return tiles
+    }
+
+    /// "Genres" under a single kind; "Movie Genres" / "Show Genres" when All shows both.
+    private func rowTitle(_ title: String, _ rowKind: BrowseKind) -> String {
+        guard kind == nil else { return title }
+        return rowKind == .movies ? String(localized: "Movie \(title)") : String(localized: "Show \(title)")
     }
 
     private var shelves: [ShelfConfig] { listShelves.shelves ?? [] }

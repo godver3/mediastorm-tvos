@@ -238,15 +238,17 @@ private enum BrowsePreviews {
 /// Movies / Shows as a menu button. A segmented picker on tvOS selects whichever
 /// segment takes focus, which changes the rows below just by moving past it.
 struct KindMenu: View {
-    @Binding var kind: BrowseKind
+    /// nil is All: both kinds' rows.
+    @Binding var kind: BrowseKind?
 
     var body: some View {
         Menu {
             Picker("Browse", selection: $kind) {
-                ForEach(BrowseKind.allCases) { Text($0.noun).tag($0) }
+                Text("All").tag(BrowseKind?.none)
+                ForEach(BrowseKind.allCases) { Text($0.noun).tag(Optional($0)) }
             }
         } label: {
-            Label(kind.noun, systemImage: "chevron.up.chevron.down")
+            Label(kind?.noun ?? String(localized: "All"), systemImage: "chevron.up.chevron.down")
         }
     }
 }

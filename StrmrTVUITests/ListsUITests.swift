@@ -1,6 +1,6 @@
 import XCTest
 
-/// The Lists tab: custom lists, charts, the Movies / Shows switch with genres and
+/// The Lists tab: custom lists, charts, the All / Movies / Shows switch with genres and
 /// decades, and a list opened as a grid. Read-only.
 @MainActor
 final class ListsUITests: XCTestCase {
@@ -58,10 +58,11 @@ final class ListsUITests: XCTestCase {
         for _ in 0..<14 where focusedLabel != "Action Movies" { press(.down, gap: 1) }
         XCTAssertEqual(focusedLabel, "Action Movies")
         shot("genres")
-        // The Movies / Shows menu above them: switch to Shows, then open a show genre.
+        // The All / Movies / Shows menu above them: switch from All to Shows, then open a show genre.
         press(.up)
         press(.select)
         shot("kind-menu", wait: 1.5)
+        press(.down)
         press(.down)
         press(.select)
         shot("shows-switch", wait: 3)
