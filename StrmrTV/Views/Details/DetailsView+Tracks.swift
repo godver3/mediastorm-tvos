@@ -46,11 +46,8 @@ extension DetailsView {
     var tracksButton: some View {
         if let warm = warmPrequeue {
             Button { showTracks() } label: {
-                if warm.status == nil {
-                    ProgressView().accessibilityLabel("Finding a source")
-                } else {
-                    Label("Audio & Subtitles", systemImage: "waveform").labelStyle(.iconOnly)
-                }
+                LoadingIconLabel(warm.status == nil ? "Finding a source" : "Audio & Subtitles",
+                                 systemImage: "waveform", loading: warm.status == nil)
             }
             .focused($focus, equals: .action(.tracks))
             .overlay(alignment: .bottom) {
@@ -113,5 +110,26 @@ extension DetailsView {
                 }
             }
         }
+    }
+}
+
+/// An icon-only label that shows a spinner in the icon's place while `loading`. The icon
+/// keeps the layout (hidden), as a ProgressView is taller than a symbol and would change
+/// the button's height when it swaps.
+struct LoadingIconLabel: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    let loading: Bool
+
+    init(_ title: LocalizedStringKey, systemImage: String, loading: Bool) {
+        self.title = title
+        self.systemImage = systemImage
+        self.loading = loading
+    }
+
+    var body: some View {
+        Label(title, systemImage: systemImage).labelStyle(.iconOnly)
+            .opacity(loading ? 0 : 1)
+            .overlay { if loading { ProgressView().scaleEffect(0.8) } }
     }
 }

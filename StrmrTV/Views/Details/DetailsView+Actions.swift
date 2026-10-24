@@ -44,13 +44,9 @@ extension DetailsView {
 
             if trailer.available {
                 Button { trailer.buttonPressed() } label: {
-                    if trailer.preparingFullScreen {
-                        ProgressView()
-                    } else {
-                        Label(trailer.showing && !trailer.paused ? "Pause Trailer" : "Play Trailer",
-                              systemImage: trailer.showing && !trailer.paused ? "pause.fill" : "film")
-                            .labelStyle(.iconOnly)
-                    }
+                    LoadingIconLabel(trailer.showing && !trailer.paused ? "Pause Trailer" : "Play Trailer",
+                                     systemImage: trailer.showing && !trailer.paused ? "pause.fill" : "film",
+                                     loading: trailer.preparingFullScreen)
                 }
                 .focused($focus, equals: .action(.trailer))
             }
