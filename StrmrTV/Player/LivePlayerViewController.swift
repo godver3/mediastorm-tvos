@@ -49,6 +49,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var hlsProofTimer: Timer?
 
     private lazy var cover = LiveLoadingCover(channel: channel, program: program)
+    private lazy var telemetry = LivePlaybackTelemetry(engine: engine, log: log)
 
     // Captions.
     var subtitleTracks: [TrackInfo] = []
@@ -81,6 +82,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
+        telemetry.start()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
         installStreamInfo(file: nil, source: StreamSource.joined([String(localized: "Live TV"), channel.name]))
@@ -314,6 +316,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         loadTask?.cancel()
         hlsProofTimer?.invalidate()
         cancellables.removeAll()
+        telemetry.stop()
         settingsHider.stop()
         player = nil
         setSoftwareSurface(mounted: false)
