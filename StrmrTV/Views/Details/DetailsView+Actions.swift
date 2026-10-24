@@ -57,7 +57,7 @@ extension DetailsView {
 
             watchlistButton
             Button { customLists.picking = target } label: {
-                Label("Add to List", systemImage: "text.badge.plus").labelStyle(.iconOnly)
+                Label("Manage Lists", systemImage: "text.badge.checkmark").labelStyle(.iconOnly)
             }
             .focused($focus, equals: .action(.lists))
             watchedButton

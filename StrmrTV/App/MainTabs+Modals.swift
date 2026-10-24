@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The modals a card's long-press menu opens over every tab: Add to List… and the series
+/// The modals a card's long-press menu opens over every tab: Manage Lists… and the series
 /// watch-state screen.
 ///
 /// A context-menu action sets the item at once, but UIKit presents the modal only after

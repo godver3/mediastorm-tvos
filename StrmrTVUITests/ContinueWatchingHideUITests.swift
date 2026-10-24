@@ -93,7 +93,7 @@ final class ContinueWatchingHideUITests: XCTestCase {
         remote.press(.select, forDuration: 1.5)
         let hide = app.descendants(matching: .any)["Hide from Continue Watching"]
         XCTAssertTrue(hide.waitForExistence(timeout: 5))
-        press(.down, 2, gap: 0.4)  // past Add to List… to Hide
+        press(.down, 2, gap: 0.4)  // past Manage Lists… to Hide
         remote.press(.select)
 
         // Sample focus while the row settles: it must never visit the first card.
@@ -134,7 +134,7 @@ final class ContinueWatchingHideUITests: XCTestCase {
         remote.press(.select, forDuration: 1.5)
         let hide = app.descendants(matching: .any)["Hide from Continue Watching"]
         XCTAssertTrue(hide.waitForExistence(timeout: 5))
-        press(.down, 2, gap: 0.4)  // past Add to List… to Hide
+        press(.down, 2, gap: 0.4)  // past Manage Lists… to Hide
         remote.press(.select)
 
         var seen: [String] = []

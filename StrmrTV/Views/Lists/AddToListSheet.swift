@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Add to List…": each of the profile's lists with a check on those that already hold
+/// "Manage Lists…": each of the profile's lists with a check on those that already hold
 /// the title. Selecting a list adds or removes the title in place; "New List…" creates
 /// one with the title in it.
 struct AddToListSheet: View {
@@ -18,7 +18,7 @@ struct AddToListSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 40) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Add to List").font(.title2.weight(.bold))
+                Text("Manage Lists").font(.title2.weight(.bold))
                 Text(target.name).font(.headline).foregroundStyle(.secondary)
             }
             if let error {
@@ -113,14 +113,14 @@ struct AddToListSheet: View {
     }
 }
 
-/// "Add to List…" for a card's context menu.
+/// "Manage Lists…" for a card's context menu: the sheet adds and removes.
 struct AddToListMenuButton: View {
     @EnvironmentObject private var store: CustomListsStore
     let target: DetailsTarget
 
     var body: some View {
         Button { store.picking = target } label: {
-            Label("Add to List…", systemImage: "text.badge.plus")
+            Label("Manage Lists…", systemImage: "text.badge.checkmark")
         }
     }
 }
