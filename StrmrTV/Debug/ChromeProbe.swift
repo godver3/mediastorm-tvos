@@ -124,6 +124,12 @@ final class ProbePlayerViewController: AVPlayerViewController {
             subtitle: defaults.string(forKey: "StrmrProbeSubtitle"),
             description: defaults.string(forKey: "StrmrProbeDescription"))
         item.externalMetadata = items
+        // The Stream tab beside Info, with sample rows, for comparing the two panels.
+        let stream = StreamInfoViewController()
+        stream.update(StreamInfo(file: "Movie.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.Atmos-GRP.mkv",
+                                 source: "Debrid · Real-Debrid", video: "3840×2160 (4K) · HEVC Main 10 · 23.976 fps",
+                                 dynamicRange: "Dolby Vision Profile 8", audio: "TrueHD · 7.1 · Atmos · English"))
+        customInfoViewControllers = [stream]
         Task {
             guard let image = await EnginePlayerViewController.infoArtwork(from: url),
                   let artwork = EnginePlayerViewController.artworkItem(image) else { return }

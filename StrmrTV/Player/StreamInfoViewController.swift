@@ -6,7 +6,7 @@ final class StreamInfoViewController: UIViewController {
     private let stack = UIStackView()
     private var info = StreamInfo()
 
-    static let panelHeight: CGFloat = 360
+    static let panelHeight: CGFloat = 330
     private static let labelWidth: CGFloat = 260
 
     init() {
@@ -20,18 +20,42 @@ final class StreamInfoViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // AVKit draws the Info tab's card itself but leaves a custom tab bare: the same rounded
+        // glass card, filling the panel AVKit gives the tab.
+        let card = Self.makeCard()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(card)
         stack.axis = .vertical
         stack.spacing = 14
         stack.alignment = .fill
         stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        card.contentView.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 60),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -60),
-            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 30),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -30),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            card.topAnchor.constraint(equalTo: view.topAnchor),
+            card.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 48),
+            stack.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -48),
+            stack.centerYAnchor.constraint(equalTo: card.contentView.centerYAnchor),
+            stack.topAnchor.constraint(greaterThanOrEqualTo: card.contentView.topAnchor, constant: 28),
         ])
         render()
+    }
+
+    private static func makeCard() -> UIVisualEffectView {
+        let card: UIVisualEffectView
+        if #available(tvOS 26.0, *) {
+            card = UIVisualEffectView(effect: UIGlassEffect())
+        } else {
+            card = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+        }
+        card.layer.cornerRadius = 40
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1
+        card.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        card.clipsToBounds = true
+        return card
     }
 
     func update(_ info: StreamInfo) {
