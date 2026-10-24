@@ -75,7 +75,7 @@ struct HomeView: View {
         return shelf.focusOrder.first.map { HomeFocus(shelf: shelf.id, card: $0) }
     }
     /// What the hero shows for a focus: a shown card, or a row's explore card.
-    private func hero(_ focus: HomeFocus?) -> HeroContent? {
+    func hero(_ focus: HomeFocus?) -> HeroContent? {
         guard let focus, let shelf = shelves.first(where: { $0.id == focus.shelf }) else { return nil }
         if focus.card == ExploreCard.id, let explore = shelf.explore {
             return HeroContent(explore: explore)
@@ -146,6 +146,7 @@ struct HomeView: View {
             if phase == .active { Task { await store.refreshIfStale() } }
         }
         .onChange(of: watchlist.items) { _, items in store.watchlist = items }
+        .onChange(of: store.shelves) { old, new in refocusIfGone(from: old, to: new) }
         .environment(\.removeFromWatchlist) { removeFromWatchlist($0) }
         .onChange(of: playback.sessionsEnded) { Task { await store.reloadPlaybackRows() } }
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in

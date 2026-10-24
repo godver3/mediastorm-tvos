@@ -57,6 +57,36 @@ extension HomeView {
             }
         }
     }
+
+    /// A reload dropped the card focus was on (removed from its list on a details page or
+    /// a list grid, or on another device): focus goes to the card that took its place,
+    /// else the one before, rather than wherever the focus engine sends it. A row that
+    /// went entirely hands focus to the row below, else the row above.
+    func refocusIfGone(from old: [HomeShelf], to new: [HomeShelf]) {
+        guard let current = focused ?? heroFocus, current.shelf != HomeCarousel.focusShelf,
+              hero(current) == nil,
+              let oldRow = old.firstIndex(where: { $0.id == current.shelf }) else { return }
+        let next: HomeFocus?
+        if let row = new.first(where: { $0.id == current.shelf }), !row.focusOrder.isEmpty {
+            let before = old[oldRow].focusOrder
+            let index = before.firstIndex(of: current.card) ?? 0
+            let survivors = Set(row.focusOrder)
+            let card = before[index...].first(where: survivors.contains)
+                ?? before[..<index].last(where: survivors.contains)
+                ?? row.focusOrder[min(index, row.focusOrder.count - 1)]
+            next = HomeFocus(shelf: row.id, card: card)
+        } else {
+            let below = old[(oldRow + 1)...].first { shelf in new.contains { $0.id == shelf.id } }
+            let above = old[..<oldRow].last { shelf in new.contains { $0.id == shelf.id } }
+            next = (below ?? above).flatMap { shelf in new.first { $0.id == shelf.id } }.flatMap(entry)
+        }
+        guard let next else { return }
+        heroFocus = next
+        lastRowFocus = next
+        rowFocus[next.shelf] = next.card
+        // Covered by a details page, the refocus on the way back takes it.
+        if !isCovered { focused = next }
+    }
 }
 
 /// A card leaving its Home row from its own context menu: hidden from Continue Watching,
