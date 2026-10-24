@@ -20,7 +20,8 @@ enum LivePlayback {
 /// (`/api/live/hls/start`) as a direct stream, which the engine demuxes, or an HLS session,
 /// which AVPlayer plays directly and which is kept alive every ten seconds and stopped on
 /// close. When the engine gives up on the source (`liveSourceReset`, or an end of stream)
-/// the channel is re-opened, at most three times, twenty seconds apart.
+/// the channel is re-opened, at most three times, twenty seconds apart. A direct stream that
+/// fails before its first frame is opened once more as HLS (`+HLSFallback`).
 ///
 /// Captions: see `LivePlayerViewController+Captions.swift`.
 final class LivePlayerViewController: EnginePlayerViewController {
@@ -39,6 +40,13 @@ final class LivePlayerViewController: EnginePlayerViewController {
     private var lastTune: Date?
     private static let retuneBudget = 3
     private static let retuneSpacing: TimeInterval = 20
+
+    // The direct → HLS fallback (`+HLSFallback`).
+    var hlsMode = HLSMode.asConfigured
+    /// This tune is a direct stream, and has shown a frame.
+    var tuneIsDirect = false
+    var tunePlayed = false
+    var hlsProofTimer: Timer?
 
     private lazy var cover = LiveLoadingCover(channel: channel, program: program)
 
@@ -87,8 +95,12 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     // MARK: Tuning
 
-    private func tune() {
+    /// `delay`: time for the old stream's provider connection to close first.
+    func tune(after delay: TimeInterval = 0) {
         lastTune = Date()
+        tuneIsDirect = false
+        tunePlayed = false
+        hlsProofTimer?.invalidate()
         cover.isHidden = false
         // The new session starts with no subtitle; the pick is re-applied once it is offered.
         activeSubtitle = nil
@@ -98,9 +110,12 @@ final class LivePlayerViewController: EnginePlayerViewController {
             guard let self else { return }
             do {
                 endSession()
-                let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title)
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
+                let forceHLS = await hlsForTune()
+                let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title, forceHLS: forceHLS)
                 try Task.checkCancellation()
                 self.sessionID = sessionID
+                tuneIsDirect = sessionID == nil
                 playlistURL = sessionID == nil ? nil : url
                 startKeepAlive()
                 startServerCaptions()
@@ -110,7 +125,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
             } catch is CancellationError {
                 // A newer tune or the close replaced this one.
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, !fallBackToHLS(error.localizedDescription) else { return }
                 fail(error.localizedDescription)
             }
         }
@@ -127,7 +142,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     /// The source died under the engine: open the channel again, within the budget.
     private func retune(_ reason: String) {
-        guard !didFinish else { return }
+        guard !didFinish, !fallBackToHLS(reason) else { return }
         let tooSoon = lastTune.map { Date().timeIntervalSince($0) < Self.retuneSpacing } ?? false
         guard retuneCount < Self.retuneBudget, !tooSoon else {
             log.error("retune exhausted after \(self.retuneCount) (\(reason))")
@@ -178,6 +193,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 guard ready, let self else { return }
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
+                tunePlayed = true
+                startHLSProof()
             }
             .store(in: &cancellables)
         engine.$subtitleTracks
@@ -218,13 +235,18 @@ final class LivePlayerViewController: EnginePlayerViewController {
         engine.$state
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
+                // Delivered a turn late: one the engine has already left (a failed direct
+                // stream's error after the HLS fallback restarted it) is stale.
+                guard let self, self.engine.state == state else { return }
                 switch state {
                 case .paused:
                     // Anything that still pauses a live channel (a remote command, AVKit) resumes it.
-                    guard let self, !self.didFinish, UIApplication.shared.applicationState == .active else { return }
+                    guard !self.didFinish, UIApplication.shared.applicationState == .active else { return }
                     self.engine.play()
-                case .ended: self?.retune("end of stream")
-                case let .error(message): self?.fail(message)
+                case .ended: self.retune("end of stream")
+                case let .error(message):
+                    guard !self.fallBackToHLS(message) else { return }
+                    self.fail(message)
                 default: break
                 }
             }
@@ -290,6 +312,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         guard !didFinish else { return }
         didFinish = true
         loadTask?.cancel()
+        hlsProofTimer?.invalidate()
         cancellables.removeAll()
         settingsHider.stop()
         player = nil

@@ -59,9 +59,12 @@ extension APIClient {
     /// Opens a channel on the server and returns the URL the engine plays: a direct stream,
     /// or an HLS session (`sessionID`, kept alive with `keepLiveSessionAlive`).
     /// `token=` / `profileUnlock=` ride in the query as on every header-less media URL.
-    func startLive(_ channel: LiveChannel, programTitle: String?) async throws -> (url: URL, sessionID: String?) {
-        let start: LiveStart = try await send("GET", "/api/live/hls/start",
-                                              query: liveStartQuery(channel, programTitle: programTitle), timeout: 60)
+    /// `forceHLS`: an HLS session even when the source is set to direct (`format=hls`).
+    func startLive(_ channel: LiveChannel, programTitle: String?,
+                   forceHLS: Bool = false) async throws -> (url: URL, sessionID: String?) {
+        var query = liveStartQuery(channel, programTitle: programTitle)
+        if forceHLS { query["format"] = "hls" }
+        let start: LiveStart = try await send("GET", "/api/live/hls/start", query: query, timeout: 60)
         let isDirect = start.isDirect == true
         guard let path = isDirect ? start.streamUrl : start.playlistUrl, !path.isEmpty else {
             throw APIError.notReady("The server did not return a stream for this channel")
@@ -93,6 +96,14 @@ extension APIClient {
         let response: Response = try await send("GET", "/api/live/stremio/streams",
                                                 query: ["url": channel.url, "profileId": profileID], timeout: 60)
         return response.streams ?? []
+    }
+
+    /// The server's stable remote-access identity, which Live TV's remembered HLS choice is
+    /// kept under (`LiveHLSPreference`).
+    func serverIdentity() async throws -> String? {
+        struct Identity: Decodable { let serverId: String? }
+        let identity: Identity = try await send("GET", "/api/remote-access/identity", promptOnLock: false, timeout: 5)
+        return identity.serverId
     }
 
     func keepLiveSessionAlive(_ sessionID: String) async {

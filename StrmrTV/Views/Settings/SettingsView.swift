@@ -89,6 +89,7 @@ struct SettingsView: View {
                     .accessibilityHint(Text("Plays a title's trailer behind its details page"))
                 TrackSettingsRows()
                 AtmosSettingsRows()
+                LiveHLSResetRow()
             }
 
             Section("Spoilers") {
