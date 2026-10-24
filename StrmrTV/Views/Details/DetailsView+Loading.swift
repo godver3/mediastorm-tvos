@@ -31,8 +31,9 @@ extension DetailsView {
             contentPreference = bundle.contentPreference
             watchedOverrides = [:]
             loadError = nil
-            // The primary action only exists once details have loaded.
-            if focus == nil { focus = .action(.primary) }
+            // The primary action only exists once details have loaded. Under an open menu
+            // `focus` is nil too (`$focus` can't see a menu's cells); that one is left alone.
+            if focus == nil, !systemMenuOpen { focus = .action(.primary) }
             autoplayIfRequested()
             await loadCollection()
         } catch {

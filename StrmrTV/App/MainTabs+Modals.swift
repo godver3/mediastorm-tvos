@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The modals a card's long-press menu opens over every tab: Manage Lists… and the series
-/// watch-state screen.
+/// watch-state dialogs (shown once the series' seasons have loaded).
 ///
 /// A context-menu action sets the item at once, but UIKit presents the modal only after
 /// the menu's close animation, most of a second later. In that gap focus is on the closing
@@ -13,6 +13,7 @@ import UIKit
 struct LongPressModals: ViewModifier {
     @ObservedObject var customLists: CustomListsStore
     @ObservedObject var titles: TitleStateStore
+    @State private var watchState: WatchStateRequest?
 
     private var requested: Bool { customLists.picking != nil || titles.watchStateTarget != nil }
 
@@ -24,12 +25,31 @@ struct LongPressModals: ViewModifier {
                     titles.watchStateTarget = nil
                 }
             }
-            .fullScreenCover(item: $titles.watchStateTarget) { series in
-                SeriesWatchStateSheet(series: series).environmentObject(titles)
+            .task(id: titles.watchStateTarget?.titleID) { await loadWatchState() }
+            .watchStateDialogs($watchState, isWatched: { $0.watched == true }) {
+                await titles.seriesWatchStateChanged()
+            }
+            .onChange(of: watchState?.id) { _, id in
+                if id == nil { titles.watchStateTarget = nil }
             }
             .sheet(item: $customLists.picking) { target in
                 AddToListSheet(target: target).environmentObject(customLists)
             }
+    }
+
+    private func loadWatchState() async {
+        guard let series = titles.watchStateTarget else { return }
+        do {
+            guard let seasons = try await APIClient.shared.detailsBundle(series).seriesDetails?.seasons else {
+                throw APIError.notReady("Details unavailable")
+            }
+            guard titles.watchStateTarget?.titleID == series.titleID else { return }
+            watchState = WatchStateRequest(series: series, seasons: seasons)
+        } catch {
+            titles.log.error("watch state for \(series.titleID) failed: \(error.localizedDescription)")
+            titles.show(toast: String(localized: "Failed to load episodes"))
+            titles.watchStateTarget = nil
+        }
     }
 }
 

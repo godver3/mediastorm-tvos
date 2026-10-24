@@ -36,9 +36,7 @@ struct DetailsView: View {
     @State var watchedOverrides: [String: Bool] = [:]
     @State var watchedBusy = false
     @State var watchedError: String?
-    @State var showWatchState = false
     /// The More Options dialog (`DetailsView+More`).
-    @State var showMore = false
     /// Source picker currently shown (movie, or a specific episode).
     @State var sourcePicker: SourcePickerTarget?
     /// A picked source waiting on the Resume / Start Over choice.
@@ -70,6 +68,9 @@ struct DetailsView: View {
     @State var libraryLookup: Task<LibraryVersions?, Never>?
     @State var versionsPicker: VersionsTarget?
     @State var pendingVersion: PendingVersion?
+    /// A menu is up (Watch State, Manage Lists, More Options, an episode's long press), for
+    /// `menuOpen` and `load`.
+    @State var systemMenuOpen = false
 
     enum DetailsAction: Hashable { case primary, startOver, versions, chooseSource, tracks, trailer, watchlist, lists, watched, more }
 
@@ -219,6 +220,7 @@ struct DetailsView: View {
         .onChange(of: focus) { old, new in steerFocus(from: old, to: new) }
         .modifier(DetailsTrailerModifier(trailer: trailer, focus: $focus, playbackStarting: playback.resolving != nil,
                                          menuOpen: menuOpen))
+        .tracksMenuPresence($systemMenuOpen)
         .task { await load() }
         .onReceive(DeepLinkRouter.shared.$autoplayTitleID) { _ in autoplayIfRequested() }
         .onChange(of: playback.sessionsEnded) {
@@ -232,10 +234,6 @@ struct DetailsView: View {
             SourcePickerView(title: target, episode: picker.episode, contentPreference: contentPreference) { source, tracks in
                 choose(source, tracks: tracks, episode: picker.episode)
             }
-        }
-        .fullScreenCover(isPresented: $showWatchState) {
-            WatchStateView(series: target, seasons: seasons, currentEpisode: primaryEpisode,
-                           isWatched: isWatched) { await load() }
         }
         .confirmationDialog(
             pendingSource.map { pending in pending.episode.map { "\(target.name) · \($0.code)" } ?? target.name } ?? "",

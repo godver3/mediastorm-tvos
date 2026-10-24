@@ -56,10 +56,8 @@ extension DetailsView {
             }
 
             watchlistButton
-            Button { customLists.picking = target } label: {
-                Label("Manage Lists", systemImage: "text.badge.checkmark").labelStyle(.iconOnly)
-            }
-            .focused($focus, equals: .action(.lists))
+            DetailsListsMenu(target: target)
+                .focused($focus, equals: .action(.lists))
             watchedButton
             moreMenu
         }
@@ -78,8 +76,8 @@ extension DetailsView {
         return watched == airedRegularEpisodes.count ? .complete : .partial
     }
 
-    /// Movies: one toggle whose icon flips (focus stays on it). Series: opens the bulk
-    /// watch-state screen, as the Expo app's watch-state button does.
+    /// Movies: one toggle whose icon flips (focus stays on it). Series: the watch-state menu
+    /// (`watchStateMenu`), as the Expo app's watch-state button opens its bulk modal.
     @ViewBuilder
     var watchedButton: some View {
         if target.isMovie {
@@ -94,11 +92,8 @@ extension DetailsView {
             .focused($focus, equals: .action(.watched))
             .accessibilityHint(watched ? "Marks this movie as not watched" : "Marks this movie as watched")
         } else if !seasons.isEmpty {
-            Button { showWatchState = true } label: {
-                Label { Text("Watch State") } icon: { WatchStateEye(state: seriesWatchState) }
-                    .labelStyle(.iconOnly)
-            }
-            .focused($focus, equals: .action(.watched))
+            watchStateMenu
+                .focused($focus, equals: .action(.watched))
         }
     }
 

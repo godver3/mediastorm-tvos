@@ -3,7 +3,7 @@ import SwiftUI
 /// A title card's long-press actions, in the Expo TV menu's order: Hide from Continue
 /// Watching and Set Aside (Continue Watching titles), Remove from Set Aside, Manage Lists…,
 /// the watchlist toggle, Hide from This Profile (Unhide once hidden), Mark as Watched /
-/// Unwatched (movies; a card's one episode), the bulk watch-state screen (series), then a
+/// Unwatched (movies; a card's one episode), the bulk watch-state dialogs (series), then a
 /// list's own remove.
 struct TitleActionsMenu: View {
     @EnvironmentObject private var titles: TitleStateStore
@@ -77,43 +77,6 @@ struct TitleActionsMenu: View {
     private func run(_ action: @escaping (TitleStateStore) async -> Void) {
         let titles = titles
         Task { await action(titles) }
-    }
-}
-
-/// A series' bulk watch-state screen opened from a card: loads the series, then shows the
-/// details page's `WatchStateView`.
-struct SeriesWatchStateSheet: View {
-    @EnvironmentObject private var titles: TitleStateStore
-    let series: DetailsTarget
-    @State private var seasons: [Season]?
-    @State private var error: String?
-
-    var body: some View {
-        Group {
-            if let seasons {
-                WatchStateView(series: series, seasons: seasons, currentEpisode: nil,
-                               isWatched: { $0.watched == true }) {
-                    await load()
-                    await titles.seriesWatchStateChanged()
-                }
-            } else if let error {
-                Text(error).foregroundStyle(.secondary)
-            } else {
-                ProgressView()
-            }
-        }
-        .task { await load() }
-    }
-
-    private func load() async {
-        do {
-            guard let details = try await APIClient.shared.detailsBundle(series).seriesDetails else {
-                throw APIError.notReady("Details unavailable")
-            }
-            seasons = details.seasons
-        } catch {
-            self.error = error.localizedDescription
-        }
     }
 }
 

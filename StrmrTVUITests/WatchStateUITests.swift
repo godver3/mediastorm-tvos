@@ -1,6 +1,6 @@
 import XCTest
 
-/// The watched controls on details: the series Watch State screen, the episode long-press
+/// The watched controls on details: the series Watch State menu, the episode long-press
 /// toggle and the movie toggle. Read-only: it opens them and closes them again without
 /// pressing anything that writes, so the profile's history is untouched.
 @MainActor
@@ -60,13 +60,14 @@ final class WatchStateUITests: XCTestCase {
 
         focusAction("Watch State")
         press(.select)
-        XCTAssertTrue(app.buttons["WatchState-all-watched"].waitForExistence(timeout: 5))
+        let markAll = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mark All'")).firstMatch
+        XCTAssertTrue(markAll.waitForExistence(timeout: 5), "the Watch State menu should offer Mark All")
         shot("watch-state")
         press(.down, 6, gap: 0.4)
         shot("watch-state-seasons")
         press(.menu)
         Thread.sleep(forTimeInterval: 2)
-        XCTAssertFalse(app.buttons["WatchState-all-watched"].exists, "Menu should close Watch State")
+        XCTAssertFalse(markAll.exists, "Menu should close Watch State")
 
         // Down to the episode row and long-press the first episode.
         press(.down, 2)
