@@ -54,6 +54,10 @@ extension APIClient {
         if case let .library(library) = list {
             return try await libraryPage(library, options: options, limit: limit, offset: offset)
         }
+        let serviceLists = list.serviceLists(part: options.part).count
+        if serviceLists > 1 {
+            return try await mergedServicePage(list, options: options, sources: serviceLists, limit: limit, offset: offset, extra: extra)
+        }
         var query = list.query.merging(options.query(for: list)) { _, new in new }.merging(extra) { _, new in new }
         query["limit"] = String(limit)
         query["offset"] = String(offset)

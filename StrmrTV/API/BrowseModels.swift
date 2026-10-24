@@ -68,10 +68,20 @@ enum BrowseList: Hashable {
         }
     }
 
-    /// Lists the grid switches between (a streaming service's movies and shows).
+    /// Lists the grid switches between (a streaming service's movies and shows), after
+    /// All (every list, merged) when there are several.
     var parts: [String] {
         guard case let .service(service) = self else { return [] }
-        return service.lists.enumerated().map { $1.title ?? String(localized: "List \($0 + 1)") }
+        let titles = service.lists.enumerated().map { $1.title ?? String(localized: "List \($0 + 1)") }
+        return titles.count > 1 ? [String(localized: "All")] + titles : titles
+    }
+
+    /// The service lists a part shows: all of them for All, else the one.
+    func serviceLists(part: Int) -> [StreamingService.ServiceList] {
+        guard case let .service(service) = self else { return [] }
+        guard service.lists.count > 1 else { return service.lists }
+        if part == 0 { return service.lists }
+        return service.lists.indices.contains(part - 1) ? [service.lists[part - 1]] : []
     }
 
     /// Remote lists the server can page without reading the whole source first
@@ -331,7 +341,7 @@ struct BrowseOptions: Hashable {
     var watch: WatchFilter = .all
     var genres: Set<String> = []
     var letter: String?
-    /// Which of the list's `parts` is shown.
+    /// Which of the list's `parts` is shown (0 is All when there is one).
     var part = 0
 
     var isFiltered: Bool { kind != nil || watch != .all || !genres.isEmpty }
@@ -349,8 +359,8 @@ struct BrowseOptions: Hashable {
 
     func query(for list: BrowseList) -> [String: String] {
         var q: [String: String] = [:]
-        if case let .service(service) = list, service.lists.indices.contains(part) {
-            q["url"] = service.lists[part].url
+        if case .service = list, let only = list.serviceLists(part: part).first, list.serviceLists(part: part).count == 1 {
+            q["url"] = only.url
         }
         if sort != .default, list.sorts.contains(sort) {
             q["sortBy"] = sort.rawValue
