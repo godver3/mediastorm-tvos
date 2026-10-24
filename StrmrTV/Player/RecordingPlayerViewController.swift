@@ -62,6 +62,7 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         super.viewDidLoad()
         bindEngine()
         setInfoPanel(title: recording.displayTitle, subtitle: recording.channelName, description: recording.description)
+        installStreamInfo(file: nil, source: StreamSource.joined([String(localized: "Recording"), recording.channelName]))
         if growing {
             Self.fill(recBadge, in: overlayHost)
             overlayHost.addSubview(recBadge)
@@ -223,6 +224,10 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
     }
 
     /// Without AVKit's chrome: Select / Play-Pause toggle, Left / Right seek 10 s, Menu closes.
+    override func streamInfoDidChange(_ info: StreamInfo) {
+        softwareHUD.setDetails(info.summary)
+    }
+
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         guard ownsTransport, let press = presses.first else { return super.pressesBegan(presses, with: event) }
         switch press.type {

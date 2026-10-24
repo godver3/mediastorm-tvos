@@ -18,6 +18,9 @@ class EnginePlayerViewController: AVPlayerViewController {
     var matchContent = false
     /// The info panel's artwork load (`+InfoPanel`); internal for that file.
     var infoArtworkTask: Task<Void, Never>?
+    /// The Stream info tab and its session-fixed rows (`+StreamInfo`); internal for that file.
+    lazy var streamInfoTab = StreamInfoViewController()
+    var streamInfoBase = StreamInfo()
 
     init(engine: AetherEngine, logCategory: String) {
         self.engine = engine
@@ -55,6 +58,9 @@ class EnginePlayerViewController: AVPlayerViewController {
         guard isBeingDismissed || presentingViewController == nil else { return }
         finish()
     }
+
+    /// The Stream tab's rows changed (`+StreamInfo`); the software route's HUD shows the summary.
+    func streamInfoDidChange(_ info: StreamInfo) {}
 
     /// Tears the session down once the player has been dismissed. Subclasses override it.
     func finish() {}

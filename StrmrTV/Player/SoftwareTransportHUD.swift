@@ -5,6 +5,8 @@ import UIKit
 final class SoftwareTransportHUD: UIView {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
+    /// The stream's summary ("4K HEVC · HDR10 · E-AC-3 5.1 · Usenet"): the route has no Info tabs.
+    private let detailsLabel = UILabel()
     /// The Info panel's still (episode still or backdrop), beside the title once loaded.
     private let artwork = UIImageView()
     private let timeLabel = UILabel()
@@ -34,6 +36,9 @@ final class SoftwareTransportHUD: UIView {
         subtitleLabel.isHidden = subtitle?.isEmpty ?? true
         subtitleLabel.font = .preferredFont(forTextStyle: .callout)
         subtitleLabel.textColor = .white.withAlphaComponent(0.75)
+        detailsLabel.isHidden = true
+        detailsLabel.font = .preferredFont(forTextStyle: .caption1)
+        detailsLabel.textColor = .white.withAlphaComponent(0.6)
         artwork.contentMode = .scaleAspectFill
         artwork.clipsToBounds = true
         artwork.layer.cornerRadius = 10
@@ -46,7 +51,7 @@ final class SoftwareTransportHUD: UIView {
         stateIcon.tintColor = .white
         stateIcon.contentMode = .scaleAspectFit
 
-        let titles = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
+        let titles = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel, detailsLabel])
         titles.axis = .vertical
         titles.spacing = 4
         [artwork, stateIcon, titles, UIView(), timeLabel].forEach(row.addArrangedSubview)
@@ -84,6 +89,11 @@ final class SoftwareTransportHUD: UIView {
     func setArtwork(_ image: UIImage) {
         artwork.image = image
         artwork.isHidden = false
+    }
+
+    func setDetails(_ text: String?) {
+        detailsLabel.text = text
+        detailsLabel.isHidden = text?.isEmpty ?? true
     }
 
     // MARK: Scrub preview

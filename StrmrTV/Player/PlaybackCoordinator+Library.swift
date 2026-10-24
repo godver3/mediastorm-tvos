@@ -12,7 +12,8 @@ extension PlaybackCoordinator {
             let playback = if let known { known } else { try await APIClient.shared.libraryPlayback(itemID: version.item.id) }
             await TrackSettingsStore.shared.loadProfileValues()
             return (playback.streamPath, TrackPreferences.library,
-                    SourceSwitch.Current(releaseName: version.releaseName, streamPath: playback.streamPath))
+                    SourceSwitch.Current(releaseName: version.releaseName, streamPath: playback.streamPath,
+                                         origin: version.origin))
         }
     }
 }

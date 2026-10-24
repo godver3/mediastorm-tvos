@@ -37,6 +37,14 @@ struct SourceResult: Identifiable, @unchecked Sendable {
     }
 }
 
+extension SourceResult {
+    /// "Debrid · Real-Debrid" / "Usenet · NZBGeek" for the stream this result resolved to.
+    func sourceLabel(path: String) -> String? {
+        StreamSource.label(path: path, serviceType: serviceType,
+                           debridProvider: attributes["debridProvider"] ?? attributes["provider"], indexer: indexer)
+    }
+}
+
 struct SourceHealth: Decodable, Hashable {
     /// healthy | cached | unhealthy | not_cached | pending | unknown
     let state: String
@@ -167,10 +175,23 @@ struct PrequeueStatus: Decodable {
     let passthroughName: String?
     let selectedResult: SelectedResult?
     let resultAttributes: [String: String]?
+    /// "usenet" / "debrid", and the debrid service that resolved it, for the player's Stream tab.
+    let serviceType: String?
+    let debridProvider: String?
 
     struct SelectedResult: Decodable {
         let title: String?
         let attributes: [String: String]?
+        let indexer: String?
+        let serviceType: String?
+    }
+
+    /// "Debrid · Real-Debrid" / "Usenet · NZBGeek".
+    var sourceLabel: String? {
+        let attrs = resultAttributes ?? selectedResult?.attributes ?? [:]
+        return StreamSource.label(path: streamPath, serviceType: serviceType ?? selectedResult?.serviceType,
+                                  debridProvider: debridProvider ?? attrs["debridProvider"] ?? attrs["provider"],
+                                  indexer: selectedResult?.indexer)
     }
 }
 

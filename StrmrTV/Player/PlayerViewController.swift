@@ -104,6 +104,7 @@ final class PlayerViewController: EnginePlayerViewController {
         observeAppLifecycle()
         setInfoPanel(title: request.displayTitle, subtitle: request.displaySubtitle,
                      description: request.infoDescription, artworkURL: request.infoArtworkURL)
+        installStreamInfo(file: currentSource.releaseName, source: currentSource.origin)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -277,6 +278,10 @@ final class PlayerViewController: EnginePlayerViewController {
 
     override func infoArtworkDidLoad(_ image: UIImage) {
         softwareHUD.setArtwork(image)
+    }
+
+    override func streamInfoDidChange(_ info: StreamInfo) {
+        softwareHUD.setDetails(info.summary)
     }
 
     // MARK: Lifecycle

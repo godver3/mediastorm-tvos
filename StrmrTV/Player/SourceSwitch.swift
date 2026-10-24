@@ -9,6 +9,8 @@ enum SourceSwitch {
         var guid: String?
         var releaseName: String?
         var streamPath: String?
+        /// Where the stream comes from, for the player's Stream tab ("Debrid · Real-Debrid").
+        var origin: String?
     }
 
     /// One row of the menu.

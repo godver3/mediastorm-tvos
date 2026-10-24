@@ -75,6 +75,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         bindEngine()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
+        installStreamInfo(file: nil, source: StreamSource.joined([String(localized: "Live TV"), channel.name]))
     }
 
     override func viewDidAppear(_ animated: Bool) {
