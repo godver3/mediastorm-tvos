@@ -73,6 +73,9 @@ final class MultiscreenController: ObservableObject {
     var pendingAudio: LiveChannel?
     /// Resume is still adding screens: the half-restored selection isn't saved over the whole.
     var restoring = false
+    /// What saving compares against: the last save, or what a resume ended with, so a resume
+    /// cut short (Cancel, the stream limit) keeps the saved selection until the screens change.
+    var savedBaseline: MultiscreenResume.Selection?
     private var selecting = false
     /// Bumped to drop a capacity check still in flight when the picker goes away.
     var selection = 0
@@ -188,8 +191,12 @@ final class MultiscreenController: ObservableObject {
         let wasWarning = dialog == .warning
         dialog = nil
         if wasWarning {
-            controlsOpen = true
-            if !pendingExtras.isEmpty { pendingExtras = []; restoring = false; saveSelection() }
+            if pendingExtras.isEmpty {
+                controlsOpen = true
+            } else {
+                pendingExtras = []
+                finishRestoring()
+            }
         }
     }
 

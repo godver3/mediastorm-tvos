@@ -11,13 +11,12 @@ extension MultiscreenController {
         let first = channels.prefix(2).enumerated().map { session.tune($0.offset, to: $0.element) }
         session.focus(0)
         pendingExtras = Array(channels.dropFirst(2))
-        guard !pendingExtras.isEmpty else { return }
         restoring = true
         Task {
             // The first two hold their connections before the extras' capacity checks count them.
             for tune in first { await tune.value }
-            guard !finished, !pendingExtras.isEmpty else { return }
-            if resume.warningShown { restoreExtras() } else { showWarning() }
+            guard !finished else { return }
+            if pendingExtras.isEmpty { finishRestoring() } else if resume.warningShown { restoreExtras() } else { showWarning() }
         }
     }
 
@@ -28,10 +27,7 @@ extension MultiscreenController {
         selection += 1
         let generation = selection
         Task {
-            defer {
-                restoring = false
-                saveSelection()
-            }
+            defer { finishRestoring() }
             for channel in extras where session.index(of: channel) == nil {
                 do {
                     let usage = try await api.liveUsage(sourceID: channel.sourceId)
@@ -59,12 +55,29 @@ extension MultiscreenController {
         session.listen(index)
     }
 
-    /// The screens' channels in screen order, saved for Resume when there are two or more.
+    /// The screens' channels in screen order, saved for Resume when there are two or more and
+    /// they (or the audible one) changed since `savedBaseline`.
     func saveSelection() {
-        guard !restoring, !finished else { return }
+        guard !restoring, !finished, let current = currentSelection, current != savedBaseline else { return }
+        savedBaseline = current
+        resume.save(current)
+    }
+
+    /// Resume is done adding screens: what it ended with is the baseline, not a new save
+    /// (with the saved audible screen, if it hasn't started playing yet).
+    func finishRestoring() {
+        restoring = false
+        savedBaseline = currentSelection.map { current in
+            var baseline = current
+            if let pendingAudio, let index = current.channels.firstIndex(of: pendingAudio) { baseline.audioIndex = index }
+            return baseline
+        }
+    }
+
+    private var currentSelection: MultiscreenResume.Selection? {
         let occupied = slots.indices.filter { slots[$0].channel != nil }
-        guard occupied.count >= 2 else { return }
+        guard occupied.count >= 2 else { return nil }
         let audio = occupied.firstIndex(of: session.audioIndex) ?? 0
-        resume.save(.init(channels: occupied.compactMap { slots[$0].channel }, audioIndex: audio))
+        return .init(channels: occupied.compactMap { slots[$0].channel }, audioIndex: audio)
     }
 }
