@@ -26,6 +26,7 @@ struct SportsHubControls: View {
                         Label(store.day.label, systemImage: "calendar")
                     }
                     .buttonStyle(FilterChipStyle(selected: store.day != .today))
+                    .focused(focus, equals: "control-day")
                     .accessibilityIdentifier("sports-day")
                 }
                 sportMenu
@@ -35,15 +36,18 @@ struct SportsHubControls: View {
                     Label("Following", systemImage: store.followingOnly ? "star.fill" : "star")
                 }
                 .buttonStyle(FilterChipStyle(selected: store.followingOnly))
+                .focused(focus, equals: "control-following")
                 Button { spoilers.hidden.toggle() } label: {
                     Label("Hide Scores", systemImage: spoilers.hidden ? "eye.slash.fill" : "eye")
                 }
                 .buttonStyle(FilterChipStyle(selected: spoilers.hidden))
+                .focused(focus, equals: "control-scores")
                 .accessibilityIdentifier("sports-hide-scores")
                 NavigationLink(value: SportsPreferencesRoute()) {
                     Image(systemName: "slider.horizontal.3").accessibilityLabel("Customize Sports")
                 }
                 .buttonStyle(FilterChipStyle(selected: false))
+                .focused(focus, equals: "control-customize")
             }
             .font(.callout)
             .lineLimit(1)
@@ -65,6 +69,7 @@ struct SportsHubControls: View {
             Label(SportsHubFilters.sportLabel(store.sport), systemImage: "chevron.down")
         }
         .buttonStyle(FilterChipStyle(selected: store.sport != SportsHubFilters.all))
+        .focused(focus, equals: "control-sport")
         .accessibilityIdentifier("sports-sport")
     }
 
@@ -80,6 +85,7 @@ struct SportsHubControls: View {
             Label(store.leagueLabel, systemImage: "chevron.down")
         }
         .buttonStyle(FilterChipStyle(selected: store.league != SportsHubFilters.all))
+        .focused(focus, equals: "control-league")
         .accessibilityIdentifier("sports-league")
     }
 }

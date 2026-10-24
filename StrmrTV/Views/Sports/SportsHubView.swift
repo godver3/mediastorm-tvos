@@ -14,19 +14,29 @@ struct SportsHubView: View {
     /// Where the fade under the tab pill starts and how tall it is (screen points).
     private static let fadeStart: CGFloat = 112
     private static let fade: CGFloat = 24
+    private static let top = "sports-hub-top"
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 44) {
-                header
-                SportsHubControls(store: store, spoilers: spoilers, focus: $focus)
-                if store.filtered {
-                    SportsFilterSummary(store: store, spoilers: spoilers.hidden, focus: $focus).padding(.top, -24)
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 44) {
+                    header.id(Self.top)
+                    SportsHubControls(store: store, spoilers: spoilers, focus: $focus)
+                    if store.filtered {
+                        SportsFilterSummary(store: store, spoilers: spoilers.hidden, focus: $focus).padding(.top, -24)
+                    }
+                    content
                 }
-                content
+                .padding(.horizontal, CardGridLayout.inset)
+                .padding(.bottom, 80)
             }
-            .padding(.horizontal, CardGridLayout.inset)
-            .padding(.bottom, 80)
+            // Back up in the controls, the page goes all the way to its top. Focus alone scrolls
+            // only as far as the chip, leaving the title out of view and, with the top bar (shown
+            // only while the page is at its top), the menu too.
+            .onChange(of: focus) { _, new in
+                guard new != nil else { return }
+                withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo(Self.top, anchor: .top) }
+            }
         }
         .scrollClipDisabled()
         // Rows scrolled up fade out under the menu's tab pill instead of running beneath it.
