@@ -199,9 +199,8 @@ struct MainTabs: View {
         homePath = NavigationPath([link.target])
     }
 
-    /// A details page, with its stream starting to resolve as the push begins.
+    /// A details page (it starts its stream resolving as it appears).
     private func details(_ target: DetailsTarget) -> some View {
-        PlaybackCoordinator.shared.prewarm(target)
-        return DetailsView(target: target).pinsSideMenu()
+        DetailsView(target: target).pinsSideMenu()
     }
 }

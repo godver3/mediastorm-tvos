@@ -222,6 +222,10 @@ struct DetailsView: View {
         .modifier(DetailsTrailerModifier(trailer: trailer, focus: $focus, playbackStarting: playback.resolving != nil,
                                          menuOpen: menuOpen))
         .tracksMenuPresence($systemMenuOpen)
+        // Not in the navigation destination: that runs during a view update, so its publish
+        // re-ran every destination on the stack, and two details pages prewarming in turn
+        // never settled (a page opened from More Like This froze the app).
+        .onAppear { playback.prewarm(target) }
         .task { await load() }
         .onReceive(DeepLinkRouter.shared.$autoplayTitleID) { _ in autoplayIfRequested() }
         .onChange(of: playback.sessionsEnded) {

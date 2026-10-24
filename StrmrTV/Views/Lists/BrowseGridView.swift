@@ -92,10 +92,7 @@ struct BrowseGridView: View {
         } message: {
             Text("The titles stay in your library; only the list goes.")
         }
-        .navigationDestination(item: $pick) { target in
-            PlaybackCoordinator.shared.prewarm(target)
-            return DetailsView(target: target)
-        }
+        .navigationDestination(item: $pick) { DetailsView(target: $0) }
         .navigationDestination(item: $pickedShow) { LibraryShowView(target: $0) }
     }
 
