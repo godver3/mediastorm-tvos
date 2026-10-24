@@ -5,7 +5,7 @@ enum LiveMode: String, CaseIterable {
 }
 
 /// The Live tab: the channel guide (when the server has EPG data) or a grid of channel
-/// cards, under one row of filters: a Favorites star, Favorites or a category, the source,
+/// cards, under one row of filters: a Favorites star, Favorites or categories, the source,
 /// and search.
 struct LiveView: View {
     /// Set when the view picks a channel for multiscreen instead of playing it.
@@ -112,19 +112,8 @@ private struct LiveControls: View {
                 .focused(focus, equals: .view)
                 .accessibilityIdentifier("live.viewMenu")
             }
-            Picker(selection: $store.filter) {
-                Label("All Channels", systemImage: "tv").tag(LiveFilter.all)
-                Label("Favorites", systemImage: "star").tag(LiveFilter.favorites)
-                if !store.categories.isEmpty {
-                    Section("Categories") {
-                        ForEach(store.categories, id: \.self) { Text($0).tag(LiveFilter.category($0)) }
-                    }
-                }
-            } label: {
-                Label(store.filter.label, systemImage: store.filter == .favorites ? "star.fill" : "line.3.horizontal.decrease")
-            }
-            .pickerStyle(.menu)
-            .fixedSize()
+            filterMenu
+                .fixedSize()
             .focused(focus, equals: .filter)
             .accessibilityIdentifier("live.filterMenu")
             Button {
@@ -189,6 +178,37 @@ private struct LiveControls: View {
         }
         .font(.callout)
         .focusSection()
+    }
+
+    /// All Channels and Favorites pick and close; categories toggle with the menu left open,
+    /// and All Channels clears them.
+    private var filterMenu: some View {
+        Menu {
+            Button {
+                store.filter = .all
+            } label: {
+                Label("All Channels", systemImage: store.filter == .all ? "checkmark" : "tv")
+            }
+            Button {
+                store.filter = .favorites
+            } label: {
+                Label("Favorites", systemImage: store.filter == .favorites ? "checkmark" : "star")
+            }
+            if !store.categories.isEmpty {
+                Section("Categories") {
+                    ForEach(store.categories, id: \.self) { name in
+                        Button {
+                            store.toggleCategory(name)
+                        } label: {
+                            if store.filter.categories.contains(name) { Label(name, systemImage: "checkmark") } else { Text(name) }
+                        }
+                        .menuActionDismissBehavior(.disabled)
+                    }
+                }
+            }
+        } label: {
+            Label(store.filter.label, systemImage: store.filter == .favorites ? "star.fill" : "line.3.horizontal.decrease")
+        }
     }
 
     private var sourceTitle: String {

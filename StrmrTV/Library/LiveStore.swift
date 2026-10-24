@@ -1,17 +1,28 @@
 import Foundation
 import SwiftUI
 
-/// What the Live tab lists: every channel, the favorites, or one category.
+/// What the Live tab lists: every channel, the favorites, or one or more categories.
 enum LiveFilter: Hashable {
     case all
     case favorites
-    case category(String)
+    /// Never empty: no categories is `.all` (see `selecting`).
+    case categories(Set<String>)
+
+    /// `names` as a filter: `.all` when there are none.
+    static func selecting(_ names: Set<String>) -> LiveFilter {
+        names.isEmpty ? .all : .categories(names)
+    }
+
+    var categories: Set<String> {
+        if case let .categories(names) = self { names } else { [] }
+    }
 
     var label: String {
         switch self {
         case .all: String(localized: "All Channels")
         case .favorites: String(localized: "Favorites")
-        case let .category(name): name
+        case let .categories(names) where names.count == 1: names.first!
+        case let .categories(names): String(localized: "\(names.count) Categories")
         }
     }
 }
@@ -21,13 +32,18 @@ enum LiveFilter: Hashable {
 /// Channels come a page at a time from the server, which applies the source, category and
 /// search filters; hidden channels are dropped here. Favorites are listed only under the
 /// Favorites filter, not pinned to the top of the others. Favorites and
-/// hidden channels live in the profile's settings (`liveTV`), shared with the Expo app.
+/// hidden channels live in the profile's settings (`liveTV`), shared with the Expo app; the
+/// category selection is kept on this device, per profile, and restored on return.
 /// Now / next and guide schedules are fetched in batches for the channels on screen.
 @MainActor
 final class LiveStore: ObservableObject {
     // Filters. Changing any of them reloads from the first page.
-    @Published var filter: LiveFilter = .all {
-        didSet { if filter != .favorites { filterBeforeFavorites = filter } }
+    @Published var filter: LiveFilter {
+        didSet {
+            guard filter != .favorites else { return }
+            filterBeforeFavorites = filter
+            defaults.set(filter.categories.sorted(), forKey: Self.categoriesKey(profileID))
+        }
     }
     @Published var sourceID: String?
     /// Debounced into `search` before it reaches the server.
@@ -72,6 +88,18 @@ final class LiveStore: ObservableObject {
     private var chunkTask: Task<Void, Never>?
 
     private let api = APIClient.shared
+    private let defaults: UserDefaults
+    private let profileID: String
+
+    static func categoriesKey(_ profile: String) -> String { "live.categories.\(profile)" }
+
+    init(defaults: UserDefaults = .standard, profileID: String = APIClient.shared.profileID) {
+        self.defaults = defaults
+        self.profileID = profileID
+        let saved = LiveFilter.selecting(Set(defaults.stringArray(forKey: Self.categoriesKey(profileID)) ?? []))
+        filter = saved
+        filterBeforeFavorites = saved
+    }
 
     struct Query: Equatable {
         let filter: LiveFilter
@@ -141,7 +169,7 @@ final class LiveStore: ObservableObject {
         loadingFor = requested
         defer { if loadingFor == requested { loadingFor = nil } }
         let offset = loadedFor == requested ? channels.count : 0
-        let categories: [String] = if case let .category(name) = requested.filter { [name] } else { [] }
+        let categories = requested.filter.categories.sorted()
         let favoritesOnly = requested.filter == .favorites
         do {
             let page = try await api.liveChannels(
@@ -161,8 +189,10 @@ final class LiveStore: ObservableObject {
                 sources = srcs
                 if let sourceID, !srcs.contains(where: { $0.id == sourceID }) { self.sourceID = nil }
             }
-            if case let .category(name) = requested.filter, !self.categories.isEmpty, !self.categories.contains(name) {
-                filter = .all
+            // Categories the server no longer lists drop out of the selection.
+            let selected = requested.filter.categories
+            if !selected.isEmpty, !self.categories.isEmpty, !selected.isSubset(of: self.categories) {
+                filter = .selecting(selected.intersection(self.categories))
             }
             loadedFor = requested
             loadError = nil
@@ -176,6 +206,14 @@ final class LiveStore: ObservableObject {
     /// The header's star: Favorites, or back to the filter that was on before it.
     func toggleFavoritesOnly() {
         filter = filter == .favorites ? filterBeforeFavorites : .favorites
+    }
+
+    /// Adds or removes `name` from the selected categories (from Favorites, starts a new
+    /// selection); none left lists every channel.
+    func toggleCategory(_ name: String) {
+        var names = filter.categories
+        if names.remove(name) == nil { names.insert(name) }
+        filter = .selecting(names)
     }
 
     func toggleFavorite(_ channel: LiveChannel) {
