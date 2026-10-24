@@ -87,8 +87,10 @@ extension APIClient {
         return pages
     }
 
+    /// The list and query a total holds for; the quick-page flags change speed, not titles.
     private static func totalKey(_ list: BrowseList, _ options: BrowseOptions, _ extra: [String: String]) -> String {
         list.query.merging(options.query(for: list)) { _, new in new }.merging(extra) { _, new in new }
+            .filter { $0.key != "lite" && $0.key != "deferArtwork" }
             .sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
     }
 }

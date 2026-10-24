@@ -84,6 +84,18 @@ enum BrowseList: Hashable {
         return service.lists.indices.contains(part - 1) ? [service.lists[part - 1]] : []
     }
 
+    /// MDBList-backed lists, whose cold pages the server returns in about a second when it
+    /// skips artwork analysis (`lite`, `deferArtwork`), as the Expo app asks for them. The
+    /// grid shows that page, then fills its art (text posters) from the full one.
+    var quickPageQuery: [String: String]? {
+        switch self {
+        case .service: ["lite": "true", "deferArtwork": "true"]
+        case let .remote(_, _, query) where query["source"]?.lowercased() == "mdblist":
+            ["lite": "true", "deferArtwork": "true"]
+        default: nil
+        }
+    }
+
     /// Remote lists the server can page without reading the whole source first
     /// (`progressiveShelfSource` in the backend).
     var loadsProgressively: Bool {

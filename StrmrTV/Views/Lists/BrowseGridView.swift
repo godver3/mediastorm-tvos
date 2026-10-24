@@ -49,8 +49,9 @@ struct BrowseGridView: View {
                 LetterIndex(letters: letters, selection: $options.letter)
             }
             if !entries.isEmpty {
+                // Half a page ahead, so a cold page (seconds) is usually in before the end.
                 CardGrid(items: entries, cardWidth: PosterCard.width, available: gridWidth,
-                         onNearEnd: { Task { await loadPage() } }) { entry, width in
+                         onNearEnd: { Task { await loadPage() } }, nearEndRows: 6) { entry, width in
                     switch entry {
                     case let .title(title): PosterCard(title: title, width: width)
                     case let .item(item):
@@ -58,6 +59,10 @@ struct BrowseGridView: View {
                                    onRemoveFromList: removeAction(item))
                     case let .library(entry): LibraryPosterCard(entry: entry, width: width)
                     }
+                }
+                // The next page is on its way: the grid hasn't ended.
+                if loadingFor == options {
+                    ProgressView().frame(maxWidth: .infinity).padding(.bottom, 40)
                 }
             } else if let loadError {
                 GridMessage(text: loadError)
@@ -146,9 +151,13 @@ struct BrowseGridView: View {
         loadingFor = requested
         defer { if loadingFor == requested { loadingFor = nil } }
         do {
-            let page = try await APIClient.shared.browsePage(list, options: requested, limit: Self.pageSize, offset: fetched)
+            let offset = fetched
+            let quick = list.quickPageQuery
+            let page = try await APIClient.shared.browsePage(list, options: requested, limit: Self.pageSize, offset: offset,
+                                                             extra: quick ?? [:])
             // The sort or a filter changed while this page was loading; that reload wins.
             guard requested == options else { return }
+            if quick != nil { Task { await fillArtwork(offset: offset, options: requested) } }
             if fetched == 0 {
                 genres = page.genres
                 letters = page.letters
@@ -163,6 +172,15 @@ struct BrowseGridView: View {
         } catch {
             if entries.isEmpty, requested == options { loadError = error.localizedDescription }
         }
+    }
+
+    /// Swaps a quick page's cards for the full page's (same titles, with their text
+    /// posters) in place, so focus stays where it is.
+    private func fillArtwork(offset: Int, options requested: BrowseOptions) async {
+        guard let page = try? await APIClient.shared.browsePage(list, options: requested, limit: Self.pageSize, offset: offset),
+              requested == options else { return }
+        let full = Dictionary(page.entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        entries = entries.map { full[$0.id] ?? $0 }
     }
 
     /// Re-reads the loaded part without clearing it: cards that stay keep their focus, a

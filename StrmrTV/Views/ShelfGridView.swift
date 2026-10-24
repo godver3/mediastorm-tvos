@@ -152,8 +152,9 @@ struct CardGrid<Item: Identifiable, Card: View>: View {
     let items: [Item]
     let cardWidth: CGFloat
     let available: CGFloat
-    /// Called when one of the last rows of cards comes on screen.
+    /// Called when one of the last `nearEndRows` rows of cards comes on screen.
     var onNearEnd: (() -> Void)?
+    var nearEndRows = 2
     @ViewBuilder let card: (Item, CGFloat) -> Card
 
     private var layout: (columns: [GridItem], width: CGFloat) {
@@ -166,7 +167,7 @@ struct CardGrid<Item: Identifiable, Card: View>: View {
 
     var body: some View {
         let layout = layout
-        let nearEnd = Set(items.suffix(layout.columns.count * 2).map(\.id))
+        let nearEnd = Set(items.suffix(layout.columns.count * nearEndRows).map(\.id))
         LazyVGrid(columns: layout.columns, alignment: .leading, spacing: 70) {
             ForEach(items) { item in
                 card(item, layout.width)
