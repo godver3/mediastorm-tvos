@@ -60,6 +60,17 @@ extension APIClient {
     /// or an HLS session (`sessionID`, kept alive with `keepLiveSessionAlive`).
     /// `token=` / `profileUnlock=` ride in the query as on every header-less media URL.
     func startLive(_ channel: LiveChannel, programTitle: String?) async throws -> (url: URL, sessionID: String?) {
+        let start: LiveStart = try await send("GET", "/api/live/hls/start",
+                                              query: liveStartQuery(channel, programTitle: programTitle), timeout: 60)
+        let isDirect = start.isDirect == true
+        guard let path = isDirect ? start.streamUrl : start.playlistUrl, !path.isEmpty else {
+            throw APIError.notReady("The server did not return a stream for this channel")
+        }
+        return (try mediaURL(apiPath: path), isDirect ? nil : start.sessionId)
+    }
+
+    /// The `/api/live/hls/start` query for `channel`.
+    func liveStartQuery(_ channel: LiveChannel, programTitle: String?) -> [String: String] {
         var q = [
             "url": channel.url, "target": "native", "profileId": profileID,
             "mediaType": "channel", "title": programTitle ?? channel.name,
@@ -72,12 +83,7 @@ extension APIClient {
         if let v = channel.tvgName { q["tvgName"] = v }
         if let v = channel.group { q["category"] = v }
         if let v = channel.logo { q["liveChannelLogo"] = v }
-        let start: LiveStart = try await send("GET", "/api/live/hls/start", query: q, timeout: 60)
-        let isDirect = start.isDirect == true
-        guard let path = isDirect ? start.streamUrl : start.playlistUrl, !path.isEmpty else {
-            throw APIError.notReady("The server did not return a stream for this channel")
-        }
-        return (try mediaURL(apiPath: path), isDirect ? nil : start.sessionId)
+        return q
     }
 
     func keepLiveSessionAlive(_ sessionID: String) async {

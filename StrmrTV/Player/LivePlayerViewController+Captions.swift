@@ -42,7 +42,10 @@ extension LivePlayerViewController {
 
     func rebuildSubtitleMenu() {
         let items = subtitleChoices
-        transportBarCustomMenuItems = items.isEmpty ? [] : [
+        let addScreen = UIAction(title: String(localized: "Add Screen"), image: UIImage(systemName: "rectangle.split.2x2")) {
+            [weak self] _ in self?.addScreen()
+        }
+        transportBarCustomMenuItems = [addScreen] + (items.isEmpty ? [] : [
             NativeChrome.subtitleMenu(
                 items, offSelected: activeSubtitle == nil, style: SubtitleStyleStore.shared.style,
                 onSelect: { [weak self] id in self?.pickSubtitle(id) },
@@ -50,7 +53,7 @@ extension LivePlayerViewController {
                     SubtitleStyleStore.shared.style = style
                     self?.rebuildSubtitleMenu()
                 }),
-        ]
+        ])
         // AVKit's own Subtitles button would offer AVPlayer's legible group a second time.
         settingsHider.start(on: view, hiding: [TransportSettingsHider.legible])
     }

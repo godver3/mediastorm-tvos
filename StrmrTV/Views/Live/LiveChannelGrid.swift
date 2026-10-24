@@ -34,6 +34,8 @@ struct LiveChannelCard: View {
     let now: Date
     var focus: FocusState<String?>.Binding
     @EnvironmentObject private var store: LiveStore
+    @Environment(\.liveChannelPick) private var pick
+    @Environment(\.livePlayingChannelID) private var playingID
 
     private var size: CGSize { CGSize(width: width, height: (width * 9 / 16).rounded()) }
 
@@ -41,7 +43,7 @@ struct LiveChannelCard: View {
         let current = store.current(channel, at: now)
         VStack(alignment: .leading, spacing: 14) {
             Button {
-                LivePlayback.play(channel, program: current)
+                if let pick { pick.run(channel) } else { LivePlayback.play(channel, program: current) }
             } label: {
                 ZStack {
                     LinearGradient(colors: [Color(white: 0.2), Color(white: 0.1)], startPoint: .top, endPoint: .bottom)
@@ -57,7 +59,9 @@ struct LiveChannelCard: View {
                     }
                 }
                 .overlay(alignment: .topLeading) {
-                    if store.hidden.contains(channel.id) {
+                    if playingID == channel.id {
+                        Image(systemName: "play.fill").font(.caption).foregroundStyle(Color.accentColor).padding(14)
+                    } else if store.hidden.contains(channel.id) {
                         Image(systemName: "eye.slash").font(.caption).foregroundStyle(.secondary).padding(14)
                     }
                 }

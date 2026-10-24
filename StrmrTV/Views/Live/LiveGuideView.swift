@@ -183,6 +183,8 @@ private struct GuideRow: View {
     let now: Date
     let isFavorite: Bool
     var focus: FocusState<GuideCellID?>.Binding
+    @Environment(\.liveChannelPick) private var pick
+    @Environment(\.livePlayingChannelID) private var playingID
 
     private static let gap: CGFloat = 8
 
@@ -192,8 +194,13 @@ private struct GuideRow: View {
                 ChannelLogo(channel: channel, size: CGSize(width: 100, height: 56), font: .title3, namesChannel: false)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(channel.name).font(.caption.weight(.semibold)).lineLimit(2)
-                    if isFavorite {
-                        Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
+                    HStack(spacing: 8) {
+                        if playingID == channel.id {
+                            Image(systemName: "play.fill").font(.caption2).foregroundStyle(Color.accentColor)
+                        }
+                        if isFavorite {
+                            Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
+                        }
                     }
                 }
                 Spacer(minLength: 0)
@@ -204,6 +211,7 @@ private struct GuideRow: View {
             HStack(spacing: Self.gap) {
                 ForEach(cells) { cell in
                     Button {
+                        if let pick { return pick.run(channel) }
                         LivePlayback.play(channel, program: cell.program?.isAiring(at: Date()) == true ? cell.program : nil)
                     } label: {
                         GuideCellLabel(cell: cell, now: now)

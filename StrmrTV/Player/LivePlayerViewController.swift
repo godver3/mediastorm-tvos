@@ -30,6 +30,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     private var loadTask: Task<Void, Never>?
     var sessionID: String?
+    /// The HLS session's playlist, which multiscreen takes over with the session (`addScreen`).
+    private var playlistURL: URL?
     private var keepAliveTimer: Timer?
     var didFinish = false
 
@@ -98,6 +100,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title)
                 try Task.checkCancellation()
                 self.sessionID = sessionID
+                playlistURL = sessionID == nil ? nil : url
                 startKeepAlive()
                 startServerCaptions()
                 log.notice("tuning \(self.channel.name) (\(sessionID == nil ? "direct" : "hls session"))")
@@ -150,6 +153,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         keepAliveTimer?.invalidate()
         keepAliveTimer = nil
         stopServerCaptions()
+        playlistURL = nil
         guard let id = sessionID else { return }
         sessionID = nil
         Task { await APIClient.shared.stopLiveSession(id) }
@@ -244,6 +248,32 @@ final class LivePlayerViewController: EnginePlayerViewController {
         }
         if presses.contains(where: { $0.type == .playPause }) { return }
         super.pressesBegan(presses, with: event)
+    }
+
+    // MARK: Multiscreen
+
+    /// The transport bar's Add Screen: this channel becomes multiscreen's first screen. An HLS
+    /// session is handed over as it is (its keepalive stops here, but it is not stopped, and
+    /// the teardown below no longer knows it); a direct stream ends and is opened again as HLS.
+    func addScreen() {
+        guard !didFinish else { return }
+        let entry: MultiscreenEntry
+        if let id = sessionID, let url = playlistURL {
+            keepAliveTimer?.invalidate()
+            keepAliveTimer = nil
+            sessionID = nil
+            playlistURL = nil
+            entry = .session(channel, url: url, sessionID: id)
+            log.notice("multiscreen: handing the hls session over")
+        } else {
+            entry = .tune(channel)
+            log.notice("multiscreen: retuning as hls")
+        }
+        loadTask?.cancel()
+        let presenter = presentingViewController
+        dismiss(animated: true) {
+            MultiscreenPresenter.open(entry, over: presenter)
+        }
     }
 
     // MARK: Lifecycle

@@ -8,6 +8,8 @@ enum LiveMode: String, CaseIterable {
 /// cards, under one row of filters: a Favorites star, Favorites or a category, the source,
 /// and search.
 struct LiveView: View {
+    /// Set when the view picks a channel for multiscreen instead of playing it.
+    var picker: LivePicker?
     @StateObject private var store = LiveStore()
     @AppStorage("live.mode") private var mode: LiveMode = .guide
     /// Moves progress bars and the guide's now line along.
@@ -26,12 +28,15 @@ struct LiveView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            LiveControls(store: store, mode: $mode, focus: $controlFocus) { showsRecordings = true }
+            if let picker {
+                Text(picker.title).font(.title3.weight(.bold)).padding(.horizontal, CardGridLayout.inset)
+            }
+            LiveControls(store: store, mode: $mode, focus: $controlFocus, picking: picker != nil) { showsRecordings = true }
                 .defaultFocus($controlFocus, lastControl, priority: .userInitiated)
                 .padding(.horizontal, CardGridLayout.inset)
                 .onMoveCommand { if $0 == .down { contentFocus = .enter } }
                 .onChange(of: controlFocus) { _, new in if let new { lastControl = new } }
-            if let error = store.actionError {
+            if let error = store.actionError ?? picker?.error {
                 Text(error).font(.callout).foregroundStyle(.red).padding(.horizontal, CardGridLayout.inset)
             }
             content
@@ -39,6 +44,10 @@ struct LiveView: View {
         // Pinned to the top, so the controls don't sit mid-screen while the list loads.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .environmentObject(store)
+        .environment(\.liveChannelPick, picker?.onPick)
+        .environment(\.livePlayingChannelID, picker?.playingChannelID)
+        // In the picker, Menu on the controls closes it (in the guide or grid it moves up first).
+        .onExitCommand(perform: picker?.onClose)
         .navigationDestination(isPresented: $showsRecordings) { RecordingsView().pinsSideMenu() }
         // The first run loads favorites and the EPG status, then every filter change reloads.
         .task(id: store.query) { await store.start() }
@@ -82,6 +91,8 @@ private struct LiveControls: View {
     @ObservedObject var store: LiveStore
     @Binding var mode: LiveMode
     var focus: FocusState<LiveControl?>.Binding
+    /// In the multiscreen picker: no Recordings or Multiscreen.
+    let picking: Bool
     let openRecordings: () -> Void
 
     var body: some View {
@@ -152,8 +163,15 @@ private struct LiveControls: View {
                 } label: {
                     Label("Refresh Channels", systemImage: "arrow.clockwise")
                 }
-                Button(action: openRecordings) {
-                    Label("Recordings", systemImage: "record.circle")
+                if !picking {
+                    Button {
+                        MultiscreenPresenter.open(.pick)
+                    } label: {
+                        Label("Multiscreen", systemImage: "rectangle.split.2x2")
+                    }
+                    Button(action: openRecordings) {
+                        Label("Recordings", systemImage: "record.circle")
+                    }
                 }
             } label: {
                 Label("More", systemImage: "ellipsis").labelStyle(.iconOnly)
@@ -168,6 +186,32 @@ private struct LiveControls: View {
     private var sourceTitle: String {
         store.sources.first { $0.id == store.sourceID }?.name ?? String(localized: "All Sources")
     }
+}
+
+/// The Live tab as multiscreen's channel picker: its title, the screen's current channel (marked
+/// in the list), and what a pick and Menu do.
+struct LivePicker {
+    let title: String
+    let playingChannelID: String?
+    let error: String?
+    let onPick: LiveChannelPick
+    let onClose: () -> Void
+}
+
+/// What a pick does in the picker; a class, so the environment compares it by identity.
+final class LiveChannelPick {
+    let run: (LiveChannel) -> Void
+
+    init(_ run: @escaping (LiveChannel) -> Void) {
+        self.run = run
+    }
+}
+
+extension EnvironmentValues {
+    /// Replaces playing a channel when the Live views pick one for multiscreen.
+    @Entry var liveChannelPick: LiveChannelPick?
+    /// The channel the picker's screen shows, marked in the list.
+    @Entry var livePlayingChannelID: String?
 }
 
 /// Long-press actions shared by channel cards and guide cells.
