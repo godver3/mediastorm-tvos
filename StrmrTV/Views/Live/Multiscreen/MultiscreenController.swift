@@ -10,6 +10,8 @@ enum MultiscreenEntry {
     case session(LiveChannel, url: URL, sessionID: String)
     /// From the full-screen player's direct stream: screen 1 opens the channel again over HLS.
     case tune(LiveChannel)
+    /// The Live tab's Resume Multiscreen: this device's last selection for the profile.
+    case resume(MultiscreenResume.Selection)
 }
 
 /// The server side of a tile: the provider's capacity is checked before every start.
@@ -32,7 +34,7 @@ struct MultiscreenAPITransport: MultiscreenTransport {
 @MainActor
 final class MultiscreenController: ObservableObject {
     enum Dialog: Equatable {
-        /// Before a third screen, once per multiscreen.
+        /// Before a third screen, the first time only on this device.
         case warning
         /// No capacity for `channel`: replace a screen with it, or cancel.
         case replacement(LiveChannel)
@@ -64,20 +66,29 @@ final class MultiscreenController: ObservableObject {
     /// Still choosing the first two channels: backing out of the picker leaves multiscreen.
     private(set) var initialSetup: Bool
     private let fromPlayer: Bool
-    private var warningAccepted = false
+    let resume: MultiscreenResume
+    /// Resume's third and fourth channels, added after the first two (and the warning).
+    var pendingExtras: [LiveChannel] = []
+    /// Resume's audible channel, listened to once its screen plays.
+    var pendingAudio: LiveChannel?
+    /// Resume is still adding screens: the half-restored selection isn't saved over the whole.
+    var restoring = false
     private var selecting = false
     /// Bumped to drop a capacity check still in flight when the picker goes away.
-    private var selection = 0
+    var selection = 0
     private var overlayTimer: Timer?
     private var epgTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private var appActive = true
-    private let api = APIClient.shared
+    let api = APIClient.shared
     private let log = AppLog(category: "multiscreen")
 
-    init(entry: MultiscreenEntry, transport: MultiscreenTransport = MultiscreenAPITransport()) {
+    init(entry: MultiscreenEntry, transport: MultiscreenTransport = MultiscreenAPITransport(),
+         resume: MultiscreenResume = .shared) {
         session = MultiscreenSession(transport: transport)
+        self.resume = resume
         initialSetup = true
+        picker = Picker(adding: true)
         switch entry {
         case .pick:
             fromPlayer = false
@@ -89,8 +100,11 @@ final class MultiscreenController: ObservableObject {
             fromPlayer = true
             session.tune(0, to: channel)
             session.focus(1)
+        case .resume:
+            fromPlayer = false
+            initialSetup = false
+            picker = nil
         }
-        picker = Picker(adding: true)
         session.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.sessionChanged() }
@@ -104,6 +118,7 @@ final class MultiscreenController: ObservableObject {
             .store(in: &cancellables)
         sessionChanged()
         reveal()
+        if case let .resume(selection) = entry { restore(selection) }
     }
 
     /// The picker's pick, kept so the Live views see the same one on every update.
@@ -150,25 +165,32 @@ final class MultiscreenController: ObservableObject {
         if occupied >= MultiscreenSession.maxScreens {
             controlsOpen = false
             dialog = .notice(String(localized: "Multiscreen shows up to \(MultiscreenSession.maxScreens) screens. Remove one to add another."))
-        } else if occupied >= 2, !warningAccepted {
+        } else if occupied >= 2, !resume.warningShown {
             controlsOpen = false
-            dialog = .warning
+            showWarning()
         } else {
             openPicker(adding: true)
         }
     }
 
+    func showWarning() {
+        resume.warningShown = true
+        dialog = .warning
+    }
+
     func acceptWarning() {
-        warningAccepted = true
         dialog = nil
-        openPicker(adding: true)
+        if pendingExtras.isEmpty { openPicker(adding: true) } else { restoreExtras() }
     }
 
     /// Cancel on the warning, or the replacement dialog: back to the control bar.
     func dismissDialog() {
         let wasWarning = dialog == .warning
         dialog = nil
-        if wasWarning { controlsOpen = true }
+        if wasWarning {
+            controlsOpen = true
+            if !pendingExtras.isEmpty { pendingExtras = []; restoring = false; saveSelection() }
+        }
     }
 
     func changeChannel() { openPicker(adding: false) }
@@ -195,6 +217,13 @@ final class MultiscreenController: ObservableObject {
 
     func equalTiles() {
         expanded = nil
+        controlsOpen = false
+    }
+
+    /// The control bar's Enlarge, while the tiles are equal: the focused screen, if it plays.
+    func enlarge() {
+        guard focusedSlot.isPlaying else { return }
+        expanded = focused
         controlsOpen = false
     }
 
@@ -319,6 +348,8 @@ final class MultiscreenController: ObservableObject {
                 player.setAudible(session.audioIndex == index)
                 player.setActive(appActive && slot.isPlaying)
             }
+            listenToResumedAudio()
+            saveSelection()
             refreshGuideIfNeeded()
             objectWillChange.send()
         }

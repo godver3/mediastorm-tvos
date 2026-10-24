@@ -94,6 +94,7 @@ private struct LiveControls: View {
     /// In the multiscreen picker: no Recordings or Multiscreen.
     let picking: Bool
     let openRecordings: () -> Void
+    @ObservedObject private var resume = MultiscreenResume.shared
 
     var body: some View {
         HStack(spacing: 24) {
@@ -164,6 +165,13 @@ private struct LiveControls: View {
                     Label("Refresh Channels", systemImage: "arrow.clockwise")
                 }
                 if !picking {
+                    if let saved = resume.saved {
+                        Button {
+                            MultiscreenPresenter.open(.resume(saved))
+                        } label: {
+                            Label("Resume Multiscreen", systemImage: "arrow.counterclockwise")
+                        }
+                    }
                     Button {
                         MultiscreenPresenter.open(.pick)
                     } label: {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The dock under the tiles: the focused screen's details, then Add screen, Change channel,
-/// Retry, Remove, Equal tiles and Guide (exit). Up or Menu returns to the tiles.
+/// Retry, Remove, Enlarge / Equal tiles and Guide (exit). Up or Menu returns to the tiles.
 struct MultiscreenControlBar: View {
     @ObservedObject var controller: MultiscreenController
     @FocusState private var focus: Control?
@@ -28,9 +28,14 @@ struct MultiscreenControlBar: View {
                 if slot.channel != nil {
                     action(.remove, "Remove", "minus", controller.remove)
                 }
-                action(.equal, "Equal tiles", "square.grid.2x2", controller.equalTiles)
+                if controller.expanded != nil {
+                    action(.equal, "Equal tiles", "square.grid.2x2", controller.equalTiles)
+                } else if slot.isPlaying {
+                    action(.equal, "Enlarge", "arrow.up.left.and.arrow.down.right", controller.enlarge)
+                }
                 action(.exit, "Guide", "rectangle.portrait.and.arrow.right", controller.exit)
             }
+            .fixedSize()
             .focusSection()
         }
         .padding(.horizontal, MultiscreenController.margin.width)
@@ -56,11 +61,17 @@ struct MultiscreenControlBar: View {
             controller.reveal()
             perform()
         } label: {
-            VStack(spacing: 8) {
-                Image(systemName: symbol).font(.title3)
-                Text(title).font(.caption2).lineLimit(1).minimumScaleFactor(0.7)
+            // Every glyph in the same box and every label at one size, so the row lines up.
+            VStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 30, weight: .medium))
+                    .frame(width: 44, height: 40)
+                Text(title)
+                    .font(.system(size: 21, weight: .medium))
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .frame(width: 128, height: 104)
+            .frame(width: 168, height: 108)
         }
         .buttonStyle(MultiscreenDockButtonStyle())
         .focused($focus, equals: control)

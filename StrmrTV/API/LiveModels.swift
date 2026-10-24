@@ -2,7 +2,7 @@ import Foundation
 
 /// One channel from `/api/live/channels`. With more than one source configured, `id` is
 /// `{sourceId}:{rawId}`; favorites and hidden channels are stored by `id`.
-struct LiveChannel: Decodable, Identifiable, Hashable {
+struct LiveChannel: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     /// The provider URL; `/api/live/hls/start` tunes it.
