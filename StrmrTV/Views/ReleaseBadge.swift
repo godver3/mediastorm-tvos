@@ -10,6 +10,16 @@ struct CardBadge: Hashable {
     static let unreleased = CardBadge(text: String(localized: "Unreleased"), symbol: "hourglass")
     static let inTheaters = CardBadge(text: String(localized: "In Theaters"), symbol: "popcorn.fill")
     static let watched = CardBadge(text: String(localized: "Watched"), symbol: "checkmark")
+    static let inProgress = CardBadge(text: String(localized: "In Progress"), symbol: "circle.lefthalf.filled")
+
+    /// The server's `watchState`: watched, or started (a movie's progress, a series' episodes).
+    static func forWatchState(_ state: String?) -> CardBadge? {
+        switch state {
+        case "complete": .watched
+        case "partial": .inProgress
+        default: nil
+        }
+    }
 }
 
 /// "Not out yet" labels, from the backend's release availability and air dates.

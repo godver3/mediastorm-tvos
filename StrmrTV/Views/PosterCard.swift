@@ -28,6 +28,7 @@ struct PosterCard: View {
         self.opens = opens
         target = DetailsTarget(title)
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
+            ?? CardBadge.forWatchState(title.watchState)
         subtitle = Self.subtitle(year: title.year, isMovie: title.isMovie)
     }
 
@@ -43,7 +44,7 @@ struct PosterCard: View {
         self.width = width
         self.onRemoveFromList = onRemoveFromList
         target = DetailsTarget(item)
-        badge = ReleaseBadge.forTitle(item) ?? (item.watchState == "complete" ? .watched : nil)
+        badge = ReleaseBadge.forTitle(item) ?? CardBadge.forWatchState(item.watchState)
         subtitle = Self.subtitle(year: item.year, isMovie: item.isMovie)
     }
 

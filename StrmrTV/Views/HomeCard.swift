@@ -106,7 +106,7 @@ struct HomeCard: Identifiable, Hashable {
         logoURL = item.logoUrl
         artworkURL = item.backdropUrl ?? item.posterUrl
         progress = 0
-        badge = ReleaseBadge.forTitle(item) ?? (item.watchState == "complete" ? .watched : nil)
+        badge = ReleaseBadge.forTitle(item) ?? CardBadge.forWatchState(item.watchState)
     }
 
     /// A list title; `rank` (Top 10) shows as the badge.
@@ -122,6 +122,7 @@ struct HomeCard: Identifiable, Hashable {
         artworkURL = title.backdrop?.url ?? title.poster?.url
         progress = 0
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
+            ?? CardBadge.forWatchState(title.watchState)
         certification = title.certification
         genres = title.genres ?? []
     }

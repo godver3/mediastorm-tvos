@@ -209,6 +209,8 @@ struct Title: Decodable, Identifiable, Hashable {
     let credits: Credits?
     /// Movies: the collection the movie belongs to (details only).
     let collection: CollectionRef?
+    /// none | partial | complete, for the profile that asked (Search, list rows).
+    let watchState: String?
 
     var isMovie: Bool { mediaType == "movie" }
 }
