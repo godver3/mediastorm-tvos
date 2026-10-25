@@ -141,7 +141,8 @@ struct EpisodeCard: View {
             }
             .buttonStyle(PosterFocusStyle(isFocused: focus.wrappedValue == .episode(episode.id)))
             .focused(focus, equals: .episode(episode.id))
-            .accessibilityLabel("Episode \(episode.episodeNumber), \(episode.name)" + (watched ? ", watched" : ""))
+            .accessibilityLabel("Episode \(episode.episodeNumber), \(episode.name)"
+                + (episode.runtimeMinutes.map { $0 > 0 ? ", \($0) minutes" : "" } ?? "") + (watched ? ", watched" : ""))
             .contextMenu {
                 Button { action() } label: { Label("Play", systemImage: "play.fill") }
                 if let onChooseVersion {
@@ -154,7 +155,14 @@ struct EpisodeCard: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("\(episode.episodeNumber). \(episode.name)").font(.caption.weight(.semibold)).lineLimit(1)
+                // The runtime trails the name, so a long name truncates first.
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("\(episode.episodeNumber). \(episode.name)").font(.caption.weight(.semibold)).lineLimit(1)
+                    Spacer(minLength: 0)
+                    if let runtime = formatRuntime(episode.runtimeMinutes) {
+                        Text(runtime).font(.caption2).foregroundStyle(.secondary).fixedSize()
+                    }
+                }
                 if let overview = episode.overview, !overview.isEmpty {
                     Text(overview).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
                         .blur(radius: hidesOverview ? 5 : 0)

@@ -127,3 +127,10 @@ func formatTimestamp(_ seconds: Double) -> String {
     let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
     return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
 }
+
+/// A runtime in minutes as "52m" / "1h" / "1h 5m"; nil when unknown.
+func formatRuntime(_ minutes: Int?) -> String? {
+    guard let r = minutes, r > 0 else { return nil }
+    let h = r / 60, m = r % 60
+    return h == 0 ? "\(m)m" : m == 0 ? "\(h)h" : "\(h)h \(m)m"
+}

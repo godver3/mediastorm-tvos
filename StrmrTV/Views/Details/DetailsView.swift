@@ -337,7 +337,7 @@ struct DetailsView: View {
         var parts: [String] = []
         if let y = title?.year ?? target.year { parts.append(String(y)) }
         if let c = title?.certification, !c.isEmpty { parts.append(c) }
-        if let r = title?.runtimeMinutes, r > 0 { parts.append("\(r / 60 > 0 ? "\(r / 60)h " : "")\(r % 60)m") }
+        if let r = formatRuntime(title?.runtimeMinutes) { parts.append(r) }
         if !seasons.isEmpty {
             let n = seasons.filter { $0.number > 0 }.count
             parts.append(n == 1 ? "1 Season" : "\(n) Seasons")

@@ -9,4 +9,13 @@ final class EpisodeAirDateTests: XCTestCase {
         XCTAssertNil(EpisodeCard.airDateText(nil))
         XCTAssertNil(EpisodeCard.airDateText("TBA"))
     }
+
+    /// Episode card and details header runtimes.
+    func testFormatsRuntime() {
+        XCTAssertEqual(formatRuntime(49), "49m")
+        XCTAssertEqual(formatRuntime(60), "1h")
+        XCTAssertEqual(formatRuntime(65), "1h 5m")
+        XCTAssertNil(formatRuntime(0))
+        XCTAssertNil(formatRuntime(nil))
+    }
 }
