@@ -17,6 +17,7 @@ final class PlayerViewController: EnginePlayerViewController {
     let previewsEnabled: Bool
 
     lazy var softwareHUD = SoftwareTransportHUD(title: request.displayTitle, subtitle: request.displaySubtitle)
+    private lazy var telemetry = VodPlaybackTelemetry(engine: engine, log: log)
     var progressTimer: Timer?
     var loadTask: Task<Void, Never>?
     var didFinish = false
@@ -117,6 +118,7 @@ final class PlayerViewController: EnginePlayerViewController {
             }
         }
         matchContent = view.window?.avDisplayManager.isDisplayCriteriaMatchingEnabled ?? false
+        telemetry.start()
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -336,6 +338,7 @@ final class PlayerViewController: EnginePlayerViewController {
         loadTask?.cancel()
         audioPickTask?.cancel()
         progressTimer?.invalidate()
+        telemetry.stop()
         disarmResumeWatch()
         stopCountdown()
         settingsHider.stop()
