@@ -2,6 +2,10 @@ import SwiftUI
 
 @main
 struct StrmrTVApp: App {
+    init() {
+        EngineLogBridge.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

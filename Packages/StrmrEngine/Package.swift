@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/superuser404notfound/AetherEngine",
-            exact: "7.44.0",
+            exact: "7.47.0",
             traits: ["TrueHDObjectAudio", "DTSXObjectAudio", "DolbyVisionStillReshaping"]
         ),
     ],
