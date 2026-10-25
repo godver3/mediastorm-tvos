@@ -156,8 +156,17 @@ final class LivePlayerViewController: EnginePlayerViewController {
         options.liveJoinProfile = join
         // The server's HLS session goes straight to AVPlayer; a direct stream is demuxed.
         options.nativeRemoteHLS = remoteHLS
+        if !remoteHLS {
+            // The engine's 50 MiB probe is sized for VOD files with sparse tracks. A live TS read
+            // arrives in real time: a 4K channel at ~15 Mbps spent 24 s of open_input reading
+            // 45 MB of it and missed the 25 s first-frame deadline. 8 MiB is a few seconds of
+            // such a channel, still the PMT and several keyframes.
+            options.probesize = Self.liveDirectProbeBytes
+        }
         return options
     }
+
+    private static let liveDirectProbeBytes: Int64 = 8 << 20
 
     /// The source died under the engine: open the channel again, within the budget.
     private func retune(_ reason: String) {
