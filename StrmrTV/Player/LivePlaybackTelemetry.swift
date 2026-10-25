@@ -28,6 +28,12 @@ final class LivePlaybackTelemetry {
     /// Access errors this minute; the first few are logged in full, the rest only counted.
     private var errorsThisWindow = 0
 
+    /// A sign the stream is running dry: AVPlayer stalled, or its playlist didn't move for
+    /// longer than 1.5 target durations (-12888).
+    enum Distress { case stall, playlistUnchanged }
+    var onDistress: ((Distress) -> Void)?
+    private static let playlistUnchangedStatus = -12888
+
     private static let interval: TimeInterval = 60
     private static let errorLinesPerWindow = 5
     private static let readQueue = DispatchQueue(label: "com.strmr.app.nx.live-telemetry", qos: .utility)
@@ -89,6 +95,7 @@ final class LivePlaybackTelemetry {
 
     private func logStall() {
         guard let item else { return }
+        onDistress?(.stall)
         Task { [weak self] in
             let reading = await Self.read(item)
             guard let self, self.item === item else { return }
@@ -100,11 +107,12 @@ final class LivePlaybackTelemetry {
     private func logAccessError() {
         guard let item else { return }
         errorsThisWindow += 1
-        guard errorsThisWindow <= Self.errorLinesPerWindow else { return }
+        let logged = errorsThisWindow <= Self.errorLinesPerWindow
         Task { [weak self] in
             let event = await Self.lastErrorEvent(item)
             guard let self, self.item === item, let event else { return }
-            self.log.error("telemetry access error: \(event)")
+            if event.status == Self.playlistUnchangedStatus { self.onDistress?(.playlistUnchanged) }
+            if logged { self.log.error("telemetry access error: \(event.text)") }
         }
     }
 
@@ -234,8 +242,13 @@ final class LivePlaybackTelemetry {
         return reading
     }
 
+    struct ErrorEvent {
+        var status: Int
+        var text: String
+    }
+
     /// The newest error entry, without its URI: that carries the session's auth token.
-    private static func lastErrorEvent(_ item: AVPlayerItem) async -> String? {
+    private static func lastErrorEvent(_ item: AVPlayerItem) async -> ErrorEvent? {
         return await withCheckedContinuation { continuation in
             readQueue.async {
                 guard let event = item.errorLog()?.events.last else {
@@ -243,8 +256,9 @@ final class LivePlaybackTelemetry {
                     return
                 }
                 let file = event.uri.flatMap { URL(string: $0)?.lastPathComponent } ?? "-"
-                continuation.resume(returning: "status \(event.errorStatusCode) \(event.errorDomain) "
-                    + "\(event.errorComment ?? "") (\(file))")
+                let text = "status \(event.errorStatusCode) \(event.errorDomain) "
+                    + "\(event.errorComment ?? "") (\(file))"
+                continuation.resume(returning: ErrorEvent(status: event.errorStatusCode, text: text))
             }
         }
     }

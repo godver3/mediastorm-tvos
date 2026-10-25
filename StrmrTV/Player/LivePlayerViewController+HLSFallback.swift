@@ -25,7 +25,7 @@ extension LivePlayerViewController {
     /// Whether this tune asks for HLS: after a direct failure, or as the source's remembered choice.
     func hlsForTune() async -> Bool {
         if hlsMode != .asConfigured { return true }
-        guard let scope = await LiveHLSPreference.scope(for: channel, wait: false),
+        guard let scope = await LiveHLSPreference.scope(for: channel),
               LiveHLSPreference.prefersHLS(scope) else { return false }
         log.notice("live hls: remembered for this source")
         hlsMode = .remembered
@@ -72,7 +72,7 @@ extension LivePlayerViewController {
         // Once per player: a late error can't remember another channel's source.
         hlsMode = .remembered
         Task { [channel, log] in
-            guard let scope = await LiveHLSPreference.scope(for: channel, wait: true) else {
+            guard let scope = await LiveHLSPreference.scope(for: channel) else {
                 log.notice("live hls: playing, but the source can't be remembered")
                 return
             }

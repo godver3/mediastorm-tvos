@@ -21,7 +21,8 @@ enum LivePlayback {
 /// which AVPlayer plays directly and which is kept alive every ten seconds and stopped on
 /// close. When the engine gives up on the source (`liveSourceReset`, or an end of stream)
 /// the channel is re-opened, at most three times, twenty seconds apart. A direct stream that
-/// fails before its first frame is opened once more as HLS (`+HLSFallback`).
+/// fails before its first frame is opened once more as HLS (`+HLSFallback`). A fast live join
+/// that runs dry is tuned again with the standard one (`+JoinProfile`).
 ///
 /// Captions: see `LivePlayerViewController+Captions.swift`.
 final class LivePlayerViewController: EnginePlayerViewController {
@@ -52,6 +53,11 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var tunePlayed = false
     var hlsProofTimer: Timer?
     var directStartTimer: Timer?
+
+    // The fast → standard live join (`+JoinProfile`).
+    var standardJoin = false
+    /// When this tune showed its first frame.
+    var firstFrameAt: Date?
 
     private lazy var cover = LiveLoadingCover(channel: channel, program: program)
     private lazy var telemetry = LivePlaybackTelemetry(engine: engine, log: log)
@@ -87,6 +93,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
+        telemetry.onDistress = { [weak self] in self?.noteJoinDistress($0) }
         telemetry.start()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
@@ -107,6 +114,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         lastTune = Date()
         tuneIsDirect = false
         tunePlayed = false
+        firstFrameAt = nil
         hlsProofTimer?.invalidate()
         directStartTimer?.invalidate()
         retuneRecoveryTimer?.invalidate()
@@ -121,6 +129,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 endSession()
                 if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
                 let forceHLS = await hlsForTune()
+                let join = await joinProfileForTune()
                 let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title, forceHLS: forceHLS)
                 try Task.checkCancellation()
                 self.sessionID = sessionID
@@ -130,7 +139,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 startServerCaptions()
                 log.notice("tuning \(self.channel.name) (\(sessionID == nil ? "direct" : "hls session"))")
                 startDirectDeadline()
-                _ = try await engine.load(url: url, options: makeLoadOptions(remoteHLS: sessionID != nil))
+                _ = try await engine.load(url: url, options: makeLoadOptions(remoteHLS: sessionID != nil, join: join))
                 engine.play()
             } catch is CancellationError {
                 // A newer tune or the close replaced this one.
@@ -141,10 +150,10 @@ final class LivePlayerViewController: EnginePlayerViewController {
         }
     }
 
-    private func makeLoadOptions(remoteHLS: Bool) -> LoadOptions {
+    private func makeLoadOptions(remoteHLS: Bool, join: LiveJoinProfile) -> LoadOptions {
         var options = baseLoadOptions()
         options.isLive = true
-        options.liveJoinProfile = .fastZap
+        options.liveJoinProfile = join
         // The server's HLS session goes straight to AVPlayer; a direct stream is demuxed.
         options.nativeRemoteHLS = remoteHLS
         return options
@@ -216,6 +225,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
                 tunePlayed = true
+                firstFrameAt = Date()
                 directStartTimer?.invalidate()
                 startRetuneRecovery()
                 startHLSProof()
