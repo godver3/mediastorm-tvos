@@ -346,15 +346,4 @@ struct RowMetrics: Equatable {
         let content = CGFloat(count) * cardWidth + CGFloat(max(count - 1, 0)) * spacing + (width - cardWidth)
         return min(max(x, 0), max(0, content - container))
     }
-
-    /// The card whose left edge is at `x` in the row as laid out with `focused` focused
-    /// (cards after the focused one are pushed along by its extra width).
-    func index(atLeading x: CGFloat, focused: Int?) -> Int {
-        var index = Int((x / stride).rounded())
-        if let focused, index > focused {
-            let extra = width(focusing: focused) - cardWidth
-            index = max(Int(((x - extra) / stride).rounded()), focused + 1)
-        }
-        return min(max(index, 0), max(count - 1, 0))
-    }
 }

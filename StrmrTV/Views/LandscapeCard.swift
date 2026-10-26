@@ -32,8 +32,6 @@ struct LandscapeCard: View {
                       : Artwork.url(card.artworkURL, size: "w780")
     }
 
-    @Environment(\.homeAction) private var homeAction
-
     var body: some View {
         VStack(alignment: .leading, spacing: PosterFocusStyle.captionSpacing(cardHeight: size.height)) {
             switch card.link {
@@ -47,7 +45,7 @@ struct LandscapeCard: View {
                     .cardLift()
                     .accessibilityLabel(card.title)
             case let .action(action):
-                Button { homeAction(action) } label: { artwork }
+                HomeActionButton(action: action) { artwork }
                     .cardLift()
                     .accessibilityLabel(card.title)
             case let .channel(channel, program):
@@ -153,6 +151,21 @@ private struct Tile<Content: View>: View {
 extension EnvironmentValues {
     /// Runs a Watch Something card's action; set by the Home tab.
     @Entry var homeAction: (HomeAction) -> Void = { _ in }
+}
+
+/// A Watch Something card's button. It alone reads `homeAction`: SwiftUI can't compare
+/// closures, so every view reading one re-renders whenever the environment is written
+/// again, and Home writes it on every focus move. Read in `LandscapeCard`, it re-rendered
+/// every card on Home (and its art) on each press, about 50 ms of main-thread work that
+/// held back the first frame of the row's scroll.
+private struct HomeActionButton<Label: View>: View {
+    let action: HomeAction
+    @ViewBuilder let label: Label
+    @Environment(\.homeAction) private var homeAction
+
+    var body: some View {
+        Button { homeAction(action) } label: { label }
+    }
 }
 
 /// The card on a Home row holding more than its cap. It opens the row's full list.
