@@ -62,14 +62,14 @@ struct SportsHubView: View {
             if store.cyclingEnabled { await store.pollCycling() }
         }
         .task(id: store.recordLeagues) { await store.loadRecords() }
-        .navigationDestination(for: SportsGameRef.self) { SportsGameView(ref: $0, leagues: store.leagues).pinsSideMenu() }
+        .navigationDestination(for: SportsGameRef.self) { SportsGameView(ref: $0, leagues: store.leagues).sportsPage() }
         .navigationDestination(for: SportsRaceRef.self) { ref in
-            SportsRaceView(ref: ref, board: store.raceBoard, leagueName: store.leagueName).pinsSideMenu()
+            SportsRaceView(ref: ref, board: store.raceBoard, leagueName: store.leagueName).sportsPage()
         }
-        .navigationDestination(for: SportsCyclingRef.self) { SportsCyclingView(ref: $0, hub: store).pinsSideMenu() }
-        .navigationDestination(for: SportsCompetitionRoute.self) { SportsCompetitionView(route: $0, hub: store).pinsSideMenu() }
+        .navigationDestination(for: SportsCyclingRef.self) { SportsCyclingView(ref: $0, hub: store).sportsPage() }
+        .navigationDestination(for: SportsCompetitionRoute.self) { SportsCompetitionView(route: $0, hub: store).sportsPage() }
         .navigationDestination(for: SportsPreferencesRoute.self) { _ in
-            SportsPreferencesView(leagues: store.usableLeagues) { store.preferences = $0 }.pinsSideMenu()
+            SportsPreferencesView(leagues: store.usableLeagues) { store.preferences = $0 }.sportsPage()
         }
     }
 
@@ -170,3 +170,10 @@ struct SportsHubView: View {
 
 /// Value pushed to open the Sports preferences.
 struct SportsPreferencesRoute: Hashable {}
+
+private extension View {
+    /// A page pushed over the hub. As on details, the top bar is hidden here: the page's
+    /// scroll view collapses it partway as it settles, and a popped-to page doesn't scroll
+    /// to bring it back. SwiftUI restores it on the pop.
+    func sportsPage() -> some View { toolbar(.hidden, for: .tabBar).pinsSideMenu() }
+}
