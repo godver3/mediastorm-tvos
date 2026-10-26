@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The profile's watchlist as a poster grid, most recently added first, with an
-/// All / Movies / Shows filter. Long press a poster to remove it. The Watchlist tab
-/// shows it bare; opened from the Home row's explore card it carries a heading, since
-/// the tab bar then still says Home.
+/// The profile's watchlist as a poster grid, most recently added first, with a
+/// Movies and Shows / Movies / Shows filter menu. Long press a poster to remove it. The
+/// Watchlist tab shows it bare; opened from the Home row's explore card it carries a
+/// heading, since the tab bar then still says Home.
 struct WatchlistView: View {
     @EnvironmentObject private var watchlist: WatchlistStore
     @State private var filter: Filter = .all
@@ -23,7 +23,7 @@ struct WatchlistView: View {
 
         var label: LocalizedStringKey {
             switch self {
-            case .all: "All"
+            case .all: "Movies and Shows"
             case .movies: "Movies"
             case .shows: "Shows"
             }
@@ -48,17 +48,20 @@ struct WatchlistView: View {
             VStack(alignment: .leading, spacing: 30) {
                 if let title { PageHeading(title: title) }
 
-                // The filter centred, the card size menu at the trailing end.
-                ZStack(alignment: .trailing) {
-                    Picker("Show", selection: $filter) {
+                // A menu, as on the browse lists: focusing it changes nothing, choosing
+                // does (a segmented picker switches the filter as focus crosses it).
+                HStack(spacing: 24) {
+                    Picker(selection: $filter) {
                         ForEach(Filter.allCases) { Text($0.label).tag($0) }
+                    } label: {
+                        Label(filter.label, systemImage: "film")
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .focused($focused, equals: .filter)
-                    .frame(maxWidth: 700)
-                    .frame(maxWidth: .infinity)
+                    Spacer(minLength: 0)
                     GridCardSizeMenu()
                 }
+                .font(.callout)
                 .focusSection()
 
                 content
