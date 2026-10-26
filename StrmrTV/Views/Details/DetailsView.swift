@@ -72,8 +72,11 @@ struct DetailsView: View {
     /// A menu is up (Watch State, Manage Lists, More Options, an episode's long press), for
     /// `menuOpen` and `load`.
     @State var systemMenuOpen = false
+    /// Which secondary actions are in the row and which in More (`DetailsButtons`).
+    @ObservedObject var buttons = DetailsButtonsStore.shared
+    @State var customizingButtons = false
 
-    enum DetailsAction: Hashable { case primary, startOver, versions, chooseSource, tracks, trailer, watchlist, lists, watched, more }
+    enum DetailsAction: String, Hashable { case primary, startOver, versions, chooseSource, tracks, trailer, watchlist, lists, watched, more }
 
     /// Every focusable on the page, so moves between rows can be steered.
     enum DetailsFocus: Hashable {
@@ -144,6 +147,14 @@ struct DetailsView: View {
     static func isUpNext(_ episode: Episode, _ ref: EpisodeRef) -> Bool {
         if let a = episode.itemId, let b = ref.itemId { return a == b }
         return episode.seasonNumber == ref.seasonNumber && episode.episodeNumber == ref.episodeNumber
+    }
+
+    /// How far through the resume point is (0–1), for the primary button's fill.
+    func resumeFraction(_ episode: Episode?) -> Double {
+        guard let episode else { return resume?.fraction ?? 0 }
+        if let own = episode.resume { return own.fraction }
+        if let upNext, Self.isUpNext(episode, upNext) { return resume?.fraction ?? 0 }
+        return 0
     }
 
     /// Where to resume, per the server's `resume.eligible` decision (no client thresholds).
@@ -234,6 +245,7 @@ struct DetailsView: View {
             Task { await load() }
         }
         .fullScreenCover(isPresented: $showPrequeueTracks) { prequeueTracksPage }
+        .fullScreenCover(isPresented: $customizingButtons) { DetailsButtonsSheet() }
         .modifier(libraryVersionsPresentation)
         .fullScreenCover(item: $sourcePicker) { picker in
             SourcePickerView(title: target, episode: picker.episode, contentPreference: contentPreference) { source, tracks in

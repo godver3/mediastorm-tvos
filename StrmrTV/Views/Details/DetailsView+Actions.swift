@@ -3,61 +3,79 @@ import SwiftUI
 extension DetailsView {
     // MARK: Actions
 
-    /// The episode / resume point the primary button plays, and its label.
+    /// The episode / resume point the primary button plays, and its label. The resume time is
+    /// the button's focus caption and its fill, not part of the label.
     var primaryTarget: (episode: Episode?, start: StartPoint?, label: String)? {
         if target.isMovie {
-            if let resumeAt = resumePoint(nil) { return (nil, resumeAt, String(localized: "Resume from \(resumeAt.label)")) }
+            if let resumeAt = resumePoint(nil) { return (nil, resumeAt, String(localized: "Resume")) }
             return (nil, nil, String(localized: "Play"))
         }
         guard let ep = primaryEpisode else { return nil }
-        if let resumeAt = resumePoint(ep) { return (ep, resumeAt, String(localized: "Resume \(ep.code) · \(resumeAt.label)")) }
+        if let resumeAt = resumePoint(ep) { return (ep, resumeAt, String(localized: "Resume \(ep.code)")) }
         return (ep, nil, String(localized: "Play \(ep.code)"))
     }
 
     // One primary Button whose label changes as details load (Play → Resume), rather than
-    // swapping buttons: replacing the focused view drops focus off the page.
+    // swapping buttons: replacing the focused view drops focus off the page. The secondary
+    // actions Customize Buttons moved to More (`DetailsButtonsStore`) are left out here and
+    // listed in `moreMenu` instead.
     var actionButtons: some View {
         HStack(spacing: 30) {
+            let primary = primaryTarget
             Button {
-                if let primary = primaryTarget { play(episode: primary.episode, from: primary.start) }
+                if let primary { play(episode: primary.episode, from: primary.start) }
             } label: {
-                Label(primaryTarget?.label ?? String(localized: "Play"), systemImage: "play.fill")
+                Label(primary?.label ?? String(localized: "Play"), systemImage: "play.fill")
             }
+            .resumeProgressFill(primary?.start == nil ? 0 : resumeFraction(primary?.episode),
+                                focused: focus == .action(.primary))
             .focused($focus, equals: .action(.primary))
+            .focusCaption(primary?.start.map { String(localized: "From \($0.label)") },
+                          shown: focus == .action(.primary))
 
-            if let primary = primaryTarget, primary.start != nil {
-                Button { play(episode: primary.episode, from: nil) } label: {
-                    Label("Start Over", systemImage: "arrow.counterclockwise")
-                }
-                .focused($focus, equals: .action(.startOver))
-            }
-            versionsButton
             // Secondary actions are icon-only, as on the Expo details page; the labels stay
             // for VoiceOver and the focus engine.
-            Button { sourcePicker = SourcePickerTarget(episode: target.isMovie ? nil : primaryEpisode) } label: {
-                Label("Choose Source", systemImage: "magnifyingglass").labelStyle(.iconOnly)
+            if let primary, primary.start != nil, buttons.inRow(.startOver) {
+                Button { play(episode: primary.episode, from: nil) } label: {
+                    Label("Start Over", systemImage: "arrow.counterclockwise").labelStyle(.iconOnly)
+                }
+                .focused($focus, equals: .action(.startOver))
+                .focusCaption(String(localized: "Start from the beginning"), shown: focus == .action(.startOver))
             }
-            .focused($focus, equals: .action(.chooseSource))
-            .disabled(!target.isMovie && primaryEpisode == nil)
-
-            tracksButton
-
-            if trailer.available {
+            if buttons.inRow(.versions) { versionsButton }
+            if buttons.inRow(.chooseSource) {
+                Button { chooseSource() } label: {
+                    Label("Choose Source", systemImage: "magnifyingglass").labelStyle(.iconOnly)
+                }
+                .focused($focus, equals: .action(.chooseSource))
+                .disabled(!canChooseSource)
+            }
+            if buttons.inRow(.tracks) { tracksButton }
+            if trailer.available, buttons.inRow(.trailer) {
                 Button { trailer.buttonPressed() } label: {
-                    LoadingIconLabel(trailer.showing && !trailer.paused ? "Pause Trailer" : "Play Trailer",
-                                     systemImage: trailer.showing && !trailer.paused ? "pause.fill" : "film",
+                    LoadingIconLabel(trailerPlaying ? "Pause Trailer" : "Play Trailer",
+                                     systemImage: trailerPlaying ? "pause.fill" : "film",
                                      loading: trailer.preparingFullScreen)
                 }
                 .focused($focus, equals: .action(.trailer))
             }
-
-            watchlistButton
-            DetailsListsMenu(target: target)
-                .focused($focus, equals: .action(.lists))
-            watchedButton
+            if buttons.inRow(.watchlist) { watchlistButton }
+            if buttons.inRow(.lists) {
+                DetailsListsMenu(target: target)
+                    .focused($focus, equals: .action(.lists))
+            }
+            if buttons.inRow(.watched) { watchedButton }
             moreMenu
         }
     }
+
+    var canChooseSource: Bool { target.isMovie || primaryEpisode != nil }
+
+    func chooseSource() {
+        sourcePicker = SourcePickerTarget(episode: target.isMovie ? nil : primaryEpisode)
+    }
+
+    var trailerPlaying: Bool { trailer.showing && !trailer.paused }
 
     // MARK: Watched
 

@@ -50,15 +50,7 @@ extension DetailsView {
                                  systemImage: "waveform", loading: warm.status == nil)
             }
             .focused($focus, equals: .action(.tracks))
-            .overlay(alignment: .bottom) {
-                if focus == .action(.tracks) {
-                    Text(tracksCaption)
-                        .font(.system(size: 22, weight: .medium)).foregroundStyle(.secondary)
-                        .fixedSize()
-                        .offset(y: 44)
-                        .allowsHitTesting(false)
-                }
-            }
+            .focusCaption(tracksCaption, shown: focus == .action(.tracks))
         }
     }
 

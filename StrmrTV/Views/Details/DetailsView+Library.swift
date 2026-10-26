@@ -63,17 +63,10 @@ extension DetailsView {
                 Label("Versions", systemImage: "externaldrive").labelStyle(.iconOnly)
             }
             .focused($focus, equals: .action(.versions))
-            .overlay(alignment: .bottom) {
-                if focus == .action(.versions) {
-                    Text(versions.count == 1
-                         ? "\(best.source.label) · \(best.quality)"
-                         : String(localized: "\(versions.count) versions · \(best.source.label) · \(best.quality)"))
-                        .font(.system(size: 22, weight: .medium)).foregroundStyle(.secondary)
-                        .fixedSize()
-                        .offset(y: 44)
-                        .allowsHitTesting(false)
-                }
-            }
+            .focusCaption(versions.count == 1
+                              ? "\(best.source.label) · \(best.quality)"
+                              : String(localized: "\(versions.count) versions · \(best.source.label) · \(best.quality)"),
+                          shown: focus == .action(.versions))
         }
     }
 

@@ -8,32 +8,37 @@ extension DetailsView {
     /// Trakt-style providers record them with their own bulk calls. Only aired episodes are
     /// marked watched; unwatched applies to everything.
     var watchStateMenu: some View {
-        Menu {
-            let shape = WatchStateSeasons(seasons)
-            if let ep = primaryEpisode {
-                let watched = isWatched(ep)
-                Section("\(ep.code) · \(ep.name)") {
-                    Button {
-                        markWatched(!watched, [ep], scope: nil)
-                    } label: {
-                        Label(watched ? "Mark as Unwatched" : "Mark as Watched",
-                              systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
-                    }
-                }
-            }
-            Section("All Episodes") {
-                allEpisodesChoices(shape)
-            }
-            if !shape.ordered.isEmpty {
-                Section("Seasons") {
-                    ForEach(shape.ordered) { season in
-                        seasonToggle(season, shape)
-                    }
-                }
-            }
-        } label: {
+        Menu { watchStateItems } label: {
             Label { Text("Watch State") } icon: { WatchStateEye(state: seriesWatchState) }
                 .labelStyle(.iconOnly)
+        }
+    }
+
+    /// The watch-state menu's choices; More Options lists them as a submenu when Watch State
+    /// is set to More.
+    @ViewBuilder
+    var watchStateItems: some View {
+        let shape = WatchStateSeasons(seasons)
+        if let ep = primaryEpisode {
+            let watched = isWatched(ep)
+            Section("\(ep.code) · \(ep.name)") {
+                Button {
+                    markWatched(!watched, [ep], scope: nil)
+                } label: {
+                    Label(watched ? "Mark as Unwatched" : "Mark as Watched",
+                          systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+                }
+            }
+        }
+        Section("All Episodes") {
+            allEpisodesChoices(shape)
+        }
+        if !shape.ordered.isEmpty {
+            Section("Seasons") {
+                ForEach(shape.ordered) { season in
+                    seasonToggle(season, shape)
+                }
+            }
         }
     }
 
