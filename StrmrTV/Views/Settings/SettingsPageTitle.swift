@@ -31,9 +31,11 @@ extension View {
     }
 
     /// Room inside a settings list for the focused row's lift, so it isn't clipped at
-    /// the sides. `Form` ignores `contentMargins`; safe-area padding insets its rows.
+    /// the sides. `Form` ignores `contentMargins` (vertically it only honours them once
+    /// focus scrolls, so a fresh page sat 40 pt high and jumped down on the first
+    /// focus); safe-area padding insets its rows from the start.
     func settingsListMargins(_ horizontal: CGFloat = 50) -> some View {
         safeAreaPadding(.horizontal, horizontal)
-            .contentMargins(.vertical, 40, for: .scrollContent)
+            .safeAreaPadding(.vertical, 40)
     }
 }
