@@ -60,7 +60,7 @@ final class PlaybackCoordinator: ObservableObject {
             let resolved = try await resolveStream(request)
             guard let path = resolved.streamPath else { throw APIError.notReady("Stream resolved without a path") }
             await TrackSettingsStore.shared.loadIfNeeded()
-            let current = SourceSwitch.Current(releaseName: resolved.displayName, streamPath: path, origin: resolved.sourceLabel)
+            let current = SourceSwitch.Current(releaseName: resolved.releaseTitle, streamPath: path, origin: resolved.sourceLabel)
             if let picks {
                 guard picks.applies(to: resolved) else {
                     SourceTracksModel.log.notice("details picks dropped: resolved a different stream")

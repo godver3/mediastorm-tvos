@@ -144,14 +144,9 @@ enum StreamFormat {
         }
     }
 
-    /// "Dolby Vision Profile 8", "HDR10", or "SDR"; with the output named when the display
-    /// shows the picture differently ("Dolby Vision Profile 5 · Shown as SDR").
-    static func dynamicRange(source: VideoFormat, dvProfile: Int?, displayed: VideoFormat) -> String {
-        let name = formatName(source, dvProfile: dvProfile)
-        guard source != .sdr, displayed != source else { return name }
-        return StreamSource.joined([name, String(localized: "Shown as \(formatName(displayed, dvProfile: nil))")])
-    }
-
+    /// "Dolby Vision Profile 8", "HDR10", or "SDR": what the file carries. The engine's on-screen
+    /// format (`videoFormat`) is not shown; it reads the panel's mode from the screen's headroom,
+    /// which misses a TV that is presenting HDR and labelled DV sessions "Shown as SDR".
     static func formatName(_ format: VideoFormat, dvProfile: Int?) -> String {
         switch format {
         case .sdr: "SDR"

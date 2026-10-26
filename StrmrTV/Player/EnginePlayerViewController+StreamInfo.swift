@@ -18,7 +18,6 @@ extension EnginePlayerViewController {
             engine.$sourceVideoFrameRate.map { _ in () }.eraseToAnyPublisher(),
             engine.$sourceVideoBitrate.map { _ in () }.eraseToAnyPublisher(),
             engine.$sourceVideoFormat.map { _ in () }.eraseToAnyPublisher(),
-            engine.$videoFormat.map { _ in () }.eraseToAnyPublisher(),
             engine.$sourceDVProfile.map { _ in () }.eraseToAnyPublisher(),
             engine.$audioTracks.map { _ in () }.eraseToAnyPublisher(),
             engine.$activeAudioTrackIndex.map { _ in () }.eraseToAnyPublisher(),
@@ -43,8 +42,7 @@ extension EnginePlayerViewController {
             codec: engine.sourceVideoCodecName, profile: engine.sourceVideoStreamFormat?.profile,
             frameRate: engine.sourceVideoFrameRate, bitrate: engine.sourceVideoBitrate)
         info.dynamicRange = hasVideo
-            ? StreamFormat.dynamicRange(source: engine.sourceVideoFormat, dvProfile: engine.sourceDVProfile,
-                                        displayed: engine.videoFormat)
+            ? StreamFormat.formatName(engine.sourceVideoFormat, dvProfile: engine.sourceDVProfile)
             : nil
         let active = engine.activeAudioTrackIndex
         let audio = engine.audioTracks.first { $0.id == active }

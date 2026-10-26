@@ -41,12 +41,10 @@ final class StreamInfoTests: XCTestCase {
     }
 
     func testDynamicRange() {
-        XCTAssertEqual(StreamFormat.dynamicRange(source: .dolbyVision, dvProfile: 8, displayed: .dolbyVision),
-                       "Dolby Vision Profile 8")
-        XCTAssertEqual(StreamFormat.dynamicRange(source: .dolbyVision, dvProfile: 5, displayed: .sdr),
-                       "Dolby Vision Profile 5 · Shown as SDR")
-        XCTAssertEqual(StreamFormat.dynamicRange(source: .hdr10Plus, dvProfile: nil, displayed: .hdr10Plus), "HDR10+")
-        XCTAssertEqual(StreamFormat.dynamicRange(source: .sdr, dvProfile: nil, displayed: .sdr), "SDR")
+        XCTAssertEqual(StreamFormat.formatName(.dolbyVision, dvProfile: 8), "Dolby Vision Profile 8")
+        XCTAssertEqual(StreamFormat.formatName(.dolbyVision, dvProfile: nil), "Dolby Vision")
+        XCTAssertEqual(StreamFormat.formatName(.hdr10Plus, dvProfile: nil), "HDR10+")
+        XCTAssertEqual(StreamFormat.formatName(.sdr, dvProfile: nil), "SDR")
     }
 
     func testAudioLine() {
