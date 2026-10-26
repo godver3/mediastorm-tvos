@@ -29,6 +29,8 @@ struct LongPressModals: ViewModifier {
             .watchStateDialogs($watchState, isWatched: { $0.watched == true }) {
                 await titles.seriesWatchStateChanged()
             }
+            // This modifier sits outside MainTabs' environment objects; the dialogs read the store.
+            .environmentObject(titles)
             .onChange(of: watchState?.id) { _, id in
                 if id == nil { titles.watchStateTarget = nil }
             }
