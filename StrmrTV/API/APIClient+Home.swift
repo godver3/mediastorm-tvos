@@ -169,11 +169,21 @@ struct CalendarItem: Decodable, Hashable {
 
     /// When it airs, in the viewer's time zone; midnight when the time is unknown.
     var airs: Date? {
+        let formatter = airTime == nil ? Self.dayFormatter : Self.timeFormatter
+        return formatter.date(from: airTime.map { "\(airDate) \($0)" } ?? airDate)
+    }
+
+    // Shared: the calendar rows sort by `airs`, and a formatter per call cost thousands of
+    // formatters a load. Parsing (`date(from:)`) is thread-safe; the formatters never change.
+    private nonisolated(unsafe) static let dayFormatter = airsFormatter("yyyy-MM-dd")
+    private nonisolated(unsafe) static let timeFormatter = airsFormatter("yyyy-MM-dd HH:mm")
+
+    private static func airsFormatter(_ format: String) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = airTime == nil ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm"
-        return formatter.date(from: airTime.map { "\(airDate) \($0)" } ?? airDate)
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateFormat = format
+        return formatter
     }
 
     /// The details id, built as the Expo app builds it (`buildCalendarTitleId`).

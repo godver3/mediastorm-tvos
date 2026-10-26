@@ -43,6 +43,11 @@ struct HomeView: View {
     @State var carouselShown = true
     /// The page's bottom safe-area inset, which the carousel's buttons sit on.
     @State var safeBottom: CGFloat = 60
+    /// The art prefetch waiting for focus to settle. A box, so restarting it on every
+    /// focus move doesn't re-render the page.
+    @State private var artPrefetch = PendingTask()
+    /// How long focus rests on a card before Home loads the art around it.
+    static let artSettle: Duration = .milliseconds(150)
 
     /// A row's height: the row title, room for the focus lift, the card and its caption
     /// (60 pt of text under the gap that clears the lift). Without captions the gap stays,
@@ -165,7 +170,11 @@ struct HomeView: View {
                 heroFocus = focus
                 if focus.shelf != HomeCarousel.focusShelf { lastRowFocus = focus }
                 rowFocus[focus.shelf] = focus.card
-                prefetchArt(around: focus)
+                artPrefetch.restart {
+                    try? await Task.sleep(for: Self.artSettle)
+                    guard !Task.isCancelled else { return }
+                    prefetchArt(around: focus)
+                }
             }
         }
         .onChange(of: guideFocused) { _, isFocused in

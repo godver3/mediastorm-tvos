@@ -45,6 +45,10 @@ final class HomeStore: ObservableObject {
     /// The manifest revision of the last full load; a different one means reload.
     private var revision: String?
     private var loadGeneration = 0
+    /// Full loads and staleness checks running. Returning from the player fires `.task`,
+    /// the cover change and the scene phase together: the first checks, the rest skip.
+    private var loadsRunning = 0
+    private var checksRunning = 0
     /// Rows are published as they arrive once the page has been revealed.
     private var revealed = false
     /// A first load's `revealAfter` has passed; it reveals once the top row is ready.
@@ -89,6 +93,8 @@ final class HomeStore: ObservableObject {
     /// Reloads the config and every row. Rows already shown stay until their new
     /// cards arrive, so a reload never blanks the page.
     func load() async {
+        loadsRunning += 1
+        defer { loadsRunning -= 1 }
         loadGeneration += 1
         calendarRetry?.cancel()
         calendarRetry = nil
@@ -128,7 +134,9 @@ final class HomeStore: ObservableObject {
     /// Reloads only when the server's home manifest changed (on returning to Home,
     /// waking the app, and every few minutes).
     func refreshIfStale() async {
-        guard !isLoading, let known = revision else { return }
+        guard !isLoading, loadsRunning == 0, checksRunning == 0, let known = revision else { return }
+        checksRunning += 1
+        defer { checksRunning -= 1 }
         if let current = await APIClient.shared.homeRevision(), current != known { return await load() }
         let retry = plan.filter { failed.contains($0.id) || (calendarRetry == nil && calendarPending.contains($0.id)) }
         if !retry.isEmpty { await loadRows(retry, generation: loadGeneration) }
@@ -137,6 +145,8 @@ final class HomeStore: ObservableObject {
     /// Reloads the rows built from Continue Watching and playback (after playing, hiding).
     func reloadPlaybackRows() async {
         guard settings != nil else { return await load() }
+        // A full load already running fetches these rows too (a title hidden posts both changes).
+        guard loadsRunning == 0 else { return }
         let affected = plan.filter(\.source.followsPlayback)
         await loadRows(affected, generation: loadGeneration)
     }

@@ -169,7 +169,7 @@ final class APIClient: ObservableObject {
 
     // MARK: Plumbing
 
-    func send<T: Decodable>(
+    func send<T: Decodable & Sendable>(
         _ method: String, _ path: String,
         query: [String: String] = [:],
         body: [String: String]? = nil,
@@ -182,7 +182,14 @@ final class APIClient: ObservableObject {
         let data = try await sendRaw(method, path, query: query, body: body, jsonObject: jsonObject,
                                      authorized: authorized, promptOnLock: promptOnLock, timeout: timeout,
                                      headers: headers)
-        return try decoder.decode(T.self, from: data)
+        return try await Self.decode(data)
+    }
+
+    /// Decodes off the main actor: Home's rows, the calendar and Continue Watching all
+    /// arrive at launch, and decoding them here dropped frames while focus moved.
+    @concurrent
+    private nonisolated static func decode<T: Decodable & Sendable>(_ data: Data) async throws -> T {
+        try JSONDecoder().decode(T.self, from: data)
     }
 
     /// Authorized calls refresh the session ahead of expiry, and when the server says

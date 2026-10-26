@@ -8,8 +8,9 @@ import SwiftUI
 /// Down into the rows this layer crossfades away (`shown`) as the buttons scroll up out of
 /// sight; Up brings it back.
 ///
-/// It moves on by itself every eight seconds, focused or not; any press on the remote
-/// starts the eight seconds over. It stops while Home is covered or the app is away.
+/// It moves on by itself every eight seconds while it is up, focused or not; any press on
+/// the remote starts the eight seconds over. It stops while it is crossfaded away for the
+/// rows, Home is covered or the app is away.
 struct HomeCarousel: View {
     /// The carousel's focus identities: `HomeFocus(shelf: focusShelf, card: Control)`.
     static let focusShelf = "home-carousel"
@@ -61,8 +62,8 @@ struct HomeCarousel: View {
         .allowsHitTesting(false)
         .accessibilityHidden(!shown)
         .observesRemoteActivity()
-        .task(id: TimerKey(index: index, isActive: isActive, count: slides.count, presses: remote.count)) {
-            guard isActive, slides.count > 1 else { return }
+        .task(id: TimerKey(index: index, isActive: isActive && shown, count: slides.count, presses: remote.count)) {
+            guard isActive, shown, slides.count > 1 else { return }
             try? await Task.sleep(for: Self.interval)
             guard !Task.isCancelled else { return }
             advancedAt = .now

@@ -8,6 +8,10 @@ struct Backdrop: View {
     let url: URL?
     /// Cross-fade from the previous image when `url` changes.
     var fade: Double = 0.35
+    /// How long a new backdrop not yet in memory waits before loading, for one that
+    /// follows focus: a fast swipe then fetches and decodes only where it stops, not one
+    /// full-screen image per card passed.
+    var settle: Duration = .zero
 
     @State private var image: UIImage?
 
@@ -33,9 +37,14 @@ struct Backdrop: View {
             if image != nil { withAnimation(.easeInOut(duration: fade)) { image = nil } }
             return
         }
+        let size = UIScreen.main.bounds.size
+        if settle > .zero, ImagePipeline.cached(url, size: size, mode: .fill) == nil {
+            try? await Task.sleep(for: settle)
+            guard !Task.isCancelled else { return }
+        }
         // Decoded off the main thread: a lazily decoded backdrop stalled the focus move
         // that brought it in.
-        guard let loaded = await ImagePipeline.load(url, size: UIScreen.main.bounds.size, mode: .fill,
+        guard let loaded = await ImagePipeline.load(url, size: size, mode: .fill,
                                                      scale: ImagePipeline.scale),
               !Task.isCancelled else { return }
         withAnimation(.easeInOut(duration: fade)) { image = loaded }

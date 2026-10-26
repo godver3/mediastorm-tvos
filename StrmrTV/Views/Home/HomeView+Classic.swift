@@ -48,7 +48,7 @@ extension HomeView {
     /// The focused card's backdrop (or a streaming service's framed logo), darkened where
     /// the rows begin and behind the text. Classic's, and Focused Title Info's under a carousel.
     var heroBackdrop: some View {
-        Backdrop(url: Artwork.url(hero?.backdropURL))
+        Backdrop(url: Artwork.url(hero?.backdropURL), settle: HomeView.artSettle)
             .overlay(alignment: .topTrailing) {
                 if heroSize != .off, let logo = hero?.framedLogoURL {
                     FramedHeroLogo(url: Artwork.logoURL(logo), scale: heroSize.framedLogoScale)

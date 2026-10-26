@@ -4,7 +4,7 @@ import CoreGraphics
 /// `GET /api/sports/races`: the race weekends in the providers' window, each with its sessions,
 /// and every series' feed state (Expo `SportsRaceBoard`). Both lists are lenient: a bad item is
 /// skipped and `null` is empty.
-struct SportsRaceBoard: Decodable, Hashable {
+struct SportsRaceBoard: Decodable, Hashable, Sendable {
     var events: [SportsRaceEvent] = []
     var leagues: [SportsRaceFeed] = []
 
@@ -63,7 +63,7 @@ struct SportsRaceFeed: Decodable, Hashable {
 /// A race weekend (`eventKind` `race`, its sessions in `subEvents`) or one session of it
 /// (`race-session`): Expo `SportsRaceEvent`, the backend's generalized `SportsEvent`. A weekend
 /// has no participants; a session's are its entries or its classification.
-struct SportsRaceEvent: Decodable, Identifiable, Hashable {
+struct SportsRaceEvent: Decodable, Identifiable, Hashable, Sendable {
     var id: String
     var providerEventId = ""
     var sessionId: String?
