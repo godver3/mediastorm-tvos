@@ -206,8 +206,9 @@ struct SportsStatusPill: View {
 
     static let live = Color(red: 1, green: 0.2, blue: 0.3)
     static let amber = Color(red: 0.9, green: 0.72, blue: 0.35)
-    /// Expo's sports accent (#00c8f0): a card's score-change cue.
-    static let accent = Color(red: 0, green: 0.784, blue: 0.941)
+    /// The sports accent (#8ebcf7, the Expo Midnight sports theme's): a card's score-change cue,
+    /// a live game's context line, the home side's shooting bars.
+    static let accent = Color(red: 0x8e / 255, green: 0xbc / 255, blue: 0xf7 / 255)
 }
 
 /// Value pushed to open a game's page.
