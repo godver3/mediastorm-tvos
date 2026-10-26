@@ -60,7 +60,7 @@ final class PlaybackCoordinator: ObservableObject {
             let resolved = try await resolveStream(request)
             guard let path = resolved.streamPath else { throw APIError.notReady("Stream resolved without a path") }
             await TrackSettingsStore.shared.loadIfNeeded()
-            let current = SourceSwitch.Current(releaseName: resolved.releaseTitle, streamPath: path, origin: resolved.sourceLabel)
+            let current = SourceSwitch.Current(resolved, path: path)
             if let picks {
                 guard picks.applies(to: resolved) else {
                     SourceTracksModel.log.notice("details picks dropped: resolved a different stream")
@@ -85,8 +85,7 @@ final class PlaybackCoordinator: ObservableObject {
         begin(request, stage: String(localized: "Preparing…"), carry: carry) { [self] in
             let resolved = try await api.resolveSource(source, titleID: request.title.titleID,
                                                        startOffset: request.startPosition)
-            let current = SourceSwitch.Current(guid: source.id, releaseName: SourceSwitch.releaseName(source),
-                                               streamPath: resolved.path, origin: source.sourceLabel(path: resolved.path))
+            let current = SourceSwitch.Current(source, path: resolved.path)
             guard let manual else { return (resolved.path, TrackPreferences(selection: resolved.tracks), current) }
             await TrackSettingsStore.shared.loadIfNeeded()
             return (resolved.path, manual.preferences(over: resolved.tracks), current)
@@ -382,7 +381,8 @@ final class PlaybackCoordinator: ObservableObject {
                                tracks: TrackPreferences, source: SourceSwitch.Current, carry: TrackCarry?,
                                previewsEnabled: Bool, completion: @escaping () -> Void) {
         guard let presenter = Self.topViewController() else { return completion() }
-        let url = api.streamURL(for: path, metadata: request.streamMetadata(path: path))
+        let metadata = request.streamMetadata(path: path).merging(source.trackerQuery) { _, new in new }
+        let url = api.streamURL(for: path, metadata: metadata)
         let player = PlayerViewController(engine: engine, request: request, url: url,
                                           streamPath: path, tracks: tracks, previewsEnabled: previewsEnabled)
         player.currentSource = source

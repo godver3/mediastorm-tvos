@@ -58,6 +58,24 @@ enum StreamSource {
         return nil
     }
 
+    /// `sourceServiceType` / `debridProvider` for `/api/video/stream`: the dashboard otherwise
+    /// guesses from the path and calls anything outside `/debrid/` (a direct debrid link, a
+    /// library file) usenet. Library paths win; then the server's service type; then the path.
+    static func trackerQuery(path: String?, serviceType: String?, debridProvider: String?) -> [String: String] {
+        let rawPath = (path ?? "").trimmingCharacters(in: .whitespaces)
+        let path = rawPath.lowercased()
+        let service: String? = if path.hasPrefix("localmedia:") { "local" }
+            else if path.hasPrefix("plexmedia:") { "plex" }
+            else if path.hasPrefix("jellyfinmedia:") { "jellyfin" }
+            else { nonEmpty(serviceType?.lowercased()) ?? (path.contains("/debrid/") ? "debrid" : nil) }
+        var query: [String: String] = [:]
+        if let service { query["sourceServiceType"] = service }
+        if service == "debrid", let provider = nonEmpty(debridProvider) ?? Self.debridProvider(fromPath: rawPath) {
+            query["debridProvider"] = provider
+        }
+        return query
+    }
+
     /// The debrid provider's display name ("realdebrid" / "Real Debrid" → "Real-Debrid").
     static func providerName(_ raw: String?) -> String? {
         guard let raw = nonEmpty(raw) else { return nil }

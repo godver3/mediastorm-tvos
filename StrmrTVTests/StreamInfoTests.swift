@@ -23,6 +23,19 @@ final class StreamInfoTests: XCTestCase {
         XCTAssertNil(StreamSource.label(path: nil))
     }
 
+    func testTrackerQuery() {
+        // A pre-resolved debrid link is a plain https URL: only the service type says it is debrid.
+        XCTAssertEqual(StreamSource.trackerQuery(path: "https://cdn.example/f.mkv", serviceType: "Debrid", debridProvider: "torbox"),
+                       ["sourceServiceType": "debrid", "debridProvider": "torbox"])
+        XCTAssertEqual(StreamSource.trackerQuery(path: "/debrid/realdebrid/1/f.mkv", serviceType: nil, debridProvider: nil),
+                       ["sourceServiceType": "debrid", "debridProvider": "realdebrid"])
+        XCTAssertEqual(StreamSource.trackerQuery(path: "/usenet/f.mkv", serviceType: "usenet", debridProvider: "x"),
+                       ["sourceServiceType": "usenet"])
+        XCTAssertEqual(StreamSource.trackerQuery(path: "plexmedia:42", serviceType: "usenet", debridProvider: nil),
+                       ["sourceServiceType": "plex"])
+        XCTAssertEqual(StreamSource.trackerQuery(path: "/f.mkv", serviceType: nil, debridProvider: nil), [:])
+    }
+
     func testProviderNames() {
         XCTAssertEqual(StreamSource.providerName("Real Debrid"), "Real-Debrid")
         XCTAssertEqual(StreamSource.providerName("debrid-link"), "Debrid-Link")

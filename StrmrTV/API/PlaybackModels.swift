@@ -38,10 +38,11 @@ struct SourceResult: Identifiable, @unchecked Sendable {
 }
 
 extension SourceResult {
+    var debridProvider: String? { attributes["debridProvider"] ?? attributes["provider"] }
+
     /// "Debrid · Real-Debrid" / "Usenet · NZBGeek" for the stream this result resolved to.
     func sourceLabel(path: String) -> String? {
-        StreamSource.label(path: path, serviceType: serviceType,
-                           debridProvider: attributes["debridProvider"] ?? attributes["provider"], indexer: indexer)
+        StreamSource.label(path: path, serviceType: serviceType, debridProvider: debridProvider, indexer: indexer)
     }
 }
 
@@ -186,12 +187,16 @@ struct PrequeueStatus: Decodable {
         let serviceType: String?
     }
 
+    var resolvedServiceType: String? { serviceType ?? selectedResult?.serviceType }
+    var resolvedDebridProvider: String? {
+        let attrs = resultAttributes ?? selectedResult?.attributes ?? [:]
+        return debridProvider ?? attrs["debridProvider"] ?? attrs["provider"]
+    }
+
     /// "Debrid · Real-Debrid" / "Usenet · NZBGeek".
     var sourceLabel: String? {
-        let attrs = resultAttributes ?? selectedResult?.attributes ?? [:]
-        return StreamSource.label(path: streamPath, serviceType: serviceType ?? selectedResult?.serviceType,
-                                  debridProvider: debridProvider ?? attrs["debridProvider"] ?? attrs["provider"],
-                                  indexer: selectedResult?.indexer)
+        StreamSource.label(path: streamPath, serviceType: resolvedServiceType,
+                           debridProvider: resolvedDebridProvider, indexer: selectedResult?.indexer)
     }
 }
 

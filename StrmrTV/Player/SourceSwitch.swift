@@ -11,6 +11,14 @@ enum SourceSwitch {
         var streamPath: String?
         /// Where the stream comes from, for the player's Stream tab ("Debrid · Real-Debrid").
         var origin: String?
+        /// The server's service type ("usenet" / "debrid") and debrid service, when it named them.
+        var serviceType: String?
+        var debridProvider: String?
+
+        /// What the server's stream tracker reads to label the stream on the admin dashboard.
+        var trackerQuery: [String: String] {
+            StreamSource.trackerQuery(path: streamPath, serviceType: serviceType, debridProvider: debridProvider)
+        }
     }
 
     /// One row of the menu.
@@ -134,5 +142,20 @@ struct TrackCarry: Equatable {
             guard let pick = same.first(where: { $0.isForced == forced }) ?? same.first else { return nil }
             return .some(pick.id)
         }
+    }
+}
+
+extension SourceSwitch.Current {
+    /// The release the prequeue resolved to `path`.
+    init(_ resolved: PrequeueStatus, path: String) {
+        self.init(releaseName: resolved.releaseTitle, streamPath: path, origin: resolved.sourceLabel,
+                  serviceType: resolved.resolvedServiceType, debridProvider: resolved.resolvedDebridProvider)
+    }
+
+    /// A source picked by hand, resolved to `path`.
+    init(_ source: SourceResult, path: String) {
+        self.init(guid: source.id, releaseName: SourceSwitch.releaseName(source), streamPath: path,
+                  origin: source.sourceLabel(path: path), serviceType: source.serviceType,
+                  debridProvider: source.debridProvider)
     }
 }
