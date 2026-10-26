@@ -99,7 +99,7 @@ struct LandscapeCard: View {
                 // A poster's "New" sits above its other badge; a 16:9 card's at the top right (as Expo).
                 VStack(alignment: .leading, spacing: 8) {
                     if poster, let new = card.newEpisode { NewEpisodeBadgeView(badge: new) }
-                    if let badge = card.badge { ArtworkBadge(badge: badge, poster: poster) }
+                    ArtworkBadges(badges: [card.badge, card.watchBadge].compactMap { $0 }, poster: poster)
                 }
                 .padding(poster ? 10 : 14)
             }

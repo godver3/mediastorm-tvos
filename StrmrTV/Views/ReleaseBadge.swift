@@ -119,6 +119,19 @@ struct ArtworkBadge: View {
     }
 }
 
+/// A card's badges stacked in its top-left corner, as the Expo app stacks a release status
+/// with the watch state.
+struct ArtworkBadges: View {
+    let badges: [CardBadge]
+    var poster = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(badges, id: \.self) { ArtworkBadge(badge: $0, poster: poster) }
+        }
+    }
+}
+
 /// Small capsule label overlaid on artwork or shown beside metadata.
 struct BadgeLabel: View {
     let text: String

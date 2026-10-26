@@ -8,6 +8,8 @@ struct PosterCard: View {
 
     let target: DetailsTarget
     let badge: CardBadge?
+    /// Watched or in progress, shown under `badge`.
+    var watchBadge: CardBadge?
     let subtitle: String
     /// Grids that fill their width pass the column width; height keeps the 2:3 shape.
     var width: CGFloat = PosterCard.width
@@ -22,13 +24,13 @@ struct PosterCard: View {
 
     private var height: CGFloat { width * Self.height / Self.width }
 
-    /// `rank` (Top 10) shows as the badge, as on Home's Top 10 row.
+    /// `rank` (Top 10) shows as the first badge, as on Home's Top 10 row.
     init(title: Title, width: CGFloat = PosterCard.width, opens: Bool = true, rank: Int? = nil) {
         self.width = width
         self.opens = opens
         target = DetailsTarget(title)
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
-            ?? CardBadge.forWatchState(title.watchState)
+        watchBadge = CardBadge.forWatchState(title.watchState)
         subtitle = Self.subtitle(year: title.year, isMovie: title.isMovie)
     }
 
@@ -44,7 +46,8 @@ struct PosterCard: View {
         self.width = width
         self.onRemoveFromList = onRemoveFromList
         target = DetailsTarget(item)
-        badge = ReleaseBadge.forTitle(item) ?? CardBadge.forWatchState(item.watchState)
+        badge = ReleaseBadge.forTitle(item)
+        watchBadge = CardBadge.forWatchState(item.watchState)
         subtitle = Self.subtitle(year: item.year, isMovie: item.isMovie)
     }
 
@@ -81,7 +84,7 @@ struct PosterCard: View {
                 .overlay(Text(target.name).font(.caption).multilineTextAlignment(.center).padding())
         }
         .overlay(alignment: .topLeading) {
-            if let badge { ArtworkBadge(badge: badge).padding(10) }
+            ArtworkBadges(badges: [badge, watchBadge].compactMap { $0 }).padding(10)
         }
     }
 }

@@ -40,7 +40,10 @@ struct HomeCard: Identifiable, Hashable {
     var posterURL: String?
     /// 0–1; 0 hides the bar.
     let progress: Double
+    /// Rank, release status or air date: shown first.
     let badge: CardBadge?
+    /// Watched or in progress, shown beside `badge` (a watched title can still be in theaters).
+    var watchBadge: CardBadge?
     /// "New": Continue Watching's next episode came out in the last 72 hours.
     var newEpisode: NewEpisodeBadge?
     /// The card draws `logoURL` on a plain tile instead of artwork (services, hubs).
@@ -106,10 +109,11 @@ struct HomeCard: Identifiable, Hashable {
         logoURL = item.logoUrl
         artworkURL = item.backdropUrl ?? item.posterUrl
         progress = 0
-        badge = ReleaseBadge.forTitle(item) ?? CardBadge.forWatchState(item.watchState)
+        badge = ReleaseBadge.forTitle(item)
+        watchBadge = CardBadge.forWatchState(item.watchState)
     }
 
-    /// A list title; `rank` (Top 10) shows as the badge.
+    /// A list title; `rank` (Top 10) shows as the first badge.
     init(_ title: Title, rank: Int? = nil) {
         id = title.id
         link = .details(DetailsTarget(title))
@@ -122,7 +126,7 @@ struct HomeCard: Identifiable, Hashable {
         artworkURL = title.backdrop?.url ?? title.poster?.url
         progress = 0
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
-            ?? CardBadge.forWatchState(title.watchState)
+        watchBadge = CardBadge.forWatchState(title.watchState)
         certification = title.certification
         genres = title.genres ?? []
     }
