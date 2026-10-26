@@ -78,21 +78,31 @@ extension DetailsView.DetailsAction {
     }
 }
 
-/// Customize Buttons: one switch per secondary action, on for the row, off for More. Full
-/// screen over the blurred page, like the other details pickers; Menu returns to the page.
+/// Customize Buttons: one row per secondary action showing where it goes, In Row or In More
+/// Options; selecting it moves it to the other. Full screen over the blurred page, like the
+/// other details pickers; Menu returns to the page.
 struct DetailsButtonsSheet: View {
     @ObservedObject var store = DetailsButtonsStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
-            Text("Details Buttons").font(.system(size: 52, weight: .bold))
-            Text("Choose which buttons sit in the details page's row. The rest are listed in More Options; Play and More Options always stay. Saved on this Apple TV for this profile.")
+            Text("Customize Buttons").font(.system(size: 52, weight: .bold))
+            Text("Choose where each button goes: in the row on the details page, or listed in More Options. Play and More Options always stay in the row. Saved on this Apple TV for this profile.")
                 .font(.system(size: 26)).foregroundStyle(.secondary)
             Form {
                 ForEach(DetailsView.DetailsAction.customizable, id: \.self) { action in
-                    Toggle(action.title, isOn: Binding(get: { store.inRow(action) }, set: { store.setInRow(action, $0) }))
+                    let inRow = store.inRow(action)
+                    Button { store.setInRow(action, !inRow) } label: {
+                        HStack {
+                            Label(action.title, systemImage: action.symbol)
+                            Spacer()
+                            Text(inRow ? "In Row" : "In More Options").foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            // The focused row grows past the Form's width; don't cut its ends off.
+            .scrollClipDisabled()
         }
         .frame(width: 1000)
         .padding(.top, 80)
@@ -118,9 +128,9 @@ extension View {
 
 /// The primary button's resume progress, filled left to right as on the Expo button. The system
 /// platter can't be filled and hides anything behind it, and the button style clips its label,
-/// so the fill lies over the button: at rest a white wash added onto the grey platter (white,
-/// like the cards' progress bars; white text stays white), focused a light shade over the white platter (black text stays black),
-/// grown with the platter's focus lift.
+/// so the fill lies over the button: at rest a white wash over the grey platter (white, like the
+/// cards' progress bars; white text stays white), focused a light shade over the white platter
+/// (black text stays black), grown with the platter's focus lift.
 private struct ResumeProgressFill: ViewModifier {
     /// How far the focused platter grows past the button's frame on each side.
     static let focusGrowth = 4.0
@@ -131,11 +141,17 @@ private struct ResumeProgressFill: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay {
             if fraction > 0 {
+                // The wash is blended normally, not added (plusLighter): on losing focus the
+                // platter fades from white to grey, and an added wash over the still-light
+                // platter flashed brighter than white. Crossfaded with the focused shade.
                 GeometryReader { geo in
-                    Rectangle()
-                        .fill(focused ? Color.black.opacity(0.14) : Color.white.opacity(0.22))
-                        .blendMode(focused ? .normal : .plusLighter)
-                        .frame(width: geo.size.width * min(fraction, 1))
+                    ZStack {
+                        Rectangle().fill(Color.white.opacity(0.22))
+                            .opacity(focused ? 0 : 1)
+                        Rectangle().fill(Color.black.opacity(0.14))
+                            .opacity(focused ? 1 : 0)
+                    }
+                    .frame(width: geo.size.width * min(fraction, 1))
                 }
                 .padding(focused ? -Self.focusGrowth : 0)
                 .clipShape(Capsule())
