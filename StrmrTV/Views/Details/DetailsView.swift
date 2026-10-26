@@ -171,6 +171,10 @@ struct DetailsView: View {
         ZStack {
             Backdrop(url: Artwork.url(title?.backdrop?.url ?? target.backdropURL))
                 .overlay { TrailerBackdropVideo(trailer: trailer) }
+                // Below the fold the backdrop blurs behind the rows, in step with the scroll.
+                .blur(radius: focusInHeader ? 0 : 40, opaque: true)
+                .overlay { Color.black.opacity(focusInHeader ? 0 : 0.2) }
+                .animation(.easeInOut(duration: 0.35), value: focusInHeader)
                 .overlay { DetailsBackdropShade(hidden: trailer.immersive) }
                 .ignoresSafeArea()
 
@@ -184,6 +188,11 @@ struct DetailsView: View {
                             // area already keeps them clear of the screen edge.
                             .padding(.bottom, 12)
                             .containerRelativeFrame(.vertical, alignment: .bottomLeading)
+                            // Fades as it scrolls up, so the actions don't linger over the
+                            // top edge above the seasons. A mask, not opacity: the focus engine
+                            // skips transparent views, and Up has to reach the actions again.
+                            .mask { Color.black.opacity(focusInHeader ? 1 : 0) }
+                            .animation(.easeInOut(duration: 0.35), value: focusInHeader)
                             .id(PageAnchor.header)
                         VStack(alignment: .leading, spacing: 0) {
                             if !target.isMovie && !seasons.isEmpty {
