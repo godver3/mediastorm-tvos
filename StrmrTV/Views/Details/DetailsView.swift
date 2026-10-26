@@ -291,6 +291,8 @@ struct DetailsView: View {
                 Text(metadataLine).font(.system(size: 26, weight: .medium)).foregroundStyle(.secondary)
             }
 
+            if let ratings = title?.ratings, !ratings.isEmpty { RatingsRow(ratings: ratings) }
+
             if let overview {
                 // Up from the actions reaches it only when it is cut off; select shows it whole.
                 ExpandableText(text: overview, lineLimit: 3, fontSize: 26, onlyWhenTruncated: true) {

@@ -211,8 +211,18 @@ struct Title: Decodable, Identifiable, Hashable {
     let collection: CollectionRef?
     /// none | partial | complete, for the profile that asked (Search, list rows).
     let watchState: String?
+    /// Multi-source ratings (IMDb, Rotten Tomatoes, …), hydrated from MDBList when enabled.
+    let ratings: [Rating]?
 
     var isMovie: Bool { mediaType == "movie" }
+}
+
+/// One source's score: `source` is imdb, tmdb, trakt, tomatoes, audience, metacritic or
+/// letterboxd; `value` is on that source's `max` scale.
+struct Rating: Decodable, Hashable {
+    let source: String
+    let value: Double
+    let max: Double
 }
 
 struct Credits: Decodable, Hashable {
