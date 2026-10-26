@@ -70,7 +70,7 @@ struct LandscapeCard: View {
                 // leaves it off, but the user wants it there.
                 if text.overlays(poster: poster) {
                     CardTextOverlay(title: card.title, subtitle: card.subtitle, size: size, poster: poster,
-                                    hasProgress: card.progress > 0.01)
+                                    hasProgress: ProgressBar.shows(card.progress))
                 }
             }
     }
@@ -91,7 +91,7 @@ struct LandscapeCard: View {
         } else {
             face
             .overlay(alignment: .bottom) {
-                if card.progress > 0.01 {
+                if ProgressBar.shows(card.progress) {
                     ProgressBar(fraction: card.progress).padding(poster ? 10 : 16)
                 }
             }

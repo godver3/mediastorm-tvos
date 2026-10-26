@@ -96,7 +96,7 @@ struct EpisodeCard: View {
                 // Opaque, so the blur doesn't fade into the page at the edges.
                 .blur(radius: hidesThumbnail ? 36 : 0, opaque: true)
                 .overlay(alignment: .bottom) {
-                    if fraction > 0.01 { ProgressBar(fraction: fraction).padding(14) }
+                    if ProgressBar.shows(fraction) { ProgressBar(fraction: fraction).padding(14) }
                 }
                 .overlay(alignment: .bottomLeading) {
                     // The Expo episode strip's release date overlay, unreleased episodes too.
@@ -107,7 +107,7 @@ struct EpisodeCard: View {
                             .padding(.vertical, 6)
                             .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .padding(.leading, 12)
-                            .padding(.bottom, fraction > 0.01 ? 30 : 12)
+                            .padding(.bottom, ProgressBar.shows(fraction) ? 30 : 12)
                     }
                 }
                 .overlay(alignment: .topLeading) {
@@ -123,7 +123,7 @@ struct EpisodeCard: View {
                             .padding(.vertical, 6)
                             .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .padding(.trailing, 12)
-                            .padding(.bottom, fraction > 0.01 ? 30 : 12)
+                            .padding(.bottom, ProgressBar.shows(fraction) ? 30 : 12)
                             .accessibilityLabel("In your library")
                     }
                 }
