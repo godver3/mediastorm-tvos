@@ -73,7 +73,17 @@ struct LandscapeCard: View {
                                     hasProgress: ProgressBar.shows(card.progress))
                 }
             }
+            // Over the text's gradient: under it, the 95 % black at the card's foot dimmed the
+            // bar to a faint grey line.
+            .overlay(alignment: .bottom) {
+                if hasArt, ProgressBar.shows(card.progress) {
+                    ProgressBar(fraction: card.progress).padding(poster ? 10 : 16)
+                }
+            }
     }
+
+    /// A card drawing artwork (not a symbol or logo tile).
+    private var hasArt: Bool { card.symbol == nil && !card.logoTile }
 
     @ViewBuilder
     private var tileOrArt: some View {
@@ -90,11 +100,6 @@ struct LandscapeCard: View {
             }
         } else {
             face
-            .overlay(alignment: .bottom) {
-                if ProgressBar.shows(card.progress) {
-                    ProgressBar(fraction: card.progress).padding(poster ? 10 : 16)
-                }
-            }
             .overlay(alignment: .topLeading) {
                 // A poster's "New" sits above its other badge; a 16:9 card's at the top right (as Expo).
                 VStack(alignment: .leading, spacing: 8) {
