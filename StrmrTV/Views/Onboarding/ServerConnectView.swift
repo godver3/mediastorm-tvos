@@ -43,7 +43,7 @@ struct ServerConnectView: View {
             HStack(spacing: 40) {
                 BusyButton(title: "Connect", isBusy: isConnecting, action: connect)
                     .disabled(resolved == nil || isPairing)
-                if session.serverURL != nil {
+                if session.canCancelServerChange {
                     Button("Cancel") { session.cancelServerChange() }
                         .disabled(isConnecting || isPairing)
                 }

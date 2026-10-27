@@ -107,6 +107,7 @@ final class AppSession: ObservableObject {
 
     /// Re-checks a stored session by listing profiles, then opens the auto-select one.
     func resumeSession() async {
+        guard api.session != nil else { phase = .login; return }
         phase = .starting
         if isRemote {
             do {
@@ -212,13 +213,24 @@ final class AppSession: ObservableObject {
         api.remoteCredential = nil
     }
 
+    /// Try Again on the startup error: a remote launch that never connected starts over.
+    func retryStartup() async {
+        if isRemote, RemoteAccess.shared.pairing != nil { await startRemote() } else { await resumeSession() }
+    }
+
     func changeServer() {
         phase = .server
     }
 
-    /// Back out of "Change Server" to wherever we were.
+    /// Whether "Change Server" can be backed out of: a server is in use, or a pairing is saved.
+    var canCancelServerChange: Bool { serverURL != nil || RemoteAccess.shared.pairing != nil }
+
+    /// Back out of "Change Server" to wherever we were; paired but never connected, it tries again.
     func cancelServerChange() {
-        guard serverURL != nil else { return }
+        guard serverURL != nil else {
+            if RemoteAccess.shared.pairing != nil { Task { await startRemote() } }
+            return
+        }
         phase = profile != nil ? .ready : api.session != nil ? .profiles : .login
     }
 
@@ -376,24 +388,4 @@ final class AppSession: ObservableObject {
         challengeContinuation?.resume(returning: unlocked)
         challengeContinuation = nil
     }
-
-    // MARK: Debug
-
-    #if DEBUG
-    /// `-StrmrAutoSignIn 1`: walk the flow with the optional `Secrets` values.
-    private func autoSignInIfRequested() async {
-        guard DebugPrefill.autoSignIn, let s = DebugPrefill.secrets else { return }
-        do {
-            if let code = DebugPrefill.pairCode, !isRemote { try await connect(code: code) }
-            guard phase != .ready else { return }
-            if phase == .server { try await connect(to: s.serverURL) }
-            if phase == .login { try await signIn(username: s.username, password: s.password) }
-            if phase == .profiles, let match = profiles.first(where: { $0.name == s.profileName }) {
-                _ = try await select(match, pin: s.profilePIN)
-            }
-        } catch {
-            print("[AppSession] debug auto sign-in failed: \(error.localizedDescription)")
-        }
-    }
-    #endif
 }

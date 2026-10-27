@@ -85,7 +85,7 @@ struct StartupUnavailableView: View {
             subtitle: Text(message)
         ) {
             HStack(spacing: 40) {
-                Button("Try Again") { Task { await session.resumeSession() } }
+                Button("Try Again") { Task { await session.retryStartup() } }
                 Button("Change Server") { session.changeServer() }
             }
         }
