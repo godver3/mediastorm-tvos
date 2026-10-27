@@ -57,6 +57,13 @@ class EnginePlayerViewController: AVPlayerViewController {
             .store(in: &cancellables)
     }
 
+    /// `finish()` logs the close only once the dismissal has finished; this marks its start, so
+    /// a crash during the transition is told apart from one during playback.
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if isBeingDismissed { log.notice("player dismissing") }
+    }
+
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         guard isBeingDismissed || presentingViewController == nil else { return }

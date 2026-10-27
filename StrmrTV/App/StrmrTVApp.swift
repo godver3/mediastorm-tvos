@@ -3,6 +3,8 @@ import SwiftUI
 @main
 struct StrmrTVApp: App {
     init() {
+        CrashReporter.install()
+        MainThreadWatchdog.shared.start()
         EngineLogBridge.install()
     }
 
