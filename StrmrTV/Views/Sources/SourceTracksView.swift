@@ -117,7 +117,8 @@ struct SourceTracksView: View {
         let subtitles = ManualTrackSelection.filterAllowed(probe.subtitles, language: \.language,
                                                             allowed: preferences.allowedLanguages)
         let defaultAudio = defaults.map(\.audio)
-            ?? ManualTrackSelection.defaultAudio(audio, preferredLanguage: preferences.audioLanguage)
+            ?? ManualTrackSelection.defaultAudio(audio, preferredLanguage: preferences.audioLanguage,
+                                                lossless: preferences.losslessAudio)
         let defaultSubtitle = defaults.map { (index: $0.subtitle, searchesOnline: $0.searchesOnline) }
             ?? ManualTrackSelection.defaultSubtitle(subtitles, language: preferences.subtitleLanguage,
                                                     mode: preferences.subtitleMode)

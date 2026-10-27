@@ -72,6 +72,8 @@ struct ManualTrackPreferences: Hashable {
     /// `off`, `forced-only` or `on`.
     var subtitleMode = "off"
     var allowedLanguages: [String] = []
+    /// Settings › Playback › Audio Format is Lossless.
+    var losslessAudio = false
 }
 
 enum ManualTrackSelection {
@@ -112,12 +114,17 @@ enum ManualTrackSelection {
     }
 
     /// The audio track preselected for `tracks` (container index), nil with no tracks.
-    static func defaultAudio(_ tracks: [ProbedAudioTrack], preferredLanguage: String) -> Int? {
+    /// `lossless` puts TrueHD, then DTS / FLAC / PCM, first, as the player's pick does.
+    static func defaultAudio(_ tracks: [ProbedAudioTrack], preferredLanguage: String, lossless: Bool = false) -> Int? {
         guard !tracks.isEmpty else { return nil }
         let pref = preferredLanguage.lowercased()
         guard !pref.isEmpty else { return firstCompatibleAudio(tracks) }
         let codec = { (t: ProbedAudioTrack) in (t.codec ?? "").lowercased() }
-        let classes: [(ProbedAudioTrack) -> Bool] = [
+        let losslessClasses: [(ProbedAudioTrack) -> Bool] = [
+            { trueHDCodecs.contains(codec($0)) },
+            { ClientTrackSelector.isLossless(codec($0)) },
+        ]
+        let classes: [(ProbedAudioTrack) -> Bool] = (lossless ? losslessClasses : []) + [
             { compatibleAudioCodecs.contains(codec($0)) },
             { !trueHDCodecs.contains(codec($0)) },
             { _ in true },

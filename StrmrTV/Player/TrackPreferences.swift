@@ -154,10 +154,11 @@ extension TrackPreferences {
         guard store.overridesTracks else { return nil }
         let preferences = devicePreferences(over: selection)
         let client = ClientTrackSelector.select(audio: audio, subtitles: subtitles, preferences: preferences)
-        let keepAudio = store.audioLanguage == nil && selection != nil
+        let keepAudio = store.audioLanguage == nil && !store.losslessAudio && selection != nil
         let keepSubtitle = store.subtitleMode == nil && store.subtitleLanguage == nil && selection != nil
         let merged = TrackSelection(
-            audio: keepAudio ? selection?.audio : client.audio,
+            // Lossless alone with no language to pick in keeps the server's track.
+            audio: keepAudio ? selection?.audio : client.audio ?? (store.audioLanguage == nil ? selection?.audio : nil),
             subtitle: keepSubtitle ? selection?.subtitle : client.subtitle,
             textSubtitle: keepSubtitle ? selection?.textSubtitle : client.textSubtitle,
             audioLanguage: preferences.audioLanguage, subtitleLanguage: preferences.subtitleLanguage,
@@ -165,7 +166,7 @@ extension TrackPreferences {
         var tracks = TrackPreferences(selection: merged)
         tracks.isClientPick = true
         AppLog(category: "player").notice(
-            "device track overrides: audio \(preferences.audioLanguage ?? "-") -> \(merged.audio?.streamIndex ?? -1), "
+            "device track overrides: audio \(preferences.audioLanguage ?? "-")\(preferences.losslessAudio ? " lossless" : "") -> \(merged.audio?.streamIndex ?? -1), "
             + "subtitles \(preferences.subtitleMode) \(preferences.subtitleLanguage ?? "-") -> \(merged.subtitle?.streamIndex ?? -1) "
             + "(server audio \(selection?.audio?.streamIndex ?? -1), subtitle \(selection?.subtitle?.streamIndex ?? -1))")
         return tracks
@@ -200,7 +201,8 @@ extension TrackPreferences {
             audioLanguage: store.audioLanguage ?? selection?.audioLanguage ?? server.audioLanguage,
             allowedLanguages: allowed,
             subtitleLanguage: store.subtitleLanguage ?? selection?.subtitleLanguage ?? server.subtitleLanguage,
-            subtitleMode: store.subtitleMode ?? selection?.subtitleMode ?? server.subtitleMode ?? "off")
+            subtitleMode: store.subtitleMode ?? selection?.subtitleMode ?? server.subtitleMode ?? "off",
+            losslessAudio: store.losslessAudio)
     }
 
     /// The overrides against a prequeue's track lists, before the engine loads (so the hardware

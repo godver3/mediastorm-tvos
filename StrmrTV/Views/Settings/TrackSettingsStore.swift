@@ -1,6 +1,6 @@
 import Foundation
 
-/// Settings › Playback › Subtitles, Subtitle Translation, Subtitle Language and Audio Language:
+/// Settings › Playback › Subtitles, Subtitle Translation, Subtitle Language, Audio Language and Audio Format:
 /// this device's overrides of the profile's track preferences (nil follows the server), as
 /// Auto-play Trailers overrides its setting. With every override at Default the player uses
 /// the server's `trackSelection` as it is; otherwise the tracks are picked on this device by
@@ -25,6 +25,9 @@ final class TrackSettingsStore: ObservableObject {
     /// ISO 639-2 (`SubtitleSearchModel.Language.settingCode`).
     @Published var subtitleLanguage: String? { didSet { store(subtitleLanguage, Keys.subtitleLanguage) } }
     @Published var audioLanguage: String? { didSet { store(audioLanguage, Keys.audioLanguage) } }
+    /// Audio Format: Lossless picks TrueHD (then DTS, FLAC, PCM) over the server's E-AC-3-first
+    /// order. The profile has no such setting, so this is the device's alone (off = the server's).
+    @Published var losslessAudio: Bool { didSet { defaults.set(losslessAudio, forKey: Keys.losslessAudio) } }
 
     @Published private(set) var server = ServerValues()
 
@@ -34,6 +37,7 @@ final class TrackSettingsStore: ObservableObject {
         static let translation = "strmrtv.subtitleTranslation"
         static let subtitleLanguage = "strmrtv.subtitleLanguage"
         static let audioLanguage = "strmrtv.audioLanguage"
+        static let losslessAudio = "strmrtv.losslessAudio"
     }
 
     private init() {
@@ -41,10 +45,11 @@ final class TrackSettingsStore: ObservableObject {
         translation = defaults.object(forKey: Keys.translation) as? Bool
         subtitleLanguage = defaults.string(forKey: Keys.subtitleLanguage)
         audioLanguage = defaults.string(forKey: Keys.audioLanguage)
+        losslessAudio = defaults.bool(forKey: Keys.losslessAudio)
     }
 
     /// Any track override (translation aside, which only online subtitles read).
-    var overridesTracks: Bool { subtitleMode != nil || subtitleLanguage != nil || audioLanguage != nil }
+    var overridesTracks: Bool { subtitleMode != nil || subtitleLanguage != nil || audioLanguage != nil || losslessAudio }
 
     private var loaded: (profile: String, at: Date)?
 

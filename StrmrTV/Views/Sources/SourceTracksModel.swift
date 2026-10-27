@@ -39,7 +39,8 @@ extension ManualTrackPreferences {
             audioLanguage: first(store.audioLanguage, content?.audioLanguage, store.server.audioLanguage),
             subtitleLanguage: first(store.subtitleLanguage, content?.subtitleLanguage, store.server.subtitleLanguage),
             subtitleMode: TrackSettingsStore.normalizeMode(mode.isEmpty ? "off" : mode) ?? "off",
-            allowedLanguages: store.server.allowedLanguages)
+            allowedLanguages: store.server.allowedLanguages,
+            losslessAudio: store.losslessAudio)
     }
 }
 

@@ -45,6 +45,11 @@ struct TrackSettingsRows: View {
         }
         ChoiceRow(title: "Audio Language", selection: $store.audioLanguage,
                   defaultValue: canonicalAudio(store.server.audioLanguage), choices: Self.audioLanguages)
+        ChoiceRow(title: "Audio Format", selection: $store.losslessAudio, choices: [
+            .init(value: false, name: String(localized: "Compatible (E-AC-3)")),
+            .init(value: true, name: String(localized: "Lossless (TrueHD)")),
+        ])
+            .accessibilityHint(Text("Which audio track starts when a source has several in your language"))
     }
 
     /// The profile's code as the list spells it (`fre` → `fra`), so its name shows.

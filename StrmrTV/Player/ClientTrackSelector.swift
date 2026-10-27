@@ -20,11 +20,14 @@ enum ClientTrackSelector {
         var subtitleLanguage: String?
         /// `off`, `forced-only` or `on`.
         var subtitleMode: String
+        /// Settings › Playback › Audio Format is Lossless: TrueHD first (`findAudio`).
+        var losslessAudio = false
     }
 
     static func select(audio: [Stream], subtitles: [Stream], preferences p: Preferences) -> TrackSelection {
         let audioIndex = (p.audioLanguage?.isEmpty == false || !p.allowedLanguages.isEmpty)
-            ? findAllowedAudio(audio, allowed: p.allowedLanguages, preferred: p.audioLanguage ?? "") : -1
+            ? findAllowedAudio(audio, allowed: p.allowedLanguages, preferred: p.audioLanguage ?? "",
+                               lossless: p.losslessAudio) : -1
         let audioPick = describe(audio, audioIndex)
         var subtitlePick: SelectedTrack?
         var textPick: SelectedTrack?
@@ -48,27 +51,30 @@ enum ClientTrackSelector {
 
     // MARK: Audio
 
-    static func findAllowedAudio(_ streams: [Stream], allowed: [String], preferred: String) -> Int {
+    static func findAllowedAudio(_ streams: [Stream], allowed: [String], preferred: String,
+                                 lossless: Bool = false) -> Int {
         let allowed = allowed.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty }
-        guard !allowed.isEmpty else { return findAudio(streams, preferred: preferred) }
+        guard !allowed.isEmpty else { return findAudio(streams, preferred: preferred, lossless: lossless) }
         if !preferred.isEmpty, allowed.contains(where: { matches(preferred, "", $0) }) {
-            let picked = findAudio(streams, preferred: preferred)
+            let picked = findAudio(streams, preferred: preferred, lossless: lossless)
             if picked >= 0 { return picked }
         }
         for language in allowed {
-            let picked = findAudio(streams, preferred: language)
+            let picked = findAudio(streams, preferred: language, lossless: lossless)
             if picked >= 0 { return picked }
         }
         return -1
     }
 
     /// E-AC-3, then other direct-play codecs, then anything but TrueHD, then TrueHD; first
-    /// without commentary, then with it. A region-tagged preference (`fr-CA`) first tries that
-    /// regional dub (`RegionalAudio`).
-    static func findAudio(_ streams: [Stream], preferred: String) -> Int {
+    /// without commentary, then with it. `lossless` (Settings › Playback › Audio Format) puts
+    /// TrueHD, then DTS / FLAC / PCM (`isLossless`), ahead of that order. A region-tagged
+    /// preference (`fr-CA`) first tries that regional dub (`RegionalAudio`).
+    static func findAudio(_ streams: [Stream], preferred: String, lossless: Bool = false) -> Int {
         guard !preferred.isEmpty else { return -1 }
         let compatible: Set = ["aac", "ac3", "eac3", "mp3"]
-        let classes: [(Stream) -> Bool] = [
+        let losslessClasses: [(Stream) -> Bool] = [{ isTrueHD($0.codec) }, { isLossless($0.codec) }]
+        let classes: [(Stream) -> Bool] = (lossless ? losslessClasses : []) + [
             { $0.codec.lowercased() == "eac3" },
             { compatible.contains($0.codec.lowercased()) },
             { !isTrueHD($0.codec) },
@@ -157,6 +163,11 @@ enum ClientTrackSelector {
     static func isForced(_ s: Stream) -> Bool { s.forced || s.title.lowercased().contains("forced") }
     static func isText(_ codec: String) -> Bool { OnlineSubtitles.isTextCodec(codec) || codec.lowercased() == "vtt" }
     static func isTrueHD(_ codec: String) -> Bool { ["truehd", "mlp"].contains(codec.lowercased()) }
+    /// The lossless formats after TrueHD. libav names DTS-HD MA plain `dts`, so DTS counts.
+    static func isLossless(_ codec: String) -> Bool {
+        let c = codec.lowercased()
+        return isTrueHD(c) || c == "dts" || c == "flac" || c == "alac" || c.hasPrefix("pcm")
+    }
     static func isUnsupported(_ codec: String) -> Bool {
         let c = codec.lowercased()
         return c.contains("dvd_subtitle") || c == "dvdsub" || c.contains("vobsub") || c.contains("dvd subtitle")
