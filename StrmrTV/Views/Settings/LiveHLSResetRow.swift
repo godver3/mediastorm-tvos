@@ -7,11 +7,18 @@ struct LiveHLSResetRow: View {
 
     var body: some View {
         Button {
-            let count = LiveHLSPreference.resetAll()
-            result = count == 0 ? String(localized: "Nothing to reset") : String(localized: "Reset")
+            result = Self.resultText(LiveHLSPreference.resetAll())
         } label: {
-            LabeledContent("Reset Live TV Playback") { Text(result ?? "") }
+            LabeledContent("Try Direct Again") { Text(result ?? "") }
         }
-        .accessibilityHint(Text("Live TV tries your provider's own stream format again on the next tune"))
+        .accessibilityHint(Text("Forgets live sources switched to HLS, so they try their own stream format on the next tune"))
+    }
+
+    private static func resultText(_ count: Int) -> String {
+        switch count {
+        case 0: String(localized: "Nothing to reset")
+        case 1: String(localized: "Reset 1 source")
+        default: String(localized: "Reset \(count) sources")
+        }
     }
 }

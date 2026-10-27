@@ -4,7 +4,7 @@ import Foundation
 /// direct stream won't start, the live player retries once as an HLS session; once that has
 /// played for a while the choice is kept on this device for the server and live source, and
 /// later tunes of that source ask for HLS at once, unless a direct stream of the source has
-/// played here before, which rules the fallback out for it. Settings › Reset Live TV Playback
+/// played here before, which rules the fallback out for it. Settings › Try Direct Again
 /// clears both marks, along with the join choice older builds remembered (`joinPrefix`).
 @MainActor
 enum LiveHLSPreference {
@@ -54,12 +54,12 @@ enum LiveHLSPreference {
         defaults.set("direct", forKey: key(scope))
     }
 
-    /// Forgets every remembered source; returns how many there were.
+    /// Forgets every remembered source; returns how many were remembered as needing HLS.
     @discardableResult
     static func resetAll() -> Int {
-        let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(prefix) || $0.hasPrefix(joinPrefix) }
-        keys.forEach(defaults.removeObject(forKey:))
-        return keys.count
+        let entries = defaults.dictionaryRepresentation().filter { $0.key.hasPrefix(prefix) || $0.key.hasPrefix(joinPrefix) }
+        entries.keys.forEach(defaults.removeObject(forKey:))
+        return entries.filter { $0.key.hasPrefix(prefix) && $0.value as? String == "hls" }.count
     }
 
     private static func key(_ scope: Scope, prefix: String = Self.prefix) -> String {
