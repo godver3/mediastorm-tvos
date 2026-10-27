@@ -21,16 +21,18 @@ final class LiveHLSPreferenceTests: XCTestCase {
         XCTAssertFalse(LiveHLSPreference.prefersHLS(.init(server: "node:other", sourceID: "xtream 1")))
     }
 
-    func testStandardJoinRememberedOnSecondRunDry() {
+    func testDirectPlayRulesOutTheFallback() {
         let scope = LiveHLSPreference.Scope(server: "node:abc/1", sourceID: "xtream 1")
-        XCTAssertFalse(LiveHLSPreference.noteFastJoinRanDry(scope))
-        XCTAssertFalse(LiveHLSPreference.prefersStandardJoin(scope))
-        XCTAssertTrue(LiveHLSPreference.noteFastJoinRanDry(scope))
-        XCTAssertTrue(LiveHLSPreference.prefersStandardJoin(scope))
+        LiveHLSPreference.rememberDirectWorked(scope)
+        LiveHLSPreference.remember(scope)
+        XCTAssertTrue(LiveHLSPreference.directWorked(scope))
         XCTAssertFalse(LiveHLSPreference.prefersHLS(scope))
-        XCTAssertFalse(LiveHLSPreference.prefersStandardJoin(.init(server: "node:abc/1", sourceID: "xtream 2")))
+    }
+
+    func testResetClearsOlderBuildsJoinChoice() {
+        UserDefaults.standard.set("standard", forKey: "live.joinPreference.v1:a:1")
         XCTAssertEqual(LiveHLSPreference.resetAll(), 1)
-        XCTAssertFalse(LiveHLSPreference.prefersStandardJoin(scope))
+        XCTAssertNil(UserDefaults.standard.string(forKey: "live.joinPreference.v1:a:1"))
     }
 
     func testResetForgetsEverySource() {

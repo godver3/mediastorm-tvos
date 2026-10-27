@@ -1,7 +1,7 @@
 import XCTest
 @testable import StrmrTV
 
-/// Title cards (Search, list rows) mark the server's `watchState`, after the rank and release badges.
+/// Title cards (Search, list rows) mark the server's `watchState`, stacked under the rank and release badges.
 @MainActor
 final class WatchStateBadgeTests: XCTestCase {
     private func title(availability: String = "released", watchState: String?) throws -> Title {
@@ -18,13 +18,17 @@ final class WatchStateBadgeTests: XCTestCase {
     }
 
     func testSearchCardsShowWatchState() throws {
-        XCTAssertEqual(PosterCard(title: try title(watchState: "complete")).badge, .watched)
-        XCTAssertEqual(HomeCard(try title(watchState: "partial")).badge, .inProgress)
-        XCTAssertNil(PosterCard(title: try title(watchState: nil)).badge)
+        XCTAssertEqual(PosterCard(title: try title(watchState: "complete")).watchBadge, .watched)
+        XCTAssertEqual(HomeCard(try title(watchState: "partial")).watchBadge, .inProgress)
+        XCTAssertNil(PosterCard(title: try title(watchState: nil)).watchBadge)
     }
 
-    func testRankAndReleaseBadgesWin() throws {
-        XCTAssertEqual(PosterCard(title: try title(availability: "coming_soon", watchState: "complete")).badge, .comingSoon)
-        XCTAssertEqual(PosterCard(title: try title(watchState: "complete"), rank: 2).badge, CardBadge(text: "#2"))
+    func testWatchStateStacksUnderRankAndReleaseBadges() throws {
+        let comingSoon = PosterCard(title: try title(availability: "coming_soon", watchState: "complete"))
+        XCTAssertEqual(comingSoon.badge, .comingSoon)
+        XCTAssertEqual(comingSoon.watchBadge, .watched)
+        let ranked = PosterCard(title: try title(watchState: "complete"), rank: 2)
+        XCTAssertEqual(ranked.badge, CardBadge(text: "#2"))
+        XCTAssertEqual(ranked.watchBadge, .watched)
     }
 }
