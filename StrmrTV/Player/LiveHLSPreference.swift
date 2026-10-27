@@ -3,7 +3,8 @@ import Foundation
 /// Live TV's remembered "this provider needs HLS" (Expo `livePlaybackPreference`). When a
 /// direct stream won't start, the live player retries once as an HLS session; once that has
 /// played for a while the choice is kept on this device for the server and live source, and
-/// later tunes of that source ask for HLS at once. Likewise a source whose fast live join kept
+/// later tunes of that source ask for HLS at once, unless a direct stream of the source has
+/// played here before, which rules the fallback out for it. Likewise a source whose fast live join kept
 /// running dry on two tunes (`+JoinProfile`) is remembered as needing the standard, deeper join. Settings ›
 /// Reset Live TV Playback clears both.
 @MainActor
@@ -36,8 +37,21 @@ enum LiveHLSPreference {
         defaults.string(forKey: key(scope)) == "hls"
     }
 
+    /// Never over a source whose direct stream has played: a direct stream that worked once and
+    /// then struggles is a provider having a bad moment, and the server's HLS session reads the
+    /// same provider.
     static func remember(_ scope: Scope) {
+        guard !directWorked(scope) else { return }
         defaults.set("hls", forKey: key(scope))
+    }
+
+    /// A direct stream of this source showed a frame on this device.
+    static func directWorked(_ scope: Scope) -> Bool {
+        defaults.string(forKey: key(scope)) == "direct"
+    }
+
+    static func rememberDirectWorked(_ scope: Scope) {
+        defaults.set("direct", forKey: key(scope))
     }
 
     static func prefersStandardJoin(_ scope: Scope) -> Bool {

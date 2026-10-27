@@ -55,6 +55,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var hlsProofStalled = false
     /// The fallback came from an outright direct failure, not a deadline.
     var hlsFallbackRememberable = true
+    /// A direct stream of this channel's source has played on this device (`LiveHLSPreference`).
+    var directWorkedForSource = false
     var directStartTimer: Timer?
 
     // The fast → standard live join (`+JoinProfile`).
@@ -243,6 +245,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 firstFrameAt = Date()
                 directStartTimer?.invalidate()
                 startRetuneRecovery()
+                noteDirectPlayed()
                 startHLSProof()
             }
             .store(in: &cancellables)

@@ -15,6 +15,9 @@ import Foundation
 /// holdback late (18 s of media took ~30 s on a reported Sportsnet 4K line), so it gets until
 /// `directStartSlowDeadline`. HLS reads the same provider and can't fix that, so a fallback
 /// reached through a deadline is tried for this tune but never remembered for the source.
+///
+/// Once a direct stream of a source has shown a frame on this device it never falls back:
+/// direct is known to work there, so a later failure is the provider's, which HLS can't fix.
 extension LivePlayerViewController {
     static let directStartDeadline: TimeInterval = 25
     static let directStartSlowDeadline: TimeInterval = 60
@@ -33,8 +36,9 @@ extension LivePlayerViewController {
     /// Whether this tune asks for HLS: after a direct failure, or as the source's remembered choice.
     func hlsForTune() async -> Bool {
         if hlsMode != .asConfigured { return true }
-        guard let scope = await LiveHLSPreference.scope(for: channel),
-              LiveHLSPreference.prefersHLS(scope) else { return false }
+        guard let scope = await LiveHLSPreference.scope(for: channel) else { return false }
+        directWorkedForSource = LiveHLSPreference.directWorked(scope)
+        guard LiveHLSPreference.prefersHLS(scope) else { return false }
         log.notice("live hls: remembered for this source")
         hlsMode = .remembered
         return true
@@ -45,6 +49,10 @@ extension LivePlayerViewController {
     /// the direct stream failed outright, so a working fallback may be kept for the source.
     func fallBackToHLS(_ reason: String, rememberable: Bool = true) -> Bool {
         guard !didFinish, tuneIsDirect, !tunePlayed, hlsMode == .asConfigured else { return false }
+        guard !directWorkedForSource else {
+            log.notice("live hls: direct stream failed before playing (\(reason)), but direct has played for this source before; not falling back")
+            return false
+        }
         log.notice("live hls: direct stream failed before playing (\(reason)); retrying as hls")
         hlsMode = .fallback
         hlsFallbackRememberable = rememberable
@@ -90,6 +98,17 @@ extension LivePlayerViewController {
         switch engine.playbackPhase {
         case .stalled, .error, .ended, .idle: return false
         default: return true
+        }
+    }
+
+    /// A direct tune's first frame: direct works for this source, so it never falls back.
+    func noteDirectPlayed() {
+        guard tuneIsDirect, hlsMode == .asConfigured, !directWorkedForSource else { return }
+        directWorkedForSource = true
+        Task { [channel, log] in
+            guard let scope = await LiveHLSPreference.scope(for: channel) else { return }
+            LiveHLSPreference.rememberDirectWorked(scope)
+            log.notice("live direct: played for source \(scope.sourceID); it won't fall back to hls")
         }
     }
 
