@@ -70,7 +70,9 @@ final class DriverServer: @unchecked Sendable {
 
     private func enqueue(_ head: String, _ connection: NWConnection) {
         let target = head.split(separator: "\r\n").first?.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
-        let components = URLComponents(string: target)
+        // curl's --data-urlencode writes a space as "+", which URLComponents leaves as is (a
+        // literal "+" arrives as %2B, so this keeps it).
+        let components = URLComponents(string: target.replacingOccurrences(of: "+", with: "%20"))
         var query: [String: String] = [:]
         for item in components?.queryItems ?? [] { query[item.name] = item.value ?? "" }
         let request = Request(path: components?.path ?? target, query: query) { [weak self] response in
