@@ -52,6 +52,9 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var tuneIsDirect = false
     var tunePlayed = false
     var hlsProofTimer: Timer?
+    var hlsProofStalled = false
+    /// The fallback came from an outright direct failure, not a deadline.
+    var hlsFallbackRememberable = true
     var directStartTimer: Timer?
 
     // The fast → standard live join (`+JoinProfile`).
@@ -93,7 +96,10 @@ final class LivePlayerViewController: EnginePlayerViewController {
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
-        telemetry.onDistress = { [weak self] in self?.noteJoinDistress($0) }
+        telemetry.onDistress = { [weak self] in
+            self?.noteHLSProofDistress($0)
+            self?.noteJoinDistress($0)
+        }
         telemetry.start()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
