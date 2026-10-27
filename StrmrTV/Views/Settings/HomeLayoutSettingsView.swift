@@ -22,6 +22,10 @@ struct HomeLayoutSettingsView: View {
                 }
                 OverridePicker("Card Size", selection: $layout.cardSize, options: CardSize.allCases,
                                profileValue: CardSize(nearest: layout.profile.cardScale)) { $0.label }
+                ForEach(ShelfStyle.allCases) { rowStyle in
+                    OverridePicker(rowStyle.cardSizeTitle, selection: styleCardSize(rowStyle), options: CardSize.allCases,
+                                   profileValue: CardSize(nearest: layout.effectiveCardScale)) { $0.label }
+                }
                 OverridePicker("Card Titles", selection: $layout.cardText, options: CardText.allCases,
                                profileValue: HomeLayoutStore.defaultCardText) { $0.label }
             } header: {
@@ -77,6 +81,11 @@ struct HomeLayoutSettingsView: View {
         .settingsListMargins(80)
     }
 
+    /// One kind of row's card size; Default follows Card Size.
+    private func styleCardSize(_ style: ShelfStyle) -> Binding<CardSize?> {
+        Binding { layout.styleCardSizes[style] } set: { layout.styleCardSizes[style] = $0 }
+    }
+
     /// The Hero Text Size choice also sizes the carousel's text; named for what it sizes.
     private var textSizeTitle: LocalizedStringKey {
         style.focusedInfo ? "Hero Text Size" : "Carousel Text Size"
@@ -85,11 +94,11 @@ struct HomeLayoutSettingsView: View {
     private var sizeFooter: LocalizedStringKey {
         switch (style.topCarousel, style.focusedInfo) {
         case (true, true):
-            "A smaller hero, smaller cards and card titles overlaid on the art (or none) fit more rows on screen. Hero Text Size also sizes the carousel's text."
+            "A smaller hero, smaller cards and card titles overlaid on the art (or none) fit more rows on screen. Poster, Expanding Poster and Landscape Cards size those rows alone; Default follows Card Size. Hero Text Size also sizes the carousel's text."
         case (false, true):
-            "A smaller hero, smaller cards and card titles overlaid on the art (or none) fit more rows on screen. Hero Size Off keeps the backdrop but hides the title and overview."
+            "A smaller hero, smaller cards and card titles overlaid on the art (or none) fit more rows on screen. Poster, Expanding Poster and Landscape Cards size those rows alone; Default follows Card Size. Hero Size Off keeps the backdrop but hides the title and overview."
         default:
-            "Smaller cards and card titles overlaid on the art (or none) fit more rows on screen."
+            "Smaller cards and card titles overlaid on the art (or none) fit more rows on screen. Poster, Expanding Poster and Landscape Cards size those rows alone; Default follows Card Size."
         }
     }
 

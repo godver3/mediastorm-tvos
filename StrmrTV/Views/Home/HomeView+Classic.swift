@@ -111,8 +111,8 @@ extension HomeView {
                     VStack(alignment: .leading, spacing: 0) {
                         if carousel { carouselSlot(size: size) }
                         ForEach(slots) { slot in
-                            slotRow(slot, cardHeight: cardHeight, menuFocus: menuFocus)
-                            .frame(height: rowHeight, alignment: .top)
+                            slotRow(slot, cardHeight: cardHeight(forShelf: slot.id), menuFocus: menuFocus)
+                            .frame(height: rowHeight(forShelf: slot.id), alignment: .top)
                             .id(slot.id)
                         }
                     }
@@ -178,7 +178,7 @@ extension HomeView {
                 .equatable()
         case let .loading(id, title), let .failed(id, title):
             PlaceholderRow(id: id, title: title, failed: !slot.isLoading,
-                           style: layout.style(for: id), cardHeight: cardHeight)
+                           style: layout.style(for: id), cardHeight: cardHeight, focused: $focused)
         }
     }
 }

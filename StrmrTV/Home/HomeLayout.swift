@@ -119,6 +119,15 @@ enum ShelfStyle: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The Home Layout setting sizing this kind of row's cards.
+    var cardSizeTitle: LocalizedStringKey {
+        switch self {
+        case .poster: "Poster Cards"
+        case .expandingPoster: "Expanding Poster Cards"
+        case .landscape: "Landscape Cards"
+        }
+    }
+
     /// Shelves the Expo TV home draws landscape (`cardLayout: 'landscape'` in
     /// `useTVHomeShelves`); the rest are posters.
     static func isLandscapeByDefault(_ config: ShelfConfig) -> Bool {
@@ -190,6 +199,10 @@ final class HomeLayoutStore: ObservableObject {
         _cardText = Published(initialValue: defaults.string(forKey: Keys.cardText).flatMap(CardText.init(rawValue:))
             ?? (Self.bool(defaults, Keys.cardTitles) == false ? CardText.off : nil))
         _cardSize = Published(initialValue: defaults.string(forKey: Keys.cardSize).flatMap(CardSize.init(rawValue:)))
+        let sizes = defaults.dictionary(forKey: Keys.styleCardSizes) as? [String: String] ?? [:]
+        _styleCardSizes = Published(initialValue: Dictionary(uniqueKeysWithValues: sizes.compactMap { style, size in
+            ShelfStyle(rawValue: style).flatMap { style in CardSize(rawValue: size).map { (style, $0) } }
+        }))
         let saved = defaults.dictionary(forKey: Keys.shelfStyles) as? [String: String] ?? [:]
         _shelfStyles = Published(initialValue: saved.compactMapValues(ShelfStyle.init(rawValue:)))
         _hiddenShelves = Published(initialValue: Set(defaults.stringArray(forKey: Keys.hiddenShelves) ?? []))
@@ -210,6 +223,7 @@ final class HomeLayoutStore: ObservableObject {
         static let heroSize = "homeLayout.heroSize"
         static let heroTextSize = "homeLayout.heroTextSize"
         static let cardSize = "homeLayout.cardSize"
+        static let styleCardSizes = "homeLayout.styleCardSizes"
         static let cardTitles = "homeLayout.cardTitles"
         static let cardText = "homeLayout.cardText"
         static let viewSwitcher = "homeLayout.viewSwitcher"
@@ -266,6 +280,17 @@ final class HomeLayoutStore: ObservableObject {
 
     /// The card scale: the device's size, else the profile's own scale (not rounded to a size).
     var effectiveCardScale: Double { cardSize?.scale ?? profile.cardScale }
+
+    /// Card sizes chosen for one kind of row (device only); a kind not listed takes Card Size.
+    @Published var styleCardSizes: [ShelfStyle: CardSize] {
+        didSet {
+            defaults.set(Dictionary(uniqueKeysWithValues: styleCardSizes.map { ($0.key.rawValue, $0.value.rawValue) }),
+                         forKey: Keys.styleCardSizes)
+        }
+    }
+
+    /// The card scale of rows drawn in a style: its own size, else Card Size's.
+    func cardScale(for style: ShelfStyle) -> Double { styleCardSizes[style]?.scale ?? effectiveCardScale }
 
     /// Card styles chosen for single rows, by shelf id (rows not listed use their default).
     @Published private(set) var shelfStyles: [String: ShelfStyle] {

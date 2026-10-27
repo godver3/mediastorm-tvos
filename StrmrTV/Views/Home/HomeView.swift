@@ -60,9 +60,26 @@ struct HomeView: View {
     /// Room left above the hero for the tab bar when the hero is smaller than full.
     static let tabBarClearance: CGFloat = 90
 
+    /// The Card Size height; the promoted Top 10 row, which has its own layout, keeps it.
     var cardHeight: CGFloat { (ShelfRow.baseCardHeight * layout.effectiveCardScale).rounded() }
+
+    /// A row's card height: its style's own size (Poster, Expanding Poster or Landscape
+    /// Cards), else Card Size.
+    func cardHeight(forShelf id: String) -> CGFloat {
+        guard id != HomeShelf.promotedTopTenID else { return cardHeight }
+        return (ShelfRow.baseCardHeight * layout.cardScale(for: layout.style(for: id))).rounded()
+    }
+
+    func rowHeight(forShelf id: String) -> CGFloat {
+        Self.rowHeight(cardHeight: cardHeight(forShelf: id), captions: layout.effectiveCardText == .below)
+    }
+
+    /// The rows' viewport with the full hero: the tallest row on the page, so the hero and
+    /// the focused row stay put moving between rows of different sizes (a shorter row
+    /// shows more of the next one under it).
     var rowHeight: CGFloat {
-        Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below)
+        store.slots.map { rowHeight(forShelf: $0.id) }.max()
+            ?? Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below)
     }
     var heroSize: HeroSize { layout.effectiveHeroSize }
     /// How often an idle Home asks the server whether anything changed.
@@ -92,14 +109,19 @@ struct HomeView: View {
         return shelf.shown.first { $0.id == focus.card }.map(HeroContent.init)
     }
 
-    /// Where focus goes on entering the rows: the card last left, else the first card.
+    /// Where focus goes on entering the rows: the card last left, else the first row's
+    /// entry (a placeholder while that row loads; see `firstRowEntry`).
     var rememberedFocus: HomeFocus? {
         if hero(heroFocus) != nil { return heroFocus }
         if hero(lastRowFocus) != nil { return lastRowFocus }
-        return shelves.first.flatMap(entry)
+        return firstRowEntry
     }
 
-    var hero: HeroContent? { hero(rememberedFocus) }
+    /// With nothing focused yet the hero shows the first loaded row's card while the row
+    /// above it loads; with a placeholder focused it shows nothing.
+    var hero: HeroContent? {
+        hero(rememberedFocus) ?? (focused == nil ? hero(shelves.first.flatMap(entry)) : nil)
+    }
 
     var body: some View {
         Group {
@@ -152,6 +174,7 @@ struct HomeView: View {
         }
         .onChange(of: watchlist.items) { _, items in store.watchlist = items }
         .onChange(of: store.shelves) { old, new in refocusIfGone(from: old, to: new) }
+        .onChange(of: store.slots) { _, slots in refocusFromPlaceholder(slots) }
         .environment(\.removeFromWatchlist) { removeFromWatchlist($0) }
         .onChange(of: playback.sessionsEnded) { Task { await store.reloadPlaybackRows() } }
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
@@ -199,9 +222,10 @@ struct HomeView: View {
             if let entry = entry(shelves[neighbour]) { targets.append(entry) }
         }
 
-        let poster = CGSize(width: ShelfRow.posterWidth(cardHeight: cardHeight), height: cardHeight)
-        let landscape = CGSize(width: ShelfRow.landscapeWidth(cardHeight: cardHeight), height: cardHeight)
         for target in targets {
+            let height = cardHeight(forShelf: target.shelf)
+            let poster = CGSize(width: ShelfRow.posterWidth(cardHeight: height), height: height)
+            let landscape = CGSize(width: ShelfRow.landscapeWidth(cardHeight: height), height: height)
             if let card = shelves.first(where: { $0.id == target.shelf })?.shown.first(where: { $0.id == target.card }) {
                 ImagePipeline.prefetch(LandscapeCard.artURL(card, poster: true), size: poster)
                 ImagePipeline.prefetch(LandscapeCard.artURL(card, poster: false), size: landscape)
