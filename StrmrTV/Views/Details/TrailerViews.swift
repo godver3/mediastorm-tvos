@@ -125,7 +125,9 @@ struct DetailsTrailerModifier: ViewModifier {
                         .ignoresSafeArea()
                 }
             }
-            .onPlayPauseCommand { if trailer.showing { trailer.togglePause() } }
+            // Play/Pause on the remote stops it, as opening a menu does, rather than leaving a
+            // paused frame behind the header.
+            .onPlayPauseCommand { if trailer.showing { trailer.dismiss("play/pause") } }
             .onChange(of: trailer.immersive) { _, immersive in
                 if immersive {
                     focusBeforeImmersive = focus.wrappedValue

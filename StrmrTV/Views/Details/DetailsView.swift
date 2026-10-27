@@ -191,7 +191,9 @@ struct DetailsView: View {
                             // Fades as it scrolls up, so the actions don't linger over the
                             // top edge above the seasons. A mask, not opacity: the focus engine
                             // skips transparent views, and Up has to reach the actions again.
-                            .mask { Color.black.opacity(focusInHeader ? 1 : 0) }
+                            // Outset past the header so it doesn't clip the actions' focus
+                            // lift (Play sits on the header's left edge) or their captions.
+                            .mask { Color.black.opacity(focusInHeader ? 1 : 0).padding(-60) }
                             .animation(.easeInOut(duration: 0.35), value: focusInHeader)
                             .id(PageAnchor.header)
                         VStack(alignment: .leading, spacing: 0) {
