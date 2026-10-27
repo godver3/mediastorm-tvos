@@ -223,19 +223,29 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         }
     }
 
-    /// Without AVKit's chrome: Select / Play-Pause toggle, Left / Right seek 10 s, Menu closes.
+    override var softwareHUDHasOpenLayer: Bool { ownsTransport && softwareHUD.isInfoShowing }
+
+    override func closeSoftwareHUDLayer() {
+        softwareHUD.setInfo(visible: false)
+    }
+
     override func streamInfoDidChange(_ info: StreamInfo) {
         softwareHUD.setDetails(info.summary)
     }
 
+    /// Without AVKit's chrome: Select / Play-Pause toggle, Left / Right seek 10 s, Down opens the
+    /// Info card, Menu closes it or the player.
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         guard ownsTransport, let press = presses.first else { return super.pressesBegan(presses, with: event) }
         switch press.type {
         case .select, .playPause: engine.togglePlayPause()
         case .leftArrow: seek(by: -Self.seekStep)
         case .rightArrow: seek(by: Self.seekStep)
+        case .downArrow: softwareHUD.setInfo(visible: !softwareHUD.isInfoShowing)
+        case .upArrow: softwareHUD.setInfo(visible: false)
         case .menu:
-            dismiss(animated: true)
+            // An open Info card is closed by the base class's Menu recognizer.
+            if !softwareHUD.isInfoShowing { dismiss(animated: true) }
             return
         default: return super.pressesBegan(presses, with: event)
         }

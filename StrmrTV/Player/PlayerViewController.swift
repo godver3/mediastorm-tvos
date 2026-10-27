@@ -246,6 +246,10 @@ final class PlayerViewController: EnginePlayerViewController {
     private func setSoftwareSurface(mounted: Bool) {
         guard mountSoftwareSurface(mounted) else { return }
         if mounted {
+            softwareHUD.onFocusChange = { [weak self] in
+                self?.setNeedsFocusUpdate()
+                self?.updateFocusIfNeeded()
+            }
             Self.fill(softwareHUD, in: view)
             Self.fill(subtitleOverlay, in: overlayHost)
             overlayHost.insertSubview(subtitleOverlay, aboveSubview: softwareSurface)
@@ -265,6 +269,23 @@ final class PlayerViewController: EnginePlayerViewController {
         guard let id = tracks.audioTrackID(in: engine.audioTracks), id != engine.activeAudioTrackIndex else { return }
         log.info("server audio pick: switching to stream \(id)")
         engine.selectAudioTrack(index: id)
+    }
+
+    /// The software route's HUD takes focus for its menu row and Skip capsule.
+    override var preferredFocusEnvironments: [UIFocusEnvironment] {
+        softwareSurfaceMounted && softwareHUD.wantsFocus ? [softwareHUD] : super.preferredFocusEnvironments
+    }
+
+    /// A menu closed from the HUD's row hands focus to AVKit's container rather than back to the
+    /// button it opened from; while the HUD wants focus, take it back, as AVKit's own bar does.
+    override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
+        super.didUpdateFocus(in: context, with: coordinator)
+        guard softwareSurfaceMounted, softwareHUD.wantsFocus, let next = context.nextFocusedView,
+              next.isDescendant(of: view), !next.isDescendant(of: softwareHUD) else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.setNeedsFocusUpdate()
+            self?.updateFocusIfNeeded()
+        }
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {

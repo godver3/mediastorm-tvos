@@ -44,6 +44,7 @@ struct RootView: View {
         .task {
             #if DEBUG
             if ChromeProbe.isEnabled { ChromeProbe.present(); return }
+            if let url = SoftwarePlayerProbe.url { SoftwarePlayerProbe.present(url); return }
             #endif
             AdaptiveThroughput.shared.start()
             await session.start()

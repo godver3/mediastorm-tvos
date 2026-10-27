@@ -16,7 +16,12 @@ enum ChromeProbe {
         vc.player = AVPlayer(url: url)
         vc.modalPresentationStyle = .fullScreen
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        scene?.windows.first(where: { $0.isKeyWindow })?.rootViewController?.present(vc, animated: false) {
+        // At launch the window may not be key yet (or have its root) when this runs.
+        guard let root = (scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first)?.rootViewController else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { present() }
+            return
+        }
+        root.present(vc, animated: false) {
             vc.player?.play()
         }
     }

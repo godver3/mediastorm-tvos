@@ -44,6 +44,10 @@ class EnginePlayerViewController: AVPlayerViewController {
         // AVKit's automatic criteria would race it.
         appliesPreferredDisplayCriteriaAutomatically = false
         allowsPictureInPicturePlayback = false
+        let menu = UITapGestureRecognizer(target: self, action: #selector(softwareMenuPressed))
+        menu.allowedPressTypes = [NSNumber(value: UIPress.PressType.menu.rawValue)]
+        menu.delegate = self
+        view.addGestureRecognizer(menu)
 
         // Native path: hand AVKit the engine's AVPlayer. nil on the software route, which
         // renders into `softwareSurface` instead.
@@ -61,6 +65,19 @@ class EnginePlayerViewController: AVPlayerViewController {
 
     /// The Stream tab's rows changed (`+StreamInfo`); the software route's HUD shows the summary.
     func streamInfoDidChange(_ info: StreamInfo) {}
+
+    /// Whether the app's own HUD (the software route's) has something Menu should close (the
+    /// bar, a menu row, the Info card) before the player. Subclasses with a HUD override both.
+    @objc dynamic var softwareHUDHasOpenLayer: Bool { false }
+
+    /// Closes the HUD's topmost open layer; called for a Menu press while there is one.
+    @objc dynamic func closeSoftwareHUDLayer() {}
+
+    /// UIKit closes a presented player on Menu with its own gesture, which no press handler can
+    /// veto; this recognizer takes the press instead while the HUD has something open.
+    @objc private func softwareMenuPressed() {
+        closeSoftwareHUDLayer()
+    }
 
     /// Tears the session down once the player has been dismissed. Subclasses override it.
     func finish() {}
@@ -107,5 +124,12 @@ class EnginePlayerViewController: AVPlayerViewController {
         // OCR rendition, and building them costs a second source read.
         options.prepareNativeSubtitles = false
         return options
+    }
+}
+
+extension EnginePlayerViewController: UIGestureRecognizerDelegate {
+    /// The Menu recognizer only takes presses that close part of the app's HUD.
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        softwareHUDHasOpenLayer
     }
 }

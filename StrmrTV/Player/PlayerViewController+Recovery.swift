@@ -92,6 +92,9 @@ extension PlayerViewController {
         let position = lastKnownPosition
         let duration = lastKnownDuration
         guard duration > 0, position > 0 else { return }
+        #if DEBUG
+        guard request.reportsProgress else { return }
+        #endif
         let body = request.progressReport(position: position, duration: duration,
                                           paused: paused ?? (engine.state == .paused), ended: ended,
                                           sourcePath: streamPath)

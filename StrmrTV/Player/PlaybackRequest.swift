@@ -63,6 +63,11 @@ struct PlaybackRequest {
     /// The copy this playback uses (picked in the Versions list, or set as it starts).
     var libraryVersion: LibraryVersion?
 
+    #if DEBUG
+    /// `SoftwarePlayerProbe` plays a local file under a made-up title; it must not reach watch history.
+    var reportsProgress = true
+    #endif
+
     var isEpisode: Bool { episode != nil }
 
     /// The copy to play: the one picked, else this movie's or episode's best.

@@ -1,36 +1,73 @@
 import UIKit
 
-/// The software route has no AVKit transport bar: the remote is handled here, and seek
-/// previews come from the backend's thumbnail API, drawn by the HUD while seeking.
+/// The software route has no AVKit transport bar: the remote is handled here, as AVKit's bar
+/// handles it, and seek previews come from the backend's thumbnail API, drawn by the HUD while
+/// seeking.
 extension PlayerViewController {
     // MARK: Software-route remote handling
 
-    /// Returns false for presses AVKit should handle.
+    /// Returns false for presses AVKit should handle. With the HUD's menu row focused, the focus
+    /// engine moves along the row and Select opens a menu; only what leaves the row lands here.
     func handleSoftwarePress(_ press: UIPress) -> Bool {
+        let hud = softwareHUD
         switch press.type {
-        case .select, .playPause:
+        case .playPause:
             engine.togglePlayPause()
-        case .leftArrow:
-            scrub(by: -Self.scrubStep)
-        case .rightArrow:
-            scrub(by: Self.scrubStep)
-        case .downArrow:
-            // No transport bar for the Subtitles menu here: Down opens it as a sheet.
-            presentSubtitlePicker()
-            return true
+        case .select:
+            // A focused row button or Skip capsule takes Select itself.
+            guard !hud.rowFocused, !hud.isActionFocused else { return true }
+            engine.togglePlayPause()
+        case .leftArrow, .rightArrow:
+            guard !hud.rowFocused else { return true }
+            if hud.isInfoShowing { hud.setInfo(visible: false) }
+            scrub(by: press.type == .leftArrow ? -Self.scrubStep : Self.scrubStep)
         case .upArrow:
-            // Nor for Settings › Switch Source…: Up lists the other sources.
-            presentSourcePicker()
+            if hud.isInfoShowing {
+                hud.setInfo(visible: false)
+            } else if hud.isShowing, !hud.rowFocused {
+                hud.focusRow()
+            } else {
+                hud.flash()
+            }
+            return true
+        case .downArrow:
+            if hud.rowFocused {
+                hud.releaseRow()
+                hud.flash()
+            } else {
+                hud.setInfo(visible: !hud.isInfoShowing)
+            }
             return true
         case .menu:
-            log.notice("menu pressed on the software route; closing")
-            dismiss(animated: true)
+            // UIKit's own Menu handling closes the player once nothing is open; until then the
+            // base class's Menu recognizer takes the press (`closeSoftwareHUDLayer`).
+            if !softwareHUDHasOpenLayer { log.notice("menu pressed on the software route; closing") }
             return true
         default:
             return false
         }
-        softwareHUD.flash()
+        hud.flash()
         return true
+    }
+
+    /// Whether Menu would close part of the HUD (as AVKit: what is open, then the bar) rather
+    /// than the player.
+    override var softwareHUDHasOpenLayer: Bool {
+        let hud = softwareHUD
+        return softwareSurfaceMounted && subtitleSearch == nil && presentedViewController == nil
+            && (hud.isActionFocused || hud.rowFocused || hud.isInfoShowing || hud.isShowing)
+    }
+
+    override func closeSoftwareHUDLayer() {
+        let hud = softwareHUD
+        if hud.isActionFocused {
+            dismissSkipActionIfMenu()
+        } else if hud.rowFocused || hud.isInfoShowing {
+            hud.releaseRow()
+            hud.setInfo(visible: false)
+        } else {
+            hud.hide()
+        }
     }
 
     // MARK: Scrub thumbnails

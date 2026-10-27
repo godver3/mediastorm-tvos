@@ -5,7 +5,7 @@ extension PlayerViewController {
     // MARK: Skip segments
 
     /// Shows Skip Intro / Skip Recap / Next Episode in the transport bar while playback is
-    /// inside a segment. (The software route has no AVKit chrome, so no button there.)
+    /// inside a segment (on the software route, in its HUD).
     func updateSkipAction(at time: Double) {
         skipSegments.refresh(duration: engine.duration, chapters: engine.mediaChapters)
         let found = skipSegments.active(at: time)
@@ -13,7 +13,7 @@ extension PlayerViewController {
         guard segment != activeSegment else { return }
         activeSegment = segment
         stopCountdown()
-        if segment?.type == "outro", nextEpisode != nil, creditsAutoSkip, !softwareSurfaceMounted {
+        if segment?.type == "outro", nextEpisode != nil, creditsAutoSkip {
             startCountdown()
         }
         refreshSkipAction()
@@ -39,13 +39,21 @@ extension PlayerViewController {
                 playNext: { [weak self] next in self?.playNext(next) }
             )]
         } ?? []
+        // The software route has no AVKit chrome to show it; its HUD draws the same action.
+        softwareHUD.setAction(contextualActions.first)
     }
 
     /// Menu over the skip button hides AVKit's contextual-action presentation but leaves the
     /// action set, and while it stays set the remote can't bring the transport bar back up.
     /// Drop the action and don't offer it again for this segment.
     func dismissSkipActionIfMenu(_ presses: Set<UIPress>) {
-        guard presses.contains(where: { $0.type == .menu }), let activeSegment, !contextualActions.isEmpty else { return }
+        guard presses.contains(where: { $0.type == .menu }) else { return }
+        dismissSkipActionIfMenu()
+    }
+
+    /// Menu on the software route's Skip capsule (the HUD routes it here).
+    func dismissSkipActionIfMenu() {
+        guard let activeSegment, !contextualActions.isEmpty else { return }
         log.notice("skip button dismissed (\(activeSegment.type))")
         dismissedSegment = activeSegment
         self.activeSegment = nil

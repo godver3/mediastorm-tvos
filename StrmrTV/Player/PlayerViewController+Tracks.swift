@@ -110,6 +110,7 @@ extension PlayerViewController {
             })
         }
         transportBarCustomMenuItems = menus
+        softwareHUD.setMenus(menus)
         // AVKit's Subtitles button would offer the legible group, which these sessions don't use.
         var hidden: Set<String> = [TransportSettingsHider.legible]
         if audioItems.count > 1 { hidden.insert(TransportSettingsHider.audible) }
@@ -127,35 +128,6 @@ extension PlayerViewController {
                                        isSelected: activeSubtitle == OnlineSubtitles.trackID))
         }
         return items
-    }
-
-    /// The Subtitles menu as an action sheet, for the software route (no transport bar there;
-    /// Down opens it).
-    func presentSubtitlePicker() {
-        guard presentedViewController == nil else { return }
-        let sheet = UIAlertController(title: String(localized: "Subtitles"), message: nil, preferredStyle: .actionSheet)
-        let pick: (Int?) -> Void = { [weak self] id in
-            self?.userPickedSubtitle = true
-            self?.selectSubtitle(id, reason: "menu pick")
-        }
-        sheet.addAction(UIAlertAction(title: (activeSubtitle == nil ? "✓ " : "") + String(localized: "Off"),
-                                      style: .default) { _ in pick(nil) })
-        for item in subtitleMenuItems {
-            let title = (item.isSelected ? "✓ " : "") + [item.title, item.detail].compactMap { $0 }.joined(separator: " · ")
-            sheet.addAction(UIAlertAction(title: title, style: .default) { _ in pick(item.id) })
-        }
-        if onlineSubtitles.searchAvailable {
-            sheet.addAction(UIAlertAction(title: String(localized: "Search Online…"), style: .default) { [weak self] _ in
-                self?.openSubtitleSearch()
-            })
-        }
-        if onlineSubtitles.translateAvailable {
-            sheet.addAction(UIAlertAction(title: String(localized: "Translate…"), style: .default) { [weak self] _ in
-                self?.openSubtitleTranslate()
-            })
-        }
-        sheet.addAction(UIAlertAction(title: String(localized: "Cancel"), style: .cancel))
-        present(sheet, animated: true)
     }
 
     private func selectSpeed(_ speed: Float) {
