@@ -21,8 +21,8 @@ enum LivePlayback {
 /// which AVPlayer plays directly and which is kept alive every ten seconds and stopped on
 /// close. When the engine gives up on the source (`liveSourceReset`, or an end of stream)
 /// the channel is re-opened, at most three times, twenty seconds apart. A direct stream that
-/// fails before its first frame is opened once more as HLS (`+HLSFallback`). A fast live join
-/// that runs dry is tuned again with the standard one (`+JoinProfile`).
+/// fails before its first frame is opened once more as HLS (`+HLSFallback`). Every tune uses
+/// the fast live join, and a buffer that runs dry refills in place (`makeLoadOptions`).
 ///
 /// Captions: see `LivePlayerViewController+Captions.swift`.
 final class LivePlayerViewController: EnginePlayerViewController {
@@ -59,11 +59,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var directWorkedForSource = false
     var directStartTimer: Timer?
 
-    // The fast → standard live join (`+JoinProfile`).
-    var standardJoin = false
-    /// When this tune showed its first frame.
-    var firstFrameAt: Date?
-
     private lazy var cover = LiveLoadingCover(channel: channel, program: program)
     private lazy var telemetry = LivePlaybackTelemetry(engine: engine, log: log)
 
@@ -98,10 +93,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
-        telemetry.onDistress = { [weak self] in
-            self?.noteHLSProofDistress($0)
-            self?.noteJoinDistress($0)
-        }
+        telemetry.onDistress = { [weak self] in self?.noteHLSProofDistress($0) }
         telemetry.start()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
@@ -122,7 +114,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
         lastTune = Date()
         tuneIsDirect = false
         tunePlayed = false
-        firstFrameAt = nil
         hlsProofTimer?.invalidate()
         directStartTimer?.invalidate()
         retuneRecoveryTimer?.invalidate()
@@ -137,7 +128,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 endSession()
                 if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
                 let forceHLS = await hlsForTune()
-                let join = await joinProfileForTune()
                 let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title, forceHLS: forceHLS)
                 try Task.checkCancellation()
                 self.sessionID = sessionID
@@ -147,7 +137,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 startServerCaptions()
                 log.notice("tuning \(self.channel.name) (\(sessionID == nil ? "direct" : "hls session"))")
                 startDirectDeadline()
-                _ = try await engine.load(url: url, options: makeLoadOptions(remoteHLS: sessionID != nil, join: join))
+                _ = try await engine.load(url: url, options: makeLoadOptions(remoteHLS: sessionID != nil))
                 engine.play()
             } catch is CancellationError {
                 // A newer tune or the close replaced this one.
@@ -158,10 +148,17 @@ final class LivePlayerViewController: EnginePlayerViewController {
         }
     }
 
-    private func makeLoadOptions(remoteHLS: Bool, join: LiveJoinProfile) -> LoadOptions {
+    /// Every tune joins with `.fastZap`, a few seconds behind the edge. A source that pauses and
+    /// then bursts (an IPTV line holding back 3 to 5 s, then handing over several segments) can
+    /// leave the playlist unchanged past AVPlayer's patience (-12888) or run the buffer dry; the
+    /// player rides that out in place, as ExoPlayer does on Android TV, rather than retuning. A
+    /// retune opened a new provider connection, dropped whatever was buffered and sat on black
+    /// for the standard join's 18 s holdback, often just as the next burst arrived. Real
+    /// failures (a source reset, the stream ending, an engine error) still retune or fail.
+    private func makeLoadOptions(remoteHLS: Bool) -> LoadOptions {
         var options = baseLoadOptions()
         options.isLive = true
-        options.liveJoinProfile = join
+        options.liveJoinProfile = .fastZap
         // The server's HLS session goes straight to AVPlayer; a direct stream is demuxed.
         options.nativeRemoteHLS = remoteHLS
         if !remoteHLS {
@@ -242,7 +239,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
                 tunePlayed = true
-                firstFrameAt = Date()
                 directStartTimer?.invalidate()
                 startRetuneRecovery()
                 noteDirectPlayed()

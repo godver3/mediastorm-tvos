@@ -4,9 +4,8 @@ import Foundation
 /// direct stream won't start, the live player retries once as an HLS session; once that has
 /// played for a while the choice is kept on this device for the server and live source, and
 /// later tunes of that source ask for HLS at once, unless a direct stream of the source has
-/// played here before, which rules the fallback out for it. Likewise a source whose fast live join kept
-/// running dry on two tunes (`+JoinProfile`) is remembered as needing the standard, deeper join. Settings ›
-/// Reset Live TV Playback clears both.
+/// played here before, which rules the fallback out for it. Settings › Reset Live TV Playback
+/// clears both marks, along with the join choice older builds remembered (`joinPrefix`).
 @MainActor
 enum LiveHLSPreference {
     /// The server and live source a preference belongs to.
@@ -16,6 +15,7 @@ enum LiveHLSPreference {
     }
 
     private static let prefix = "live.hlsPreference.v1:"
+    /// Older builds' remembered standard join; only `resetAll` still reads it.
     private static let joinPrefix = "live.joinPreference.v1:"
     private static var defaults: UserDefaults { .standard }
 
@@ -52,20 +52,6 @@ enum LiveHLSPreference {
 
     static func rememberDirectWorked(_ scope: Scope) {
         defaults.set("direct", forKey: key(scope))
-    }
-
-    static func prefersStandardJoin(_ scope: Scope) -> Bool {
-        defaults.string(forKey: key(scope, prefix: joinPrefix)) == "standard"
-    }
-
-    /// A tune of this source ran dry under the fast join. The first time only marks the source;
-    /// a second (on a later tune) remembers the standard join. True once it is remembered.
-    @discardableResult
-    static func noteFastJoinRanDry(_ scope: Scope) -> Bool {
-        let key = key(scope, prefix: joinPrefix)
-        let standard = defaults.string(forKey: key) != nil
-        defaults.set(standard ? "standard" : "ranDry", forKey: key)
-        return standard
     }
 
     /// Forgets every remembered source; returns how many there were.
