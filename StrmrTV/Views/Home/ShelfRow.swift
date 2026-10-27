@@ -75,6 +75,10 @@ struct ShelfRow: View, Equatable {
             // leave the scroll view's bounds, so a scroll view inset by the page margin
             // dropped cards that were still visible in that margin.
             .contentMargins(.horizontal, Self.margin, for: .scrollContent)
+            // As tall as the cards: a horizontal scroll view takes all the height offered,
+            // and in Home's fixed-height rows it centred the cards in the spare room, so
+            // without captions they sat well below the row's title.
+            .fixedSize(horizontal: false, vertical: true)
             .scrollClipDisabled()
             .scrollPosition($scrollPosition)
             // The scroll below is the row's only one, as on Home's column of rows. The

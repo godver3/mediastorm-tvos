@@ -54,6 +54,8 @@ struct PlaceholderRow: View {
                 }
             }
             .contentMargins(.horizontal, 80, for: .scrollContent)
+            // As tall as the cards, under the title as in `ShelfRow`.
+            .fixedSize(horizontal: false, vertical: true)
             .scrollDisabled(true)
             .scrollIndicators(.hidden)
             .padding(.top, ShelfRow.liftRoom(cardHeight: cardHeight))

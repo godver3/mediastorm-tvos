@@ -21,7 +21,8 @@ extension HomeView {
             VStack(alignment: .leading, spacing: size == .off ? 0 : 36) {
                 if size == .full { Spacer(minLength: 0) }
                 if size != .off {
-                    HeroInfo(hero: hero, size: size, textScale: layout.heroTextSize.scale)
+                    // Mid-swap, the row fading out keeps its title's info.
+                    HeroInfo(hero: hero(swapFrom) ?? hero, size: size, textScale: layout.heroTextSize.scale)
                         .opacity(carousel && carouselShown ? 0 : 1)
                 }
 
@@ -29,11 +30,14 @@ extension HomeView {
                     rowEntryGuide
                     rows(size: size, carousel: carousel)
                 }
-                // Full hero: exactly one row tall, so the focused shelf sits on the
-                // bottom edge. Smaller: every bit of height left, so more rows show.
+                // Full hero: exactly the shown row's height, so that shelf sits on the
+                // bottom edge and the row under it never shows. Smaller: every bit of height
+                // left, so more rows show.
                 .frame(height: size == .full ? rowHeight : nil, alignment: .top)
                 .frame(maxHeight: size == .full ? nil : .infinity, alignment: .top)
             }
+            // The full hero swaps rows by fading the page out and back (see `rows`).
+            .opacity(size == .full ? rowFade : 1)
             .padding(.top, size == .full ? 0 : Self.tabBarClearance)
             .padding(.horizontal, 80)
             .containerRelativeFrame(.vertical, alignment: .bottomLeading)
@@ -119,11 +123,23 @@ extension HomeView {
                 }, carousel: carousel)
                 .scrollDisabled(true)
                 .scrollIndicators(.hidden)
-                .onChange(of: focused?.shelf) { _, shelf in
+                .onChange(of: focused?.shelf) { old, shelf in
                     guard let shelf else { return }
                     // The carousel's controls are the first place, and move as a row does.
                     let place = shelf == HomeCarousel.focusShelf ? Self.carouselSlotID : shelf
-                    withAnimation(Self.shelfScroll) { proxy.scrollTo(place, anchor: .top) }
+                    let carouselMove = [old, shelf].contains(HomeCarousel.focusShelf)
+                    if size == .full && !carouselMove && old != nil {
+                        // The full hero is one shelf to a screen: from row to row the page fades
+                        // out, the next row (and its height) takes its place, and it fades back
+                        // in, rather than the rows sliding up or down.
+                        let left = old.flatMap { old in rowFocus[old].map { HomeFocus(shelf: old, card: $0) } }
+                        swapRow(from: left, to: shelf) { proxy.scrollTo(place, anchor: .top) }
+                    } else {
+                        withAnimation(Self.shelfScroll) {
+                            shownRow = shelf
+                            proxy.scrollTo(place, anchor: .top)
+                        }
+                    }
                 }
                 // A row arriving (or emptying) above the focused one would shift it; put
                 // the focused row back in its place.
@@ -137,6 +153,28 @@ extension HomeView {
             .padding(.horizontal, -80)
         }
     }
+
+    /// The full hero's move from row to row: fade out, put `shelf` in place unanimated, fade in.
+    /// A move made mid-fade takes over, so a held Down lands on the last row reached.
+    private func swapRow(from left: HomeFocus?, to shelf: String, place: @escaping () -> Void) {
+        if swapFrom == nil { swapFrom = left }
+        rowSwap.restart {
+            withAnimation(.easeIn(duration: Self.rowFadeOut)) { rowFade = 0 }
+            try? await Task.sleep(for: .seconds(Self.rowFadeOut))
+            guard !Task.isCancelled else { return }
+            var instant = Transaction()
+            instant.disablesAnimations = true
+            withTransaction(instant) {
+                shownRow = shelf
+                swapFrom = nil
+                place()
+            }
+            withAnimation(.easeOut(duration: Self.rowFadeIn)) { rowFade = 1 }
+        }
+    }
+
+    static let rowFadeOut = 0.12
+    static let rowFadeIn = 0.2
 
     /// Roughly where the rows start, as a fraction of the screen height.
     private var rowsTop: CGFloat {

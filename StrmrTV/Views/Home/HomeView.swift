@@ -46,6 +46,14 @@ struct HomeView: View {
     /// The art prefetch waiting for focus to settle. A box, so restarting it on every
     /// focus move doesn't re-render the page.
     @State private var artPrefetch = PendingTask()
+    /// The row the full hero's rows show, which sizes them: the focused row, once the fade
+    /// from the last one has hidden the swap.
+    @State var shownRow: String?
+    /// The full hero's page while it fades from row to row.
+    @State var rowFade = 1.0
+    @State var rowSwap = PendingTask()
+    /// The card left in the row fading out, whose info shows until the swap.
+    @State var swapFrom: HomeFocus?
     /// How long focus rests on a card before Home loads the art around it.
     static let artSettle: Duration = .milliseconds(150)
 
@@ -74,12 +82,21 @@ struct HomeView: View {
         Self.rowHeight(cardHeight: cardHeight(forShelf: id), captions: layout.effectiveCardText == .below)
     }
 
-    /// The rows' viewport with the full hero: the tallest row on the page, so the hero and
-    /// the focused row stay put moving between rows of different sizes (a shorter row
-    /// shows more of the next one under it).
-    var rowHeight: CGFloat {
+    /// The tallest row on the page.
+    var tallestRowHeight: CGFloat {
         store.slots.map { rowHeight(forShelf: $0.id) }.max()
             ?? Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below)
+    }
+
+    /// The rows' viewport with the full hero: the shown row's height, so that row sits on
+    /// the bottom edge and the one under it never shows; a row of smaller cards brings the
+    /// hero down with it. On the carousel's controls (or before any row has focus), the
+    /// tallest row's, which the carousel's controls are laid out for.
+    var rowHeight: CGFloat {
+        guard let shelf = shownRow ?? heroFocus?.shelf, store.slots.contains(where: { $0.id == shelf }) else {
+            return tallestRowHeight
+        }
+        return rowHeight(forShelf: shelf)
     }
     var heroSize: HeroSize { layout.effectiveHeroSize }
     /// How often an idle Home asks the server whether anything changed.
