@@ -60,10 +60,20 @@ struct HomeView: View {
     /// A row's height: the row title, room for the focus lift, the card and its caption
     /// (60 pt of text under the gap that clears the lift). Without captions the gap stays,
     /// plus 24 pt so the next row's title sits nearer its own cards than a focused card
-    /// above it.
-    static func rowHeight(cardHeight: CGFloat, captions: Bool) -> CGFloat {
-        let caption = PosterFocusStyle.captionSpacing(cardHeight: cardHeight) + (captions ? 60 : 24)
+    /// above it. With rows stacked (any hero but the full one), captions also get
+    /// `captionGap` under them, or the next row's title sat on the caption's last line.
+    static func rowHeight(cardHeight: CGFloat, captions: Bool, stacked: Bool = false) -> CGFloat {
+        let caption = PosterFocusStyle.captionSpacing(cardHeight: cardHeight)
+            + (captions ? 60 + (stacked ? captionGap : 0) : 24)
         return 46 + ShelfRow.liftRoom(cardHeight: cardHeight) + cardHeight + caption + 20
+    }
+    static let captionGap: CGFloat = 28
+
+    /// More than one row shows: the rows sit under a smaller hero, or under none (Focused
+    /// Title Info off, or on without a carousel row to go with it on a Top Carousel page).
+    var rowsStacked: Bool {
+        let info = style.focusedInfo && (!style.topCarousel || carouselSource.shelf != nil)
+        return !info || heroSize != .full
     }
     /// Room left above the hero for the tab bar when the hero is smaller than full.
     static let tabBarClearance: CGFloat = 90
@@ -79,13 +89,14 @@ struct HomeView: View {
     }
 
     func rowHeight(forShelf id: String) -> CGFloat {
-        Self.rowHeight(cardHeight: cardHeight(forShelf: id), captions: layout.effectiveCardText == .below)
+        Self.rowHeight(cardHeight: cardHeight(forShelf: id), captions: layout.effectiveCardText == .below,
+                       stacked: rowsStacked)
     }
 
     /// The tallest row on the page.
     var tallestRowHeight: CGFloat {
         store.slots.map { rowHeight(forShelf: $0.id) }.max()
-            ?? Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below)
+            ?? Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below, stacked: rowsStacked)
     }
 
     /// The rows' viewport with the full hero: the shown row's height, so that row sits on

@@ -19,4 +19,12 @@ final class HomeRowHeightTests: XCTestCase {
         XCTAssertEqual(HomeView.rowHeight(cardHeight: card, captions: true)
             - HomeView.rowHeight(cardHeight: card, captions: false), 36)
     }
+
+    func testStackedCaptionsLeaveRoomAboveTheNextTitle() {
+        let card: CGFloat = 338
+        XCTAssertEqual(HomeView.rowHeight(cardHeight: card, captions: true, stacked: true)
+            - HomeView.rowHeight(cardHeight: card, captions: true), HomeView.captionGap)
+        XCTAssertEqual(HomeView.rowHeight(cardHeight: card, captions: false, stacked: true),
+                       HomeView.rowHeight(cardHeight: card, captions: false))
+    }
 }
