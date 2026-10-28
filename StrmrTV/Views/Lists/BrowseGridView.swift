@@ -128,9 +128,15 @@ struct BrowseGridView: View {
     }
 
     private func reload() async {
-        // Returning from details re-runs the task with the same options: keep the grid,
-        // unless a list changed meanwhile.
-        if !entries.isEmpty, loadedOptions == options, loadedRevision == store.revision { return }
+        // Returning from details re-runs the task with the same options: keep the grid.
+        // A title hidden, set aside or marked watched meanwhile (from a card here or a
+        // details page) re-reads it in place, so focus stays on the card, not the controls.
+        if !entries.isEmpty, loadedOptions == options {
+            guard loadedRevision != store.revision else { return }
+            loadedRevision = store.revision
+            await refreshInPlace()
+            return
+        }
         loadedRevision = store.revision
         entries = []
         fetched = 0
@@ -183,7 +189,7 @@ struct BrowseGridView: View {
     /// Re-reads the loaded part without clearing it: cards that stay keep their focus, a
     /// removed card's focus moves to a neighbour, an emptied list shows its focusable message.
     private func refreshInPlace() async {
-        guard customID != nil, loadedOptions == options, loadingFor == nil, total != nil else { return }
+        guard loadedOptions == options, loadingFor == nil, total != nil else { return }
         let requested = options
         let limit = max(Self.pageSize, fetched + 1)
         guard let page = try? await APIClient.shared.browsePage(list, options: requested, limit: limit, offset: 0),
