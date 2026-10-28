@@ -5,7 +5,8 @@ import SwiftUI
 /// and title text are a fixed layer (`HomeCarousel`), and its buttons and dots
 /// (`HomeCarouselControls`) are the first place in the rows' scroll view, one viewport tall
 /// with the buttons on the bottom safe area. Down from them scrolls the first row into
-/// Classic's place exactly as one row scrolls to the next, while the carousel's art
+/// Classic's place exactly as one row scrolls to the next (with the full hero, fades to it, as
+/// one row fades to the next), while the carousel's art
 /// crossfades to the focused card's backdrop (Focused Title Info on) or the page's black,
 /// and its text to the card's (or away). Up from the first row brings it all back.
 extension HomeView {

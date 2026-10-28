@@ -127,11 +127,11 @@ extension HomeView {
                     guard let shelf else { return }
                     // The carousel's controls are the first place, and move as a row does.
                     let place = shelf == HomeCarousel.focusShelf ? Self.carouselSlotID : shelf
-                    let carouselMove = [old, shelf].contains(HomeCarousel.focusShelf)
-                    if size == .full && !carouselMove && old != nil {
-                        // The full hero is one shelf to a screen: from row to row the page fades
-                        // out, the next row (and its height) takes its place, and it fades back
-                        // in, rather than the rows sliding up or down.
+                    if size == .full && old != nil {
+                        // The full hero is one shelf to a screen: from row to row (and between
+                        // the carousel's controls and the first row) the page fades out, the next
+                        // place (and its height) takes over, and it fades back in, rather than
+                        // the rows sliding up or down. The carousel's art crossfades meanwhile.
                         let left = old.flatMap { old in rowFocus[old].map { HomeFocus(shelf: old, card: $0) } }
                         swapRow(from: left, to: shelf) { proxy.scrollTo(place, anchor: .top) }
                     } else {
@@ -212,6 +212,7 @@ extension HomeView {
                      position: layout.effectiveFocusPosition,
                      style: layout.style(for: shelf.id), cardHeight: cardHeight,
                      cardText: layout.effectiveCardText,
+                     animateExpansion: layout.animateExpansion,
                      onHide: shelf.id == HomeShelf.continueWatchingID ? { hide($0) } : nil)
                 .equatable()
         case let .loading(id, title), let .failed(id, title):
