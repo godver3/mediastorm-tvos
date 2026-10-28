@@ -192,6 +192,7 @@ final class HomeLayoutStore: ObservableObject {
         _focusPosition = Published(initialValue: defaults.string(forKey: Keys.focusPosition)
             .flatMap(FocusedCardPosition.init(rawValue:)))
         _expandPosters = Published(initialValue: Self.bool(defaults, Keys.expandPosters))
+        _animateExpansion = Published(initialValue: Self.bool(defaults, Keys.animateExpansion) ?? true)
         _heroSize = Published(initialValue: defaults.string(forKey: Keys.heroSize).flatMap(HeroSize.init(rawValue:)))
         _heroTextSize = Published(initialValue: defaults.string(forKey: Keys.heroTextSize)
             .flatMap(HeroTextSize.init(rawValue:)) ?? .medium)
@@ -218,6 +219,7 @@ final class HomeLayoutStore: ObservableObject {
     private enum Keys {
         static let focusPosition = "homeLayout.focusPosition"
         static let expandPosters = "homeLayout.expandPosters"
+        static let animateExpansion = "homeLayout.animateExpansion"
         static let shelfStyles = "homeLayout.shelfStyles"
         static let hiddenShelves = "homeLayout.hiddenShelves"
         static let heroSize = "homeLayout.heroSize"
@@ -244,6 +246,17 @@ final class HomeLayoutStore: ObservableObject {
     }
 
     var effectiveExpandPosters: Bool { expandPosters ?? profile.expandPosters }
+
+    /// Whether an expanding poster opens and folds in motion, the row gliding with it
+    /// (device only, on by default); off, the card and the row snap into place.
+    @Published var animateExpansion: Bool {
+        didSet { defaults.set(animateExpansion, forKey: Keys.animateExpansion) }
+    }
+
+    /// Whether any row on Home draws expanding posters: by default, or set on a row.
+    var usesExpandingPosters: Bool {
+        effectiveExpandPosters || shelfStyles.values.contains(.expandingPoster)
+    }
 
     @Published var heroSize: HeroSize? {
         didSet { defaults.set(heroSize?.rawValue, forKey: Keys.heroSize) }

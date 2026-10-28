@@ -55,10 +55,13 @@ struct HomeLayoutSettingsView: View {
             Section {
                 OverridePicker("Expand Posters on Focus", selection: $layout.expandPosters, options: [true, false],
                                profileValue: layout.profile.expandPosters) { $0 ? "On" : "Off" }
+                if layout.usesExpandingPosters {
+                    Toggle("Animate Expansion", isOn: $layout.animateExpansion)
+                }
             } header: {
                 Text("Cards")
             } footer: {
-                Text("In poster rows, the focused poster opens to a wide card. Applies to rows set to Default.")
+                Text("In poster rows, the focused poster opens to a wide card. Applies to rows set to Default. Animate Expansion opens and folds the card in motion; off, it snaps open.")
             }
 
             Section {

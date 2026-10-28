@@ -17,6 +17,8 @@ struct ShelfRow: View, Equatable {
     let cardHeight: CGFloat
     /// Where the cards' title and line go.
     let cardText: CardText
+    /// Whether an expanding poster opens and folds in motion; off, it snaps.
+    let animateExpansion: Bool
     /// Set on Continue Watching: the cards offer hiding the title from the row.
     var onHide: ((HomeCard) -> Void)?
 
@@ -30,6 +32,13 @@ struct ShelfRow: View, Equatable {
     /// offset change together; on separate animations the focused card lurched with the
     /// widths, then drifted into place with the scroll.
     private static let focusMove = Animation.easeInOut(duration: 0.25)
+
+    /// The focus move's animation in this row: none in an expanding poster row with
+    /// Animate Expansion off, where the cards snap and the scroll with them, so the
+    /// focused card doesn't jump open, then drift into place.
+    private var moveAnimation: Animation? {
+        style == .expandingPoster && !animateExpansion ? nil : Self.focusMove
+    }
 
     /// The card height at the Large card size: a 480-wide 16:9 card.
     static let baseCardHeight: CGFloat = 270
@@ -65,7 +74,7 @@ struct ShelfRow: View, Equatable {
                                       poster: style != .landscape && !expanded, opens: style == .expandingPoster,
                                       text: cardText,
                                       onHide: onHide.map { hide in { hide(card) } })
-                            .animation(Self.focusMove, value: expanded)
+                            .animation(moveAnimation, value: expanded)
                             .focused(focused, equals: HomeFocus(shelf: shelf.id, card: card.id))
                     }
                     if !shelf.exploreFirst { exploreCard }
@@ -110,7 +119,7 @@ struct ShelfRow: View, Equatable {
             // at, already open in its sums, overshot and drifted back as they caught up.
             .onChange(of: focusedCard) { _, card in
                 guard let card else { return }
-                DispatchQueue.main.async { withAnimation(Self.focusMove) { scroll(to: card) } }
+                DispatchQueue.main.async { withAnimation(moveAnimation) { scroll(to: card) } }
             }
             // A reload can reorder the row under the same focus (a title just watched
             // moves to the front of Continue Watching). Focus doesn't change, so the
@@ -135,7 +144,7 @@ struct ShelfRow: View, Equatable {
             lhs.shelf == rhs.shelf && lhs.entry == rhs.entry && lhs.focusedCard == rhs.focusedCard
                 && lhs.menuCard == rhs.menuCard
                 && lhs.position == rhs.position && lhs.style == rhs.style && lhs.cardHeight == rhs.cardHeight
-                && lhs.cardText == rhs.cardText
+                && lhs.cardText == rhs.cardText && lhs.animateExpansion == rhs.animateExpansion
                 && (lhs.onHide == nil) == (rhs.onHide == nil)
         }
     }
@@ -147,7 +156,7 @@ struct ShelfRow: View, Equatable {
             let expanded = style == .expandingPoster && focusedCard == ExploreCard.id
             ExploreCardView(explore: explore, size: CGSize(width: expanded ? landscapeWidth : cardWidth, height: cardHeight),
                             caption: cardText == .below)
-                .animation(Self.focusMove, value: expanded)
+                .animation(moveAnimation, value: expanded)
                 .focused(focused, equals: HomeFocus(shelf: shelf.id, card: ExploreCard.id))
         }
     }
