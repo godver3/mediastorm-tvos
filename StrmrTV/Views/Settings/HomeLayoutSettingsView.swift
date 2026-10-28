@@ -116,10 +116,15 @@ struct HomeLayoutSettingsView: View {
                 }
             }
             Toggle("Focused Title Info", isOn: $style.focusedInfo)
+            // The full hero shows one shelf to a screen; smaller ones scroll a list of rows.
+            if style.focusedInfo && layout.effectiveHeroSize == .full {
+                ChoiceRow(title: "Shelf Transition", selection: $style.shelfTransition,
+                          choices: ShelfTransition.allCases.map { .init(value: $0, text: Text($0.label)) })
+            }
         } header: {
             Text("Top of Home")
         } footer: {
-            Text("Top Carousel: a large carousel of one row's titles above the rows; that row isn't repeated below. Focused Title Info: the focused card's title, overview and backdrop above the rows. Off, the rows move up into its space.")
+            Text("Top Carousel: a large carousel of one row's titles above the rows; that row isn't repeated below. Focused Title Info: the focused card's title, overview and backdrop above the rows. Off, the rows move up into its space. Shelf Transition (Full hero): Slide scrolls to the next shelf; Swap fades one shelf out and the next in.")
         }
     }
 }

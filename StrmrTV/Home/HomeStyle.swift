@@ -13,6 +13,7 @@ final class HomeStyleStore: ObservableObject {
 
     static let defaultTopCarousel = false
     static let defaultFocusedInfo = true
+    static let defaultShelfTransition = ShelfTransition.slide
 
     private let defaults: UserDefaults
 
@@ -20,6 +21,7 @@ final class HomeStyleStore: ObservableObject {
         static let topCarousel = "homeLayout.topCarousel"
         static let focusedInfo = "homeLayout.focusedTitleInfo"
         static let carouselRow = "homeLayout.carouselRow"
+        static let shelfTransition = "homeLayout.shelfTransition"
         /// The first pass's single choice, Classic or Carousel; read once and removed.
         static let legacyStyle = "homeLayout.homeStyle"
     }
@@ -33,6 +35,8 @@ final class HomeStyleStore: ObservableObject {
         _focusedInfo = Published(initialValue: defaults.object(forKey: Keys.focusedInfo) as? Bool
             ?? Self.defaultFocusedInfo)
         _carouselRow = Published(initialValue: defaults.string(forKey: Keys.carouselRow))
+        _shelfTransition = Published(initialValue: defaults.string(forKey: Keys.shelfTransition)
+            .flatMap(ShelfTransition.init(rawValue:)) ?? Self.defaultShelfTransition)
     }
 
     /// Home Style Carousel was the carousel with plain rows: Top Carousel on, Focused Title
@@ -61,6 +65,15 @@ final class HomeStyleStore: ObservableObject {
         }
     }
 
+    /// How Focused Title Info's full hero, one shelf to a screen, moves between shelves (and
+    /// from the carousel's controls into the first one).
+    @Published var shelfTransition: ShelfTransition {
+        didSet {
+            defaults.set(shelfTransition.rawValue, forKey: Keys.shelfTransition)
+            Self.log.info("shelf transition \(shelfTransition.rawValue)")
+        }
+    }
+
     /// Classic Home: the defaults, drawn exactly as before the carousel.
     var isClassic: Bool { !topCarousel && focusedInfo }
 
@@ -75,6 +88,23 @@ final class HomeStyleStore: ObservableObject {
     /// The row a Default carousel takes among the rows a profile shows.
     static func defaultRow(in shelves: [String]) -> String? {
         HomeCarouselSource.defaultRows.first(where: shelves.contains) ?? shelves.first
+    }
+}
+
+/// How the full hero moves from shelf to shelf.
+enum ShelfTransition: String, CaseIterable, Identifiable, Sendable {
+    /// The rows scroll up or down, the next shelf sliding into place.
+    case slide
+    /// The page fades out, the next shelf takes the place unanimated, and it fades back in.
+    case swap
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .slide: "Slide"
+        case .swap: "Swap"
+        }
     }
 }
 
