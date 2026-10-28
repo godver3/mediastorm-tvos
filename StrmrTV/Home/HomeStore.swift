@@ -22,6 +22,8 @@ final class HomeStore: ObservableObject {
     @Published private(set) var slots: [HomeSlot] = []
     @Published private(set) var isLoading = true
     @Published private(set) var loadError: String?
+    /// Where focus was on the page when it last left the screen (see `HomeFocusMemory`).
+    var focusMemory: HomeFocusMemory?
 
     /// The watchlist row comes from the shared `WatchlistStore`, set by the view.
     var watchlist: [WatchlistItem] = [] {

@@ -303,3 +303,13 @@ struct HomeFocus: Hashable {
     let shelf: String
     let card: String
 }
+
+/// Where focus was on a Home view's page, kept by its store: the side menu rebuilds a tab's
+/// page each time the tab is chosen again, which forgot the card left and put focus on the
+/// first row's first card.
+struct HomeFocusMemory {
+    var hero: HomeFocus?
+    var lastRow: HomeFocus?
+    var rows: [String: String]
+    var carouselIndex: Int
+}

@@ -145,6 +145,9 @@ struct HomeView: View {
         return firstRowEntry
     }
 
+    /// Where focus goes on entering the page: Classic's remembered card, else the carousel's.
+    var pageEntry: HomeFocus? { style.isClassic ? rememberedFocus : carouselEntry }
+
     /// With nothing focused yet the hero shows the first loaded row's card while the row
     /// above it loads; with a placeholder focused it shows nothing.
     var hero: HeroContent? {
@@ -179,6 +182,11 @@ struct HomeView: View {
                 try? await Task.sleep(for: Self.staleCheckInterval)
                 if !isCovered { await store.refreshIfStale() }
             }
+        }
+        .onAppear(perform: recallFocus)
+        .onDisappear {
+            store.focusMemory = HomeFocusMemory(hero: heroFocus, lastRow: lastRowFocus, rows: rowFocus,
+                                                carouselIndex: carouselIndex)
         }
         .onAppear {
             // Back from details or the player: focus the card that was left. Not on a
@@ -228,9 +236,28 @@ struct HomeView: View {
                 }
             }
         }
-        .onChange(of: guideFocused) { _, isFocused in
-            if isFocused { focused = style.isClassic ? rememberedFocus : carouselEntry }
+        // Down from the tab bar, with the rows moved down, can put focus on the rows'
+        // container itself (a scroll view's content, which hands it to no card), leaving
+        // nothing focused on screen: on to the card left.
+        .onReceive(NotificationCenter.default.publisher(for: UIFocusSystem.didUpdateNotification)) { note in
+            let context = note.userInfo?[UIFocusSystem.focusUpdateContextUserInfoKey] as? UIFocusUpdateContext
+            guard !isCovered, focused == nil, let view = context?.nextFocusedView,
+                  Self.isBareContainer(view) else { return }
+            focused = pageEntry
         }
+        .onChange(of: guideFocused) { _, isFocused in
+            if isFocused { focused = pageEntry }
+        }
+    }
+
+    /// A page rebuilt for a view shown before (the side menu rebuilds a tab's page each time
+    /// it is chosen): where focus was, so entering the rows lands on the card left.
+    private func recallFocus() {
+        guard heroFocus == nil, let memory = store.focusMemory else { return }
+        heroFocus = memory.hero
+        lastRowFocus = memory.lastRow
+        rowFocus = memory.rows
+        carouselIndex = memory.carouselIndex
     }
 
     /// Loads the art of the cards focus can reach next, so it is in memory when they
@@ -270,6 +297,11 @@ struct HomeView: View {
     /// different card.
     var menuFocus: HomeFocus? {
         focused == nil && Self.contextMenuHasFocus() ? heroFocus : nil
+    }
+
+    /// A SwiftUI container holding focus itself, rather than a control in it.
+    private static func isBareContainer(_ view: UIView) -> Bool {
+        String(describing: type(of: view)).contains("PlatformGroupContainer")
     }
 
     /// Whether focus has gone to a context menu (rather than, say, the tab bar). The
