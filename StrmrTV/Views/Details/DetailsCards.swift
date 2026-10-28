@@ -84,7 +84,7 @@ struct EpisodeCard: View {
     let action: () -> Void
 
     /// Marking an episode watched or unwatched clears its progress on the server.
-    private var fraction: Double { watched == (episode.watched == true) ? episode.resume?.fraction ?? 0 : 0 }
+    private var fraction: Double { watched == (episode.watched == true) ? episode.resume.flatMap { $0.eligible ? $0.fraction : nil } ?? 0 : 0 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: PosterFocusStyle.captionSpacing(cardHeight: 225)) {

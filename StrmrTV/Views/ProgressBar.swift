@@ -4,8 +4,10 @@ import SwiftUI
 struct ProgressBar: View {
     let fraction: Double
 
-    /// Whether a card shows its resume progress: only between 5% and 90% watched.
-    static func shows(_ fraction: Double) -> Bool { fraction > 0.05 && fraction < 0.9 }
+    /// Whether a card shows its resume progress: any started progress under 90% watched.
+    /// Whether progress counts as started is the server's call (`ResumeState.eligible`);
+    /// callers pass 0 when it doesn't.
+    static func shows(_ fraction: Double) -> Bool { fraction > 0 && fraction < 0.9 }
 
     var body: some View {
         GeometryReader { geo in

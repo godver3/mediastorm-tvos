@@ -79,7 +79,7 @@ struct HomeCard: Identifiable, Hashable {
         // The server's resume state for the item the row plays (movie, or next episode);
         // older servers send only the raw percentages.
         if let resume = item.resume {
-            progress = resume.fraction
+            progress = resume.eligible ? resume.fraction : 0
         } else {
             let pct = item.isMovie ? (item.percentWatched ?? 0) : (item.resumePercent ?? 0)
             progress = min(max(pct / 100, 0), 1)
