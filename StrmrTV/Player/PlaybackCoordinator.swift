@@ -268,6 +268,7 @@ final class PlaybackCoordinator: ObservableObject {
 
     func playerDidClose() {
         sessionsEnded += 1
+        PlayerCloseFocusLog.playerClosed()
     }
 
     private func resolveStream(_ request: PlaybackRequest) async throws -> PrequeueStatus {
