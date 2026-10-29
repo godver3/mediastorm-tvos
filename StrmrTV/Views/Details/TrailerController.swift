@@ -129,9 +129,10 @@ final class TrailerController: ObservableObject {
 
     /// Stops the backdrop trailer for the rest of this page.
     func dismiss(_ reason: String) {
-        if !dismissed {
-            Self.log.info("backdrop trailer dismissed (\(reason), was \(player.currentItem == nil ? "not started" : "playing"))")
-        }
+        // Every focus move below the header calls this. Publishing again re-rendered the whole
+        // page on each press, which made long season rows (Survivor) lag.
+        guard !dismissed else { return }
+        Self.log.info("backdrop trailer dismissed (\(reason), was \(player.currentItem == nil ? "not started" : "playing"))")
         dismissed = true
         immersiveTask?.cancel()
         statusObservation = nil

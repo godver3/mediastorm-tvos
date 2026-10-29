@@ -169,10 +169,10 @@ struct DetailsView: View {
 
     var body: some View {
         ZStack {
-            Backdrop(url: Artwork.url(title?.backdrop?.url ?? target.backdropURL))
+            // Below the fold the backdrop blurs behind the rows, in step with the scroll. The
+            // trailer is stopped by then, so it stays out of the blur.
+            Backdrop(url: Artwork.url(title?.backdrop?.url ?? target.backdropURL), blurred: !focusInHeader)
                 .overlay { TrailerBackdropVideo(trailer: trailer) }
-                // Below the fold the backdrop blurs behind the rows, in step with the scroll.
-                .blur(radius: focusInHeader ? 0 : 40, opaque: true)
                 .overlay { Color.black.opacity(focusInHeader ? 0 : 0.2) }
                 .animation(.easeInOut(duration: 0.35), value: focusInHeader)
                 .overlay { DetailsBackdropShade(hidden: trailer.immersive) }
