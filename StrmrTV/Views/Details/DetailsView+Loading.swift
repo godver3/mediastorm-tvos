@@ -24,6 +24,7 @@ extension DetailsView {
                 primaryEpisode = Self.findPrimaryEpisode(in: details.seasons, upNext: bundle.upNextEpisode)
                 airedRegularEpisodes = details.seasons.filter { $0.number > 0 }.flatMap(\.episodes)
                     .filter { $0.episodeNumber > 0 && ReleaseBadge.forEpisode(airDate: $0.airedDate) == nil }
+                watchStateSeasons = WatchStateSeasons(details.seasons)
                 if selectedSeason == nil { selectedSeason = primaryEpisode?.seasonNumber }
             }
             similar = Self.unique(bundle.similar ?? [])

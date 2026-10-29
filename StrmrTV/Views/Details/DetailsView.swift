@@ -22,6 +22,9 @@ struct DetailsView: View {
     @State var primaryEpisode: Episode?
     /// Aired regular-season episodes, for the series watch-state eye (set on load).
     @State var airedRegularEpisodes: [Episode] = []
+    /// The watch-state menu's seasons and their aired episodes (set on load). Built per render,
+    /// it dated every episode on each focus move, which lagged a long series (Survivor).
+    @State var watchStateSeasons = WatchStateSeasons([])
     /// Server resume decision for the movie, or for `upNext`.
     @State var resume: ResumeState?
     @State var loadError: String?
@@ -43,17 +46,13 @@ struct DetailsView: View {
     /// A picked source waiting on the Resume / Start Over choice.
     @State var pendingSource: PendingSource?
     @FocusState var focus: DetailsFocus?
-    /// The season chip last focused, where Up / Down re-enters the chip row.
-    @State var lastSeasonChip: Int?
-    /// The episode last focused in each season (by season number).
-    @State var lastEpisode: [Int: String] = [:]
+    /// Where focus last was in each row, for Up / Down back into it (`DetailsView+Focus`).
+    @State var focusMemory = FocusMemory()
     /// More Like This, from the bundle.
     @State var similar: [Title] = []
     /// Movies: the collection's movies, and which collection they are for.
     @State var collectionMovies: [Title] = []
     @State var loadedCollectionID: Int?
-    /// The card last focused in each related row.
-    @State var lastRelated: [RelatedRow: String] = [:]
     /// The overview shown whole over the page, blurred behind it.
     @State var showsFullOverview = false
     @StateObject var trailer = TrailerController()

@@ -18,7 +18,7 @@ extension DetailsView {
     /// is set to More.
     @ViewBuilder
     var watchStateItems: some View {
-        let shape = WatchStateSeasons(seasons)
+        let shape = watchStateSeasons
         if let ep = primaryEpisode {
             let watched = isWatched(ep)
             Section("\(ep.code) · \(ep.name)") {
