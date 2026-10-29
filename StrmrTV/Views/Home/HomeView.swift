@@ -28,6 +28,9 @@ struct HomeView: View {
     @FocusState var guideFocused: Bool
     /// Set while a page is pushed over Home, so the card left is refocused on the way back.
     @State private var refocusOnAppear = false
+    /// Whether the page is showing. The tab view keeps Home alive under the other tabs,
+    /// where its app-wide focus listener must leave their focus alone.
+    @State private var isOnScreen = false
     /// A card waiting for its context menu to close before it leaves its row (see `remove`).
     @State var pendingRemoval: PendingRemoval?
     /// The promoted Top 10's current title.
@@ -183,8 +186,12 @@ struct HomeView: View {
                 if !isCovered { await store.refreshIfStale() }
             }
         }
-        .onAppear(perform: recallFocus)
+        .onAppear {
+            isOnScreen = true
+            recallFocus()
+        }
         .onDisappear {
+            isOnScreen = false
             store.focusMemory = HomeFocusMemory(hero: heroFocus, lastRow: lastRowFocus, rows: rowFocus,
                                                 carouselIndex: carouselIndex)
         }
@@ -238,10 +245,12 @@ struct HomeView: View {
         }
         // Down from the tab bar, with the rows moved down, can put focus on the rows'
         // container itself (a scroll view's content, which hands it to no card), leaving
-        // nothing focused on screen: on to the card left.
+        // nothing focused on screen: on to the card left. Only while Home is showing: on
+        // another tab, focus entering a grid passes through a container like this one, and
+        // taking it for a Home card off screen sent it back to that page's keyboard or filter.
         .onReceive(NotificationCenter.default.publisher(for: UIFocusSystem.didUpdateNotification)) { note in
             let context = note.userInfo?[UIFocusSystem.focusUpdateContextUserInfoKey] as? UIFocusUpdateContext
-            guard !isCovered, focused == nil, let view = context?.nextFocusedView,
+            guard isOnScreen, !isCovered, focused == nil, let view = context?.nextFocusedView,
                   Self.isBareContainer(view) else { return }
             focused = pageEntry
         }
