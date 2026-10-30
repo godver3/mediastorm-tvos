@@ -60,11 +60,15 @@ final class PlayerViewController: EnginePlayerViewController {
     var wasBackgrounded = false
     var isExitingToDetails = false
     var pausedAt: Date?
+    /// When the engine last swapped the AVPlayer item under a paused title (`observeItemSwaps`).
+    var itemSwappedWhilePausedAt: Date?
     var resumeWatch: (position: Double, timer: Timer)?
     /// Pause length after which the source connection may have gone idle and died.
     static let idleSocketPause: TimeInterval = 30
     /// How long a resume after such a pause may go without progress before giving up.
     static let resumeProgressWindow: TimeInterval = 20
+    /// How soon after an item swap under a pause a resume is taken as the engine's, not the viewer's.
+    static let swapResumeWindow: TimeInterval = 3
 
     // Subtitle menu state. `userPickedSubtitle` keeps a menu choice across reloads.
     var subtitleTracks: [TrackInfo] = []
@@ -103,6 +107,7 @@ final class PlayerViewController: EnginePlayerViewController {
         bindEngine()
         bindOnlineSubtitles()
         observeAppLifecycle()
+        observeItemSwaps()
         setInfoPanel(title: request.displayTitle, subtitle: request.displaySubtitle,
                      description: request.infoDescription, artworkURL: request.infoArtworkURL)
         installStreamInfo(file: currentSource.releaseName, source: currentSource.origin)
@@ -324,6 +329,13 @@ final class PlayerViewController: EnginePlayerViewController {
         case .paused:
             if pausedAt == nil { pausedAt = Date() }
         case .playing:
+            if let swappedAt = itemSwappedWhilePausedAt,
+               Date().timeIntervalSince(swappedAt) < Self.swapResumeWindow {
+                // The engine's reload resumed it, not the viewer; `pausedAt` stays as it was.
+                log.notice("engine reload resumed a paused title at \(self.lastKnownPosition)s; keeping it paused")
+                engine.pause()
+                return
+            }
             if let pausedAt, Date().timeIntervalSince(pausedAt) >= Self.idleSocketPause {
                 armResumeWatch()
             }

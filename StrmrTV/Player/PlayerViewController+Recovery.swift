@@ -39,6 +39,25 @@ extension PlayerViewController {
         exitToDetails(reason: "returned from background")
     }
 
+    /// A pause made from AVKit's transport bar goes straight to the AVPlayer, so the engine's
+    /// transport intent still reads "playing". When the paused item dies (AVPlayer gives up on
+    /// the idle loopback stream after a few minutes), the engine's recovery reloads it and plays
+    /// it, from the couch the title starting again by itself. The reload swaps the item, which
+    /// a viewer's own resume never does; `handleStateChange` pauses a resume that follows one.
+    func observeItemSwaps() {
+        engine.$currentAVPlayer
+            .compactMap { $0 }
+            .map { $0.publisher(for: \.currentItem).dropFirst() }
+            .switchToLatest()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, pausedAt != nil, !didFinish, !isExitingToDetails else { return }
+                log.info("player item swapped while paused at \(self.lastKnownPosition)s")
+                itemSwappedWhilePausedAt = Date()
+            }
+            .store(in: &cancellables)
+    }
+
     func armResumeWatch() {
         disarmResumeWatch()
         let position = lastKnownPosition
