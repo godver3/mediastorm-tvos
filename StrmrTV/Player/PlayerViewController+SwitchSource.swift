@@ -68,7 +68,7 @@ extension PlayerViewController {
     }
 
     /// The active audio language and subtitle (Off, or an embedded track's language).
-    private func currentTrackCarry() -> TrackCarry {
+    func currentTrackCarry() -> TrackCarry {
         let audio = engine.audioTracks.first { $0.id == engine.activeAudioTrackIndex }?.language
         let subtitle: TrackCarry.Subtitle
         if let active = activeSubtitle {

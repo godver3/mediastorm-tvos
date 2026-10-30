@@ -75,16 +75,16 @@ final class PlaybackCoordinator: ObservableObject {
     /// Plays a source the user picked by hand, bypassing the automatic prequeue. `tracks`,
     /// picked from the source's probe with a long press, are laid over the server's selection
     /// and win over Settings › Playback's device overrides. `carry` (Switch Source in the player)
-    /// re-picks the previous source's audio and subtitle languages from the new source's tracks.
+    /// re-picks the previous source's audio and subtitle languages; `resolved` skips the resolve (Auto Switch).
     func play(_ request: PlaybackRequest, source: SourceResult, tracks manual: ManualTrackPick? = nil,
-              carry: TrackCarry? = nil) {
+              carry: TrackCarry? = nil, resolved: (path: String, tracks: TrackSelection?)? = nil) {
         // A stream picked over a library copy (Switch Source) is no longer that copy.
         var streamed = request
         streamed.libraryVersion = nil
         let request = streamed
         begin(request, stage: String(localized: "Preparing…"), carry: carry) { [self] in
-            let resolved = try await api.resolveSource(source, titleID: request.title.titleID,
-                                                       startOffset: request.startPosition)
+            let resolved = if let resolved { resolved }
+                else { try await api.resolveSource(source, titleID: request.title.titleID, startOffset: request.startPosition) }
             let current = SourceSwitch.Current(source, path: resolved.path)
             guard let manual else { return (resolved.path, TrackPreferences(selection: resolved.tracks), current) }
             await TrackSettingsStore.shared.loadIfNeeded()

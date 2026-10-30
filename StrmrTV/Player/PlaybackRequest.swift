@@ -62,6 +62,11 @@ struct PlaybackRequest {
     var library: LibraryVersions?
     /// The copy this playback uses (picked in the Versions list, or set as it starts).
     var libraryVersion: LibraryVersion?
+    /// Sources Auto Switch has already moved off (or failed to start) for this title, by guid
+    /// and release name; carried onto each switch so it never goes back to one.
+    var autoSwitchTried: Set<String> = []
+    /// How many times Auto Switch has moved this playback.
+    var autoSwitchCount = 0
 
     #if DEBUG
     /// `SoftwarePlayerProbe` plays a local file under a made-up title; it must not reach watch history.
@@ -172,8 +177,10 @@ struct PlaybackRequest {
 
     /// The `/api/progress` body for a position in this playback. A library file names its
     /// `sourcePath`, which is how the server knows to report the playback to Plex or Jellyfin.
+    /// `stream` is how the source is delivering, which the server weighs its stall and
+    /// failure reports for this source against (and answers with `migrationRequested`).
     func progressReport(position: Double, duration: Double, paused: Bool, ended: Bool,
-                        sourcePath: String? = nil) -> [String: Any] {
+                        sourcePath: String? = nil, stream: StreamHealth = StreamHealth()) -> [String: Any] {
         let t = title
         var body: [String: Any] = [
             "mediaType": progressMediaType,
@@ -182,8 +189,11 @@ struct PlaybackRequest {
             "timestamp": ISO8601DateFormatter().string(from: Date()),
             "isPaused": paused,
             "playbackEnded": ended,
+            "isBuffering": stream.buffering,
         ]
-        if libraryVersion != nil, let sourcePath { body["sourcePath"] = sourcePath }
+        if let sourcePath { body["sourcePath"] = sourcePath }
+        if let ahead = stream.bufferAhead { body["bufferAheadSeconds"] = ahead }
+        if let mbps = stream.requiredMbps { body["requiredBandwidthMbps"] = mbps }
         if isUnmatchedLibraryFile, let sourcePath {
             // Keyed by the stream path, with no catalog ids (the Expo app's rule).
             body["itemId"] = sourcePath
@@ -217,6 +227,15 @@ struct PlaybackRequest {
         if let poster = t.posterURL, poster.hasPrefix("http") { body["posterUrl"] = poster }
         return body
     }
+}
+
+/// How the stream is delivering, for the progress heartbeat.
+struct StreamHealth {
+    var buffering = false
+    /// Seconds buffered ahead of the playhead, when the engine knows.
+    var bufferAhead: Double?
+    /// The bitrate the source needs to keep up.
+    var requiredMbps: Double?
 }
 
 /// The global `Artwork.url`, which `PlaybackRequest.Artwork` shadows inside the struct.

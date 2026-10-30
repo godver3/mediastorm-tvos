@@ -86,6 +86,7 @@ final class PlayerViewController: EnginePlayerViewController {
     var currentSource = SourceSwitch.Current()
     var trackCarry: TrackCarry?
     var sourceList: SourceSwitchList?
+    var autoSwitchState = AutoSwitchState()
 
     // Audio menu state.
     var audioTracks: [TrackInfo] = []
@@ -124,6 +125,7 @@ final class PlayerViewController: EnginePlayerViewController {
         }
         matchContent = view.window?.avDisplayManager.isDisplayCriteriaMatchingEnabled ?? false
         telemetry.start()
+        startAutoSwitchWatch()
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -373,6 +375,7 @@ final class PlayerViewController: EnginePlayerViewController {
         progressTimer?.invalidate()
         telemetry.stop()
         disarmResumeWatch()
+        stopAutoSwitchWatch()
         stopCountdown()
         settingsHider.stop()
         skipSegments.cancel()

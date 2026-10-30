@@ -116,12 +116,15 @@ extension PlayerViewController {
         #endif
         let body = request.progressReport(position: position, duration: duration,
                                           paused: paused ?? (engine.state == .paused), ended: ended,
-                                          sourcePath: streamPath)
+                                          sourcePath: streamPath, stream: streamHealth())
         // Keep the request alive if the app is on its way into the background (sleep).
         let background = UIApplication.shared.beginBackgroundTask(withName: "progress")
         Task {
-            await APIClient.shared.reportProgress(body)
+            let reply = await APIClient.shared.reportProgress(body)
             UIApplication.shared.endBackgroundTask(background)
+            if !ended, reply?.migrationRequested == true {
+                autoSwitch(because: "server: \(reply?.migrationReason ?? "migration requested")")
+            }
         }
     }
 }

@@ -139,9 +139,11 @@ final class APIClient: ObservableObject {
         try await send("GET", "/api/playback/prequeue/\(Self.segment(id))")
     }
 
-    func reportProgress(_ body: [String: Any]) async {
-        _ = try? await sendRaw("POST", "\(profilePath)/history/progress", jsonObject: body,
-                                promptOnLock: false)
+    @discardableResult
+    func reportProgress(_ body: [String: Any]) async -> ProgressReply? {
+        guard let data = try? await sendRaw("POST", "\(profilePath)/history/progress", jsonObject: body,
+                                            promptOnLock: false) else { return nil }
+        return try? decoder.decode(ProgressReply.self, from: data)
     }
 
     /// Raw-file stream URL for the native player. transmux=0 keeps the backend from

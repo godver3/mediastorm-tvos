@@ -248,3 +248,9 @@ struct SubtitleExtractStart: Decodable {
     /// Server-relative (`/api/video/subtitles/{id}/subtitles.vtt`).
     let subtitleUrl: String
 }
+
+/// The server's answer to a progress report: whether it wants the player off this source.
+struct ProgressReply: Decodable {
+    var migrationRequested: Bool?
+    var migrationReason: String?
+}

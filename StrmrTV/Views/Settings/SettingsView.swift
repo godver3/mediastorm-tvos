@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject private var session = AppSession.shared
     @ObservedObject private var logs = LogUploader.shared
     @ObservedObject private var trailers = TrailerSettingsStore.shared
+    @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
     @State private var status: ConnectionStatus = .checking
     @State private var confirmSignOut = false
     @State private var confirmChangeServer = false
@@ -87,6 +88,11 @@ struct SettingsView: View {
                               .init(value: false, name: String(localized: "Off")),
                           ])
                     .accessibilityHint(Text("Plays a title's trailer behind its details page"))
+                ChoiceRow(title: "Auto Switch Sources", selection: $autoSwitch.enabled, choices: [
+                    .init(value: true, name: String(localized: "On")),
+                    .init(value: false, name: String(localized: "Off")),
+                ])
+                    .accessibilityHint(Text("Moves to another source when the current one fails or keeps stalling"))
                 TrackSettingsRows()
                 AtmosSettingsRows()
                 LiveHLSResetRow()
