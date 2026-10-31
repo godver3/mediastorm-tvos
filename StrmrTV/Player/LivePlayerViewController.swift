@@ -167,11 +167,19 @@ final class LivePlayerViewController: EnginePlayerViewController {
             // 45 MB of it and missed the 25 s first-frame deadline. 8 MiB is a few seconds of
             // such a channel, still the PMT and several keyframes.
             options.probesize = Self.liveDirectProbeBytes
+            options.liveEdgeCushionSeconds = Self.liveDirectCushionSeconds
         }
         return options
     }
 
     private static let liveDirectProbeBytes: Int64 = 8 << 20
+
+    /// Broadcast muxers (an HDHomeRun's ATSC feed) send each AC-3 frame up to ~0.8 s after the video
+    /// of the same timestamp. At the bare edge the software clock starts on the first keyframe, so
+    /// every audio frame reached the renderer already late: aLead sat at -0.2 to -0.8 s, the
+    /// renderer never had enough data and the sound cut out a few seconds in while the picture
+    /// played on. Joining 2 s back keeps the audio ~1.2 s ahead for ~1 s of extra tune time.
+    private static let liveDirectCushionSeconds: Double = 2
 
     /// The source died under the engine: open the channel again, within the budget.
     private func retune(_ reason: String) {
