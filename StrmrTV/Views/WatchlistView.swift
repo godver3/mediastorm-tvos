@@ -10,11 +10,22 @@ struct WatchlistView: View {
     @FocusState private var focused: Focus?
     /// A title waiting for its context menu to close before its poster goes (see `remove`).
     @State private var pendingRemoval: DetailsTarget?
+    /// Where focus was last on the page, where it returns on coming back down from the
+    /// tab bar. Without it the focus engine takes what's nearest the tab, the card size menu.
+    @State private var lastFocused: Focus?
     var title: String?
 
     private enum Focus: Hashable {
-        case filter
+        case filter, cardSize
         case item(String)
+    }
+
+    private var entry: Focus {
+        switch lastFocused {
+        case let .item(id) where visible.contains(where: { $0.id == id }): .item(id)
+        case .cardSize: .cardSize
+        default: .filter
+        }
     }
 
     enum Filter: String, CaseIterable, Identifiable {
@@ -60,6 +71,7 @@ struct WatchlistView: View {
                     .focused($focused, equals: .filter)
                     Spacer(minLength: 0)
                     GridCardSizeMenu()
+                        .focused($focused, equals: .cardSize)
                 }
                 .font(.callout)
                 .focusSection()
@@ -69,9 +81,11 @@ struct WatchlistView: View {
             .padding(.horizontal, CardGridLayout.inset)
             .onGeometryChange(for: CGFloat.self) { $0.size.width - CardGridLayout.inset * 2 } action: { gridWidth = $0 }
         }
+        .defaultFocus($focused, entry, priority: .userInitiated)
         .task { await watchlist.refresh() }
         .environment(\.removeFromWatchlist) { remove($0) }
         .onChange(of: focused) { _, focus in
+            if let focus { lastFocused = focus }
             if let pendingRemoval, focus == .item(pendingRemoval.titleID) { completeRemoval(pendingRemoval) }
         }
     }
