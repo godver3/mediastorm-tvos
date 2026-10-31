@@ -81,9 +81,9 @@ extension HomeView {
     }
 
     /// The rows' scroll view clips to its viewport, except, while the carousel is up, for
-    /// `focusRoom` below it and to either side: the room around the carousel's buttons, which
-    /// with the full hero falls on the bottom safe area. Without the carousel up it is the plain
-    /// clip, so the next row never peeks below the focused one.
+    /// `focusRoom` below it: the room under the carousel's buttons, which with the full hero
+    /// falls on the bottom safe area. Without the carousel up it is the plain clip, so the next
+    /// row never peeks below the focused one.
     @ViewBuilder
     func carouselClip(_ rows: some View, carousel: Bool) -> some View {
         if carousel {
@@ -91,8 +91,10 @@ extension HomeView {
                 .mask(alignment: .top) {
                     Rectangle()
                         .padding(.bottom, carouselShown ? -HomeCarouselControls.focusRoom : 0)
-                        // Play sits on the viewport's leading edge; its focus growth needs room there too.
-                        .padding(.horizontal, carouselShown ? -HomeCarouselControls.focusRoom : 0)
+                        // To the screen's sides: the scroll view runs edge to edge, but a shape
+                        // keeps out of the 80 pt side safe area, and cut the rows' cards off
+                        // there as they scrolled.
+                        .ignoresSafeArea(.container, edges: .horizontal)
                 }
         } else {
             rows
