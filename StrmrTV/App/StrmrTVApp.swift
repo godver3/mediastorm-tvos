@@ -64,6 +64,7 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: playback.resolving == nil)
         .modifier(ProfileLockPrompt(session: session))
+        .guardsUnfocusedMenu()
         .alert(
             "Playback Error",
             isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } }),

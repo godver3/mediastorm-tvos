@@ -126,6 +126,7 @@ struct MainTabs: View {
         .modifier(LongPressModals(customLists: customLists, titles: titles))
         .task { await menu.refresh(profileID: APIClient.shared.profileID) }
         .onAppear(perform: openPendingLink)
+        .onAppear { UnfocusedMenuGuard.shared.tabsAppeared() }
         .onChange(of: links.pending) { openPendingLink() }
         .alert("Couldn't Pick a Title", isPresented: Binding(get: { surpriseError != nil }, set: { if !$0 { surpriseError = nil } }),
                presenting: surpriseError) { _ in

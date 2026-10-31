@@ -63,10 +63,13 @@ final class LongPressModalGate: NSObject, UIGestureRecognizerDelegate {
     static let shared = LongPressModalGate()
 
     private var cancel: () -> Void = {}
+    /// A modal is asked for and not yet on screen: `UnfocusedMenuGuard` leaves Menu to this gate.
+    private(set) var requested = false
     private var recognizers: [ObjectIdentifier: UITapGestureRecognizer] = [:]
 
     func update(requested: Bool, cancel: @escaping () -> Void) {
         self.cancel = cancel
+        self.requested = requested
         if requested { installRecognizers() }
         for recognizer in recognizers.values { recognizer.isEnabled = requested }
     }
