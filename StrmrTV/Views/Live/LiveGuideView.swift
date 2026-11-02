@@ -29,7 +29,8 @@ struct LiveGuideView: View {
     private var scale: CGFloat {
         max(width - CardGridLayout.inset * 2 - Self.channelWidth, 400) / Self.span
     }
-    private var earliest: Date { LiveStore.halfHour(now).addingTimeInterval(-Self.step) }
+    /// Back as far as the provider's catch-up reaches (`LiveStore.guideHistory`), else half an hour.
+    private var earliest: Date { LiveStore.halfHour(now).addingTimeInterval(-store.guideHistory) }
     private var latest: Date { LiveStore.halfHour(now).addingTimeInterval(24 * 3600) }
 
     var body: some View {
@@ -215,15 +216,26 @@ private struct GuideRow: View {
                 ForEach(cells) { cell in
                     Button {
                         if let pick { return pick.run(channel) }
+                        // A programme that has ended plays from the provider's archive.
+                        if let p = cell.program, p.stop <= Date(), channel.canReplay(p) {
+                            return CatchupPlayback.play(channel, program: p)
+                        }
                         LivePlayback.play(channel, program: cell.program?.isAiring(at: Date()) == true ? cell.program : nil)
                     } label: {
-                        GuideCellLabel(cell: cell, now: now, recording: recording(during: cell.program))
+                        GuideCellLabel(cell: cell, now: now, recording: recording(during: cell.program),
+                                       replayable: cell.program.map { $0.stop <= now } == true
+                                           && channel.canReplay(cell.program, now: now))
                     }
                     .buttonStyle(GuideCellStyle(isAiring: cell.program?.isAiring(at: now) == true))
                     .frame(width: max(cell.end.timeIntervalSince(cell.start) * scale - Self.gap, 20),
                            height: LiveGuideView.rowHeight)
                     .focused(focus, equals: cell.id)
                     .contextMenu {
+                        if let p = cell.program, pick == nil, channel.canReplay(p) {
+                            Button { CatchupPlayback.play(channel, program: p) } label: {
+                                Label(p.stop > Date() ? "Start Over" : "Watch from Start", systemImage: "gobackward")
+                            }
+                        }
                         LiveChannelMenu(channel: channel, program: cell.program.flatMap { $0.stop > Date() ? $0 : nil })
                     }
                     .accessibilityLabel([channel.name, cell.program?.title].compactMap { $0 }.joined(separator: ", "))
@@ -245,10 +257,13 @@ private struct GuideCellLabel: View {
     let cell: GuideCell
     let now: Date
     let recording: Recording?
+    /// The provider's catch-up can replay it.
+    var replayable = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
+                if replayable { Image(systemName: "gobackward").font(.caption2.weight(.bold)) }
                 // The programme started before the window.
                 if let p = cell.program, p.start < cell.start {
                     Image(systemName: "chevron.left").font(.caption2.weight(.bold))
@@ -314,73 +329,5 @@ private struct TimeRuler: View {
                     .frame(width: LiveGuideView.step * scale, alignment: .leading)
             }
         }
-    }
-}
-
-/// The focused programme: title, times, time left, episode and description, with its channel.
-private struct GuideInfoPanel: View {
-    let channel: LiveChannel?
-    let program: EPGProgram?
-    let now: Date
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 48) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(program?.title ?? channel?.name ?? "")
-                    .font(.title3.weight(.bold))
-                    .lineLimit(1)
-                if let program {
-                    HStack(spacing: 16) {
-                        if program.isAiring(at: now) {
-                            Text("LIVE")
-                                .font(.caption2.weight(.heavy))
-                                .padding(.horizontal, 10).padding(.vertical, 4)
-                                .background(Capsule().fill(.red))
-                        }
-                        Text(details(program))
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    if let description = program.description, !description.isEmpty {
-                        Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .frame(maxWidth: 1100, alignment: .leading)
-                    }
-                } else if let channel {
-                    Text(channel.group ?? "").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-            if let channel {
-                VStack(alignment: .trailing, spacing: 8) {
-                    ChannelLogo(channel: channel, size: CGSize(width: 220, height: 110), font: .largeTitle, namesChannel: false)
-                    Text(channel.name).font(.caption.weight(.semibold)).lineLimit(1)
-                    if let group = channel.group { Text(group).font(.caption2).foregroundStyle(.secondary) }
-                }
-                .frame(width: 320, alignment: .trailing)
-            }
-        }
-    }
-
-    private func details(_ p: EPGProgram) -> String {
-        var parts = [GuideTime.range(p.start, p.stop)]
-        if p.isAiring(at: now) {
-            let left = Int(p.stop.timeIntervalSince(now) / 60)
-            parts.append(String(localized: "\(left) min left"))
-        } else if p.start > now {
-            parts.append(p.start.formatted(.relative(presentation: .named)))
-        }
-        if let ep = p.episode, !ep.isEmpty { parts.append(ep) }
-        if let cat = p.categories?.first { parts.append(cat) }
-        return parts.joined(separator: " · ")
-    }
-}
-
-enum GuideTime {
-    static func range(_ start: Date, _ end: Date) -> String {
-        let f = Date.FormatStyle.dateTime.hour().minute()
-        return "\(start.formatted(f))–\(end.formatted(f))"
     }
 }

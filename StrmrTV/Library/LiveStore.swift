@@ -302,8 +302,9 @@ final class LiveStore: ObservableObject {
     func needSchedule(_ channel: LiveChannel, from: Date, to: Date) {
         guard epgEnabled == true else { return }
         let key = channel.guideKey
-        let first = max(0, Int(from.timeIntervalSince(guideBase) / Self.chunk))
-        let last = max(first, Int((to.timeIntervalSince(guideBase) - 1) / Self.chunk))
+        // Negative chunks lie before `guideBase`: the past, paged into for catch-up.
+        let first = Int((from.timeIntervalSince(guideBase) / Self.chunk).rounded(.down))
+        let last = max(first, Int(((to.timeIntervalSince(guideBase) - 1) / Self.chunk).rounded(.down)))
         var queued = false
         for index in first...last where !chunksLoaded.contains("\(index)|\(key)") {
             chunksLoaded.insert("\(index)|\(key)")

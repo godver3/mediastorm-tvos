@@ -20,6 +20,8 @@ struct LiveChannel: Codable, Identifiable, Hashable {
     /// The stream picked under Choose Source, for a channel that is a Stremio addon's stream
     /// list; sent as `stremioStreamIndex` when tuning (nil lets the server pick).
     var stremioStreamIndex: Int? = nil
+    /// The provider's catch-up, when it replays this channel's past programmes (`LiveCatchup`).
+    var catchup: LiveCatchup? = nil
 
     /// A Stremio addon stream resource (`…/stream/….json`), which can list several streams to
     /// choose from (Expo `isStremioStreamResourceUrl`).
