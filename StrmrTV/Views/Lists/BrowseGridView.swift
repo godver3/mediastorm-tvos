@@ -168,8 +168,7 @@ struct BrowseGridView: View {
             fetched += page.entries.count
             var seen = Set(entries.map(\.id))
             entries += page.entries.filter { seen.insert($0.id).inserted }
-            // A short page means the list ended, whatever the total said.
-            total = page.entries.count < Self.pageSize ? fetched : page.total
+            total = page.listSize(fetched: fetched)
             loadedOptions = requested
             loadError = nil
         } catch {
@@ -191,15 +190,27 @@ struct BrowseGridView: View {
     private func refreshInPlace() async {
         guard loadedOptions == options, loadingFor == nil, total != nil else { return }
         let requested = options
-        let limit = max(Self.pageSize, fetched + 1)
-        guard let page = try? await APIClient.shared.browsePage(list, options: requested, limit: limit, offset: 0),
-              requested == options else { return }
+        // Pages as loadPage does (the server may cap a page below what is asked for), up to
+        // what was loaded, so the cards below the first page stay.
+        let wanted = fetched
+        var read: [BrowseEntry] = []
+        var first: BrowsePage?
+        var size = 0
+        repeat {
+            guard let page = try? await APIClient.shared.browsePage(list, options: requested, limit: Self.pageSize,
+                                                                     offset: read.count),
+                  requested == options else { return }
+            if first == nil { first = page }
+            read += page.entries
+            size = page.listSize(fetched: read.count)
+            if page.entries.isEmpty { break }
+        } while read.count < wanted && read.count < size
         var seen = Set<String>()
-        entries = page.entries.filter { seen.insert($0.id).inserted }
-        fetched = page.entries.count
-        total = page.entries.count < limit ? fetched : page.total
-        genres = page.genres
-        letters = page.letters
+        entries = read.filter { seen.insert($0.id).inserted }
+        fetched = read.count
+        total = size
+        genres = first?.genres ?? []
+        letters = first?.letters ?? []
     }
 
     /// Drops the title here at once so focus keeps its place, then tells the server.
