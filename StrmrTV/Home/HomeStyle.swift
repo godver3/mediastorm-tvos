@@ -22,6 +22,7 @@ final class HomeStyleStore: ObservableObject {
         static let focusedInfo = "homeLayout.focusedTitleInfo"
         static let carouselRow = "homeLayout.carouselRow"
         static let shelfTransition = "homeLayout.shelfTransition"
+        static let peekNextRow = "homeLayout.peekNextRow"
         /// The first pass's single choice, Classic or Carousel; read once and removed.
         static let legacyStyle = "homeLayout.homeStyle"
     }
@@ -37,6 +38,7 @@ final class HomeStyleStore: ObservableObject {
         _carouselRow = Published(initialValue: defaults.string(forKey: Keys.carouselRow))
         _shelfTransition = Published(initialValue: defaults.string(forKey: Keys.shelfTransition)
             .flatMap(ShelfTransition.init(rawValue:)) ?? Self.defaultShelfTransition)
+        _peekNextRow = Published(initialValue: defaults.bool(forKey: Keys.peekNextRow))
     }
 
     /// Home Style Carousel was the carousel with plain rows: Top Carousel on, Focused Title
@@ -71,6 +73,15 @@ final class HomeStyleStore: ObservableObject {
         didSet {
             defaults.set(shelfTransition.rawValue, forKey: Keys.shelfTransition)
             Self.log.info("shelf transition \(shelfTransition.rawValue)")
+        }
+    }
+
+    /// Peek Next Row: the carousel's buttons sit higher, over the top half of the first row,
+    /// rather than on the bottom safe area with that row just out of sight. Off by default.
+    @Published var peekNextRow: Bool {
+        didSet {
+            defaults.set(peekNextRow, forKey: Keys.peekNextRow)
+            Self.log.info("peek next row \(peekNextRow ? "on" : "off")")
         }
     }
 

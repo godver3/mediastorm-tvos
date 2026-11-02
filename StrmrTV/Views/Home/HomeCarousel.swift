@@ -27,6 +27,8 @@ struct HomeCarousel: View {
     /// Up, rather than crossfaded away for focus in the rows.
     let shown: Bool
     let textScale: CGFloat
+    /// How far above the bottom safe area the buttons sit (Peek Next Row raises them).
+    var controlsLift: CGFloat = 0
     /// Home is on screen and the app in the foreground: the only time it moves on.
     let isActive: Bool
 
@@ -44,8 +46,8 @@ struct HomeCarousel: View {
                 .transition(.opacity)
         }
         .padding(.leading, 80)
-        // Just above the buttons, which sit on the bottom safe area.
-        .padding(.bottom, HomeCarouselControls.height + 30 * textScale)
+        // Just above the buttons, which sit on the bottom safe area (or `controlsLift` above it).
+        .padding(.bottom, controlsLift + HomeCarouselControls.height + 30 * textScale)
         // The text keeps to the safe area top and bottom; sideways it lines up with
         // the rows' 80 pt margin from the screen edge.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
@@ -58,6 +60,7 @@ struct HomeCarousel: View {
                 .ignoresSafeArea()
         }
         .animation(.easeInOut(duration: 0.5), value: current?.id)
+        .animation(.easeInOut(duration: 0.3), value: controlsLift)
         .opacity(shown ? 1 : 0)
         .allowsHitTesting(false)
         .accessibilityHidden(!shown)

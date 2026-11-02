@@ -44,6 +44,7 @@ extension HomeView {
             if let shelf {
                 HomeCarousel(shelf: shelf, index: $carouselIndex, advancedAt: $carouselAdvancedAt, shown: up,
                              textScale: layout.heroTextSize.scale,
+                             controlsLift: carouselControlsLift(size: info ? heroSize : .off),
                              isActive: !isCovered && scenePhase == .active)
             }
             rowsPage(size: info ? heroSize : .off, carousel: shelf != nil)
@@ -60,21 +61,42 @@ extension HomeView {
         }
     }
 
+    /// Peek Next Row: how much of the first row shows under the carousel's buttons at rest (its
+    /// top half); 0 with the setting off, when the row sits just out of sight.
+    var carouselPeek: CGFloat {
+        guard style.peekNextRow, let first = store.slots.first(where: { $0.id != carouselSource.id }) else { return 0 }
+        return (rowHeight(forShelf: first.id) / 2).rounded()
+    }
+
+    /// How far above the bottom safe area the carousel's buttons sit, so its text stays just
+    /// above them: 0 without Peek Next Row; with it, the peeking row and the room under the
+    /// buttons, from the rows' viewport foot (the screen's edge unless the hero is full).
+    func carouselControlsLift(size: HeroSize) -> CGFloat {
+        let peek = carouselPeek
+        guard peek > 0 else { return 0 }
+        return max(0, peek + HomeCarouselControls.focusRoom - (size == .full ? 0 : safeBottom))
+    }
+
     /// The carousel's controls, near the foot of a stretch one viewport tall: at rest they
     /// sit on the bottom safe area (the rows' viewport ends there with the full hero, and runs
     /// to the screen's edge otherwise) and the first row waits just out of sight below. The
     /// stretch runs `focusRoom` past the viewport, under the buttons, so a focused button's
-    /// growth and shadow are drawn there (see `carouselClip`) rather than cut off.
+    /// growth and shadow are drawn there (see `carouselClip`) rather than cut off. With Peek
+    /// Next Row the stretch is `carouselPeek` short of the viewport instead, so the first row's
+    /// top half shows under the buttons, `focusRoom` below them.
     @ViewBuilder
     func carouselSlot(size: HeroSize) -> some View {
         if let shelf = carouselSource.shelf {
+            let peek = carouselPeek
             Color.clear
-                .containerRelativeFrame(.vertical) { length, _ in length + HomeCarouselControls.focusRoom }
+                .containerRelativeFrame(.vertical) { length, _ in
+                    peek > 0 ? length - peek : length + HomeCarouselControls.focusRoom
+                }
                 .overlay(alignment: .bottomLeading) {
                     HomeCarouselControls(shelf: shelf, focused: $focused, index: $carouselIndex,
                                          entry: carouselButton, advancedAt: carouselAdvancedAt)
                         // The scroll view's content keeps to the 80 pt side safe area already.
-                        .padding(.bottom, (size == .full ? 0 : safeBottom) + HomeCarouselControls.focusRoom)
+                        .padding(.bottom, (size == .full || peek > 0 ? 0 : safeBottom) + HomeCarouselControls.focusRoom)
                 }
                 .id(Self.carouselSlotID)
         }
@@ -83,14 +105,15 @@ extension HomeView {
     /// The rows' scroll view clips to its viewport, except, while the carousel is up, for
     /// `focusRoom` below it: the room under the carousel's buttons, which with the full hero
     /// falls on the bottom safe area. Without the carousel up it is the plain clip, so the next
-    /// row never peeks below the focused one.
+    /// row never peeks below the focused one. With Peek Next Row the buttons sit inside the
+    /// viewport, so it is the plain clip throughout (the peeking row stops at the viewport's foot).
     @ViewBuilder
     func carouselClip(_ rows: some View, carousel: Bool) -> some View {
         if carousel {
             rows.scrollClipDisabled()
                 .mask(alignment: .top) {
                     Rectangle()
-                        .padding(.bottom, carouselShown ? -HomeCarouselControls.focusRoom : 0)
+                        .padding(.bottom, carouselShown && carouselPeek == 0 ? -HomeCarouselControls.focusRoom : 0)
                         // To the screen's sides: the scroll view runs edge to edge, but a shape
                         // keeps out of the 80 pt side safe area, and cut the rows' cards off
                         // there as they scrolled.
