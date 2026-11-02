@@ -54,9 +54,13 @@ struct LiveChannelCard: View {
                     if let current { ProgressBar(fraction: current.progress(at: now)).padding(14) }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if store.favorites.contains(channel.id) {
-                        Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow).padding(14)
+                    HStack(spacing: 10) {
+                        if let recording = store.recording(on: channel) { LiveRecordingBadge(recording: recording) }
+                        if store.favorites.contains(channel.id) {
+                            Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                        }
                     }
+                    .padding(14)
                 }
                 .overlay(alignment: .topLeading) {
                     if playingID == channel.id {

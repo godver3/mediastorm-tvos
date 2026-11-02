@@ -54,3 +54,52 @@ extension APIClient {
         return reply.growing ?? false
     }
 }
+
+// MARK: Scheduling (the Expo Live guide's programme and channel menus)
+
+extension APIClient {
+    /// Scheduled, starting and recording ones: what the guide marks (`status=pending,starting,running`).
+    func activeRecordings() async throws -> [Recording] {
+        let response: RecordingsResponse = try await send(
+            "GET", "/api/live/recordings", query: ["profileId": profileID, "status": "pending,starting,running"],
+            promptOnLock: false)
+        return response.recordings ?? []
+    }
+
+    /// Records one programme (`POST /api/live/recordings/epg`); the server adds the profile's padding.
+    func recordProgram(_ program: EPGProgram, on channel: LiveChannel) async throws {
+        try await sendRaw("POST", "/api/live/recordings/epg",
+                          jsonObject: Self.recordingBody(channel, title: program.title, description: program.description,
+                                                         start: program.start, stop: program.stop, profileID: profileID))
+    }
+
+    /// Records the channel from now for `duration` (`POST /api/live/recordings/time-block`).
+    func recordTimeBlock(_ channel: LiveChannel, duration: TimeInterval) async throws {
+        let start = Date()
+        try await sendRaw("POST", "/api/live/recordings/time-block",
+                          jsonObject: Self.recordingBody(channel, title: "\(channel.name) Live Block",
+                                                         description: "Scheduled from the Live TV action menu.",
+                                                         start: start, stop: start.addingTimeInterval(duration),
+                                                         profileID: profileID))
+    }
+
+    /// Records every airing of `title` on this channel: a title rule scoped to the channel, so +1 /
+    /// simulcast channels don't record it twice (Expo's Record Series).
+    func recordSeries(_ title: String, on channel: LiveChannel) async throws {
+        var body: [String: Any] = ["profileId": profileID, "matchType": "title", "pattern": title,
+                                   "channelId": channel.id, "channelName": channel.name]
+        if let tvg = channel.tvgId, !tvg.isEmpty { body["tvgId"] = tvg }
+        try await sendRaw("POST", "/api/live/recording-rules", jsonObject: body)
+    }
+
+    private static func recordingBody(_ channel: LiveChannel, title: String, description: String?,
+                                      start: Date, stop: Date, profileID: String) -> [String: Any] {
+        let format = Date.ISO8601FormatStyle()
+        var body: [String: Any] = ["profileId": profileID, "channelId": channel.id, "channelName": channel.name,
+                                   "title": title, "sourceUrl": channel.url,
+                                   "start": start.formatted(format), "stop": stop.formatted(format)]
+        if let tvg = channel.tvgId, !tvg.isEmpty { body["tvgId"] = tvg }
+        if let description, !description.isEmpty { body["description"] = description }
+        return body
+    }
+}

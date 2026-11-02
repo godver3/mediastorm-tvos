@@ -4,7 +4,7 @@ import SwiftUI
 /// the focused one. The window pages by half an hour when focus runs off either end of a
 /// row (as the Apple TV app's guide does), from half an hour ago to a day ahead; up and
 /// down scroll the channels, and more load near the end. Select plays the channel, long
-/// press offers favorite / hide. Menu moves focus up to the category picker (see
+/// press offers recording (see `LiveRecordMenu`) and favorite / hide. Menu moves focus up to the category picker (see
 /// `LiveContentFocus`).
 struct LiveGuideView: View {
     let now: Date
@@ -49,7 +49,8 @@ struct LiveGuideView: View {
                 LazyVStack(alignment: .leading, spacing: Self.rowSpacing) {
                     ForEach(channels) { channel in
                         GuideRow(channel: channel, cells: cells(for: channel), scale: scale, now: now,
-                                 isFavorite: store.favorites.contains(channel.id), focus: $focus)
+                                 isFavorite: store.favorites.contains(channel.id),
+                                 recordings: store.recordings.filter { $0.channelId == channel.id }, focus: $focus)
                             .id(channel.id)
                             .onAppear {
                                 onScreen.ids.insert(channel.id)
@@ -182,6 +183,8 @@ private struct GuideRow: View {
     let scale: CGFloat
     let now: Date
     let isFavorite: Bool
+    /// The channel's scheduled / recording ones, which mark their programmes.
+    let recordings: [Recording]
     var focus: FocusState<GuideCellID?>.Binding
     @Environment(\.liveChannelPick) private var pick
     @Environment(\.livePlayingChannelID) private var playingID
@@ -214,13 +217,15 @@ private struct GuideRow: View {
                         if let pick { return pick.run(channel) }
                         LivePlayback.play(channel, program: cell.program?.isAiring(at: Date()) == true ? cell.program : nil)
                     } label: {
-                        GuideCellLabel(cell: cell, now: now)
+                        GuideCellLabel(cell: cell, now: now, recording: recording(during: cell.program))
                     }
                     .buttonStyle(GuideCellStyle(isAiring: cell.program?.isAiring(at: now) == true))
                     .frame(width: max(cell.end.timeIntervalSince(cell.start) * scale - Self.gap, 20),
                            height: LiveGuideView.rowHeight)
                     .focused(focus, equals: cell.id)
-                    .contextMenu { LiveChannelMenu(channel: channel) }
+                    .contextMenu {
+                        LiveChannelMenu(channel: channel, program: cell.program.flatMap { $0.stop > Date() ? $0 : nil })
+                    }
                     .accessibilityLabel([channel.name, cell.program?.title].compactMap { $0 }.joined(separator: ", "))
                 }
             }
@@ -228,9 +233,18 @@ private struct GuideRow: View {
     }
 }
 
+private extension GuideRow {
+    func recording(during program: EPGProgram?) -> Recording? {
+        guard let program else { return nil }
+        let matches = recordings.filter { $0.canCancel && $0.startAt < program.stop && $0.endAt > program.start }
+        return matches.first { $0.status == .running } ?? matches.first
+    }
+}
+
 private struct GuideCellLabel: View {
     let cell: GuideCell
     let now: Date
+    let recording: Recording?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -239,6 +253,7 @@ private struct GuideCellLabel: View {
                 if let p = cell.program, p.start < cell.start {
                     Image(systemName: "chevron.left").font(.caption2.weight(.bold))
                 }
+                if let recording { LiveRecordingBadge(recording: recording) }
                 Text(cell.program?.title ?? String(localized: "No Information"))
                     .font(.callout.weight(.semibold))
                     .lineLimit(1)

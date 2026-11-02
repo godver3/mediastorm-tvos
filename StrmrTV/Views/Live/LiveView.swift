@@ -61,6 +61,8 @@ struct LiveView: View {
         }
         // The first run loads favorites and the EPG status, then every filter change reloads.
         .task(id: store.query) { await store.start() }
+        // Scheduled / recording marks in the guide; not in the multiscreen picker.
+        .task { if picker == nil { await store.pollRecordings() } }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
@@ -262,9 +264,16 @@ extension EnvironmentValues {
 /// Long-press actions shared by channel cards and guide cells.
 struct LiveChannelMenu: View {
     let channel: LiveChannel
+    /// The guide programme long-pressed, when it hasn't ended: its recording actions lead.
+    var program: EPGProgram? = nil
     @EnvironmentObject private var store: LiveStore
 
     var body: some View {
+        if let program {
+            LiveProgramRecordMenu(channel: channel, program: program)
+        }
+        LiveChannelRecordMenu(channel: channel, airing: program == nil)
+        Divider()
         if channel.hasStremioSources {
             Button {
                 store.chooseSource(channel)

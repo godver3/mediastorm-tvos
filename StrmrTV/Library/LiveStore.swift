@@ -65,6 +65,10 @@ final class LiveStore: ObservableObject {
     @Published var sourceChoice: LiveSourceChoice?
     var sourceChoiceTask: Task<Void, Never>?
     var noticeClear: Task<Void, Never>?
+    /// Scheduled, starting and recording ones, which the guide marks (`LiveStore+Recordings`).
+    @Published var recordings: [Recording] = []
+    /// The recording action in flight; one at a time.
+    var recordingTask: Task<Void, Never>?
     /// nil until known; the guide is only offered when the EPG is on.
     @Published private(set) var epgEnabled: Bool?
 

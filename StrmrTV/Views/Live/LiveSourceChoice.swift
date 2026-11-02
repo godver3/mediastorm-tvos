@@ -39,7 +39,7 @@ extension LiveStore {
         }
     }
 
-    private func show(notice text: String, clearing: Bool = true) {
+    func show(notice text: String, clearing: Bool = true) {
         notice = text
         noticeClear?.cancel()
         guard clearing else { return }
