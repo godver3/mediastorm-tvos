@@ -98,18 +98,6 @@ struct EpisodeCard: View {
                 .overlay(alignment: .bottom) {
                     if ProgressBar.shows(fraction) { ProgressBar(fraction: fraction).padding(14) }
                 }
-                .overlay(alignment: .bottomLeading) {
-                    // The Expo episode strip's release date overlay, unreleased episodes too.
-                    if let date = Self.airDateText(episode.airedDate) {
-                        Text(date)
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .padding(.leading, 12)
-                            .padding(.bottom, ProgressBar.shows(fraction) ? 30 : 12)
-                    }
-                }
                 .overlay(alignment: .topLeading) {
                     if let badge = ReleaseBadge.forEpisode(airDate: episode.airedDate) {
                         BadgeLabel(text: badge).padding(12)
@@ -162,6 +150,10 @@ struct EpisodeCard: View {
                     if let runtime = formatRuntime(episode.runtimeMinutes) {
                         Text(runtime).font(.caption2).foregroundStyle(.secondary).fixedSize()
                     }
+                }
+                // The release date, unreleased episodes too, heads the overview (not spoiler-hidden).
+                if let date = Self.airDateText(episode.airedDate) {
+                    Text(date).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if let overview = episode.overview, !overview.isEmpty {
                     Text(overview).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
