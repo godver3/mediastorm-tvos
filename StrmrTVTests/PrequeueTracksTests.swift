@@ -55,4 +55,41 @@ final class PrequeueTracksTests: XCTestCase {
         XCTAssertFalse(pick.applies(to: try status(path: "/debrid/y/Other.mkv")))
         XCTAssertFalse(pick.applies(to: try status(episode: #""targetEpisode": {"seasonNumber": 1, "episodeNumber": 2},"#)))
     }
+
+    /// Subtitles Off on details, then another episode played: Off still applies.
+    @MainActor
+    func testSubtitlesOffCarriesToAnotherEpisode() throws {
+        let pick = PrequeuePick(streamPath: "/debrid/x/Show.S01E05.mkv",
+                                episode: .init(seasonNumber: 1, episodeNumber: 5),
+                                pick: ManualTrackPick(overrides: ManualTrackOverrides(subtitleTrack: -1),
+                                                      audio: [], subtitles: []))
+        let other = try status(path: "/debrid/x/Show.S01E01.mkv",
+                               episode: #""targetEpisode": {"seasonNumber": 1, "episodeNumber": 1},"#)
+        XCTAssertFalse(pick.applies(to: other))
+        let carried = pick.pick(for: other)
+        XCTAssertEqual(carried.overrides.subtitleTrack, ManualTrackOverrides.off)
+        let selection = carried.selection(over: other.trackSelection)
+        XCTAssertEqual(selection.subtitleMode, "off")
+        XCTAssertNil(selection.subtitle)
+        XCTAssertNil(selection.textSubtitle)
+    }
+
+    /// A picked track moves to the other file's track in the same language and kind.
+    func testTrackPicksCarryByLanguage() {
+        let pick = ManualTrackPick(
+            overrides: ManualTrackOverrides(audioTrack: 2, subtitleTrack: 5),
+            audio: [ProbedAudioTrack(index: 1, language: "eng"), ProbedAudioTrack(index: 2, language: "fre")],
+            subtitles: [ProbedSubtitleTrack(index: 5, language: "spa")])
+        let lists = SourceTrackProbe(
+            playable: true,
+            audio: [ProbedAudioTrack(index: 1, language: "en"), ProbedAudioTrack(index: 3, language: "fra")],
+            subtitles: [ProbedSubtitleTrack(index: 7, language: "spa", forced: true),
+                        ProbedSubtitleTrack(index: 8, language: "spa")],
+            tracksLoading: false, error: nil)
+        XCTAssertEqual(pick.carried(to: lists), ManualTrackOverrides(audioTrack: 3, subtitleTrack: 8))
+        // A language the other file lacks follows its default.
+        let german = ManualTrackPick(overrides: ManualTrackOverrides(subtitleTrack: 5), audio: [],
+                                     subtitles: [ProbedSubtitleTrack(index: 5, language: "ger")])
+        XCTAssertTrue(german.carried(to: lists).isEmpty)
+    }
 }

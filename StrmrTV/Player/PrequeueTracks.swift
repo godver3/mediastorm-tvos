@@ -46,6 +46,46 @@ struct PrequeuePick {
             && status.targetEpisode?.seasonNumber == episode?.seasonNumber
             && status.targetEpisode?.episodeNumber == episode?.episodeNumber
     }
+
+    /// The picks for the stream Play resolved: as made for the same stream, else carried by
+    /// intent (another episode, or a re-resolve that found another file).
+    @MainActor
+    func pick(for status: PrequeueStatus) -> ManualTrackPick {
+        guard !applies(to: status) else { return pick }
+        let lists = status.trackLists
+        let carried = pick.carried(to: lists)
+        SourceTracksModel.log.notice(
+            "details picks carried to a different stream: audio \(carried.audioTrack ?? -2), "
+            + "subtitle \(carried.subtitleTrack ?? -2)")
+        return ManualTrackPick(overrides: carried, audio: lists.audio, subtitles: lists.subtitles)
+    }
+}
+
+extension ManualTrackPick {
+    /// The picks moved to another file's lists: Off stays off; a track becomes that file's
+    /// track in the same language (and forced / SDH / commentary kind), or the default when
+    /// it has none.
+    func carried(to lists: SourceTrackProbe) -> ManualTrackOverrides {
+        var out = ManualTrackOverrides()
+        if let index = overrides.audioTrack, let old = audio.first(where: { $0.index == index }),
+           let language = old.language, !language.isEmpty {
+            let same = lists.audio.filter { TrackPreferences.sameLanguage($0.language, language) }
+            let commentary = ManualTrackSelection.isCommentary(old.title)
+            out.audioTrack = (same.first { ManualTrackSelection.isCommentary($0.title) == commentary } ?? same.first)?.index
+        }
+        if let index = overrides.subtitleTrack {
+            if index == ManualTrackOverrides.off {
+                out.subtitleTrack = ManualTrackOverrides.off
+            } else if let old = subtitles.first(where: { $0.index == index }), let language = old.language,
+                      !language.isEmpty {
+                let same = lists.subtitles.filter {
+                    TrackPreferences.sameLanguage($0.language, language) && $0.isForced == old.isForced
+                }
+                out.subtitleTrack = (same.first { $0.isSDH == old.isSDH } ?? same.first)?.index
+            }
+        }
+        return out
+    }
 }
 
 extension PrequeueStatus {

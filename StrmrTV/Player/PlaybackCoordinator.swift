@@ -61,12 +61,9 @@ final class PlaybackCoordinator: ObservableObject {
             guard let path = resolved.streamPath else { throw APIError.notReady("Stream resolved without a path") }
             await TrackSettingsStore.shared.loadIfNeeded()
             let current = SourceSwitch.Current(resolved, path: path)
-            if let picks {
-                guard picks.applies(to: resolved) else {
-                    SourceTracksModel.log.notice("details picks dropped: resolved a different stream")
-                    return (path, TrackPreferences.overridden(resolved) ?? TrackPreferences(resolved), current)
-                }
-                return (path, picks.pick.preferences(over: resolved.trackSelection), current)
+            // Another stream (another episode, or a re-resolve) takes the picks by intent.
+            if let pick = picks?.pick(for: resolved), !pick.overrides.isEmpty {
+                return (path, pick.preferences(over: resolved.trackSelection), current)
             }
             return (path, TrackPreferences.overridden(resolved) ?? TrackPreferences(resolved), current)
         }
