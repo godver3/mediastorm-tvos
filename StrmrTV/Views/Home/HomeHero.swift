@@ -108,6 +108,8 @@ struct HeroInfo: View {
     /// size; bottom-left, so a short logo sits on the subtitle as the title text does.
     private func titleArea(logo: CGSize, titleSize: CGFloat) -> some View {
         TitleLogo(url: Artwork.logoURL(hero?.logoURL, size: "w500"), size: logo) { titleText(size: titleSize) }
+            // A logo larger than 100% (Title Logo Size) rises out of the slot, so the
+            // block's fixed height and the rows below stay put.
             .frame(width: logo.width, height: logo.height, alignment: .bottomLeading)
             .accessibilityLabel(hero?.title ?? "")
     }

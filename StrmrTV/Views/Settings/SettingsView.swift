@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject private var logs = LogUploader.shared
     @ObservedObject private var trailers = TrailerSettingsStore.shared
     @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
+    @ObservedObject private var logos = LogoSettingsStore.shared
     @State private var status: ConnectionStatus = .checking
     @State private var confirmSignOut = false
     @State private var confirmChangeServer = false
@@ -78,6 +79,9 @@ struct SettingsView: View {
             Section("Home") {
                 NavigationLink("Home Layout") { HomeLayoutSettingsView() }
                 NavigationLink("Menu") { MenuSettingsView() }
+                ChoiceRow(title: "Title Logo Size", selection: $logos.scale,
+                          choices: LogoScale.allCases.map { .init(value: $0, name: $0.label) })
+                    .accessibilityHint(Text("Sizes titles' logos on Home and details pages"))
             }
 
             Section("Playback") {

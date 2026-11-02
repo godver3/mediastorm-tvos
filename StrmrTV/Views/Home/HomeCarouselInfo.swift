@@ -10,9 +10,15 @@ struct HomeCarouselInfo: View {
     let rowTitle: String
     let textScale: CGFloat
 
+    /// Re-lays the logo out when Title Logo Size changes.
+    @ObservedObject private var logoSettings = LogoSettingsStore.shared
+
     /// The box a logo fits in, keeping its shape: a wide logo is as wide as this, a tall
-    /// one as tall.
-    static func logoBox(_ textScale: CGFloat) -> CGSize { CGSize(width: 640 * textScale, height: 170 * textScale) }
+    /// one as tall. Scaled by Title Logo Size.
+    static func logoBox(_ textScale: CGFloat) -> CGSize {
+        let scale = textScale * LogoSettingsStore.shared.scale.factor
+        return CGSize(width: 640 * scale, height: 170 * scale)
+    }
     static func logoURL(_ card: HomeCard?) -> URL? { Artwork.logoURL(card?.logoURL, size: "w500") }
 
     var body: some View {
