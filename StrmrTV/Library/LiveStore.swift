@@ -71,11 +71,13 @@ final class LiveStore: ObservableObject {
     var recordingTask: Task<Void, Never>?
     /// nil until known; the guide is only offered when the EPG is on.
     @Published private(set) var epgEnabled: Bool?
+    /// Waits out a server guide refresh, then re-fetches the guide data (`LiveStore+Refresh`).
+    var guideRefresh: Task<Void, Never>?
 
     /// Now / next by `LiveChannel.guideKey`.
-    @Published private(set) var nowNext: [String: EPGNowPlaying] = [:]
+    @Published var nowNext: [String: EPGNowPlaying] = [:]
     /// Guide programmes by `LiveChannel.guideKey`, sorted, de-duplicated by start.
-    @Published private(set) var schedules: [String: [EPGProgram]] = [:]
+    @Published var schedules: [String: [EPGProgram]] = [:]
 
     private static let pageSize = 250
     private(set) var hasMore = true
@@ -86,18 +88,18 @@ final class LiveStore: ObservableObject {
     /// Where the header's star goes back to when Favorites is turned off.
     private var filterBeforeFavorites: LiveFilter = .all
 
-    private var nowNextFetched: [String: Date] = [:]
+    var nowNextFetched: [String: Date] = [:]
     private var nowNextPending = Set<String>()
     private var nowNextTask: Task<Void, Never>?
 
     /// Guide data is fetched in fixed six-hour chunks from `guideBase`, per key.
     let guideBase = LiveStore.halfHour(Date()).addingTimeInterval(-1800)
     static let chunk: TimeInterval = 6 * 3600
-    private var chunksLoaded = Set<String>()
+    var chunksLoaded = Set<String>()
     private var chunksPending: [Int: Set<String>] = [:]
     private var chunkTask: Task<Void, Never>?
 
-    private let api = APIClient.shared
+    let api = APIClient.shared
     private let defaults: UserDefaults
     private let profileID: String
 
@@ -321,23 +323,27 @@ final class LiveStore: ObservableObject {
     }
 
     private func fetchChunk(_ index: Int, keys: [String]) async {
-        let start = guideBase.addingTimeInterval(Double(index) * Self.chunk)
-        let offset = Int((start.timeIntervalSinceNow / 60).rounded(.down))
         for batch in stride(from: 0, to: keys.count, by: 40).map({ Array(keys[$0..<min($0 + 40, keys.count)]) }) {
-            do {
-                // An hour over the chunk, so a clock skew can't leave a gap between chunks.
-                let result = try await api.epgSchedule(batch, startOffsetMinutes: offset, hours: Int(Self.chunk / 3600) + 1)
+            if let result = await chunkPrograms(index, keys: batch) {
                 var merged = schedules
                 for key in batch { merged[key] = Self.merge(merged[key] ?? [], result[key] ?? []) }
                 schedules = merged
-            } catch {
+            } else {
                 batch.forEach { chunksLoaded.remove("\(index)|\($0)") }
             }
         }
     }
 
+    /// One chunk's programmes for up to 40 keys; nil when the request failed.
+    func chunkPrograms(_ index: Int, keys: [String]) async -> [String: [EPGProgram]]? {
+        let start = guideBase.addingTimeInterval(Double(index) * Self.chunk)
+        let offset = Int((start.timeIntervalSinceNow / 60).rounded(.down))
+        // An hour over the chunk, so a clock skew can't leave a gap between chunks.
+        return try? await api.epgSchedule(keys, startOffsetMinutes: offset, hours: Int(Self.chunk / 3600) + 1)
+    }
+
     /// Sorted by start, one programme per start time, each cut off where the next begins.
-    private static func merge(_ old: [EPGProgram], _ new: [EPGProgram]) -> [EPGProgram] {
+    static func merge(_ old: [EPGProgram], _ new: [EPGProgram]) -> [EPGProgram] {
         var byStart: [Date: EPGProgram] = [:]
         for p in old + new where p.stop > p.start { byStart[p.start] = p }
         let sorted = byStart.values.sorted { $0.start < $1.start }
@@ -347,15 +353,5 @@ final class LiveStore: ObservableObject {
             clipped.stop = sorted[i + 1].start
             return clipped
         }
-    }
-
-    /// Clears the server's channel cache and reloads.
-    func refresh() async {
-        _ = try? await api.sendRaw("POST", "/api/live/cache/clear")
-        nowNext = [:]
-        nowNextFetched = [:]
-        schedules = [:]
-        chunksLoaded = []
-        await reload(force: true)
     }
 }

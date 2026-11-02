@@ -170,7 +170,11 @@ private struct LiveControls: View {
                 Button {
                     Task { await store.refresh() }
                 } label: {
-                    Label("Refresh Channels", systemImage: "arrow.clockwise")
+                    if store.epgEnabled == true {
+                        Label("Refresh Guide & Channels", systemImage: "arrow.clockwise")
+                    } else {
+                        Label("Refresh Channels", systemImage: "arrow.clockwise")
+                    }
                 }
                 if !picking {
                     if let saved = resume.saved {

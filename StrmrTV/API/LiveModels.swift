@@ -118,6 +118,10 @@ struct EPGNowPlaying: Decodable {
 struct EPGStatus: Decodable {
     /// Already resolved with the profile's override.
     let enabled: Bool
+    /// A guide download is running on the server.
+    var refreshing: Bool? = nil
+    var lastRefresh: String? = nil
+    var lastError: String? = nil
 }
 
 /// `GET /api/live/hls/start`: a direct stream, or a server HLS session to keep alive.
