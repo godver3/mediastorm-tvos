@@ -59,19 +59,12 @@ struct LibraryVersion: Hashable, Identifiable, Sendable {
         if raw.contains("hdr") || raw.contains("pq") { return "HDR10" }
         return raw.uppercased()
     }
-
-    /// Better copies sort first: more pixels, then HDR, then the larger file.
-    fileprivate static func isBetter(_ a: LibraryVersion, than b: LibraryVersion) -> Bool {
-        let pixels = { (v: LibraryVersion) in (v.item.probe?.width ?? 0) * (v.item.probe?.height ?? 0) }
-        if pixels(a) != pixels(b) { return pixels(a) > pixels(b) }
-        if (a.hdr != nil) != (b.hdr != nil) { return a.hdr != nil }
-        return (a.item.sizeBytes ?? 0) > (b.item.sizeBytes ?? 0)
-    }
 }
 
 /// A title's copies in the profile's libraries, from `/api/library/matches` or a library
 /// group: a movie's versions, or a series' episodes by season and episode number (the
-/// library's numbering, as the Expo app maps them). Best copy first.
+/// library's numbering, as the Expo app maps them). In the server's order, as the Expo app
+/// lists them: local libraries first, then Plex and Jellyfin. Play and autoplay use the first.
 struct LibraryVersions: Hashable, Sendable {
     struct Key: Hashable, Sendable {
         let season: Int
@@ -83,12 +76,10 @@ struct LibraryVersions: Hashable, Sendable {
 
     init(matches: [LibraryMatch]) {
         for match in matches { add(match.group, libraryName: match.libraryName) }
-        sort()
     }
 
     init(group: LibraryGroup, libraryName: String) {
         add(group, libraryName: libraryName)
-        sort()
     }
 
     var isEmpty: Bool { movie.isEmpty && episodes.isEmpty }
@@ -115,10 +106,5 @@ struct LibraryVersions: Hashable, Sendable {
                 }
             }
         }
-    }
-
-    private mutating func sort() {
-        movie.sort(by: LibraryVersion.isBetter)
-        for key in episodes.keys { episodes[key]?.sort(by: LibraryVersion.isBetter) }
     }
 }

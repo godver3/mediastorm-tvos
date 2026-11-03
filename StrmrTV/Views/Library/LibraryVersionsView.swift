@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Full-screen list of a movie's or episode's library copies, best first (the one Play uses),
-/// laid out like the source list: where the copy lives, its quality, the file and its size.
+/// Full-screen list of a movie's or episode's library copies in the server's order (local first;
+/// the first is the one autoplay uses), laid out like the source list: where the copy lives, its quality, the
+/// file and its size. Opened by Play, it ends with Stream Instead (`onStream`).
 struct LibraryVersionsView: View {
     let heading: String
     let versions: [LibraryVersion]
     let backdropURL: String?
+    var onStream: (() -> Void)?
     let onPick: (LibraryVersion) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -24,15 +26,26 @@ struct LibraryVersionsView: View {
                 if versions.isEmpty {
                     Text("No library copies").foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(versions.enumerated()), id: \.element.id) { index, version in
+                    ForEach(versions) { version in
                         Button {
                             dismiss()
                             onPick(version)
                         } label: {
-                            LibraryVersionRow(version: version, playsByDefault: index == 0)
+                            LibraryVersionRow(version: version)
                         }
                         .buttonStyle(SourceRowStyle())
                     }
+                }
+                if let onStream {
+                    Button {
+                        dismiss()
+                        onStream()
+                    } label: {
+                        Label("Stream Instead", systemImage: "icloud.and.arrow.down")
+                            .font(.callout.weight(.semibold))
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(SourceRowStyle())
                 }
             }
             .frame(maxWidth: 1500, alignment: .leading)
@@ -48,18 +61,12 @@ struct LibraryVersionsView: View {
 /// One copy: its source badge and quality, then the file name and where it lives.
 struct LibraryVersionRow: View {
     let version: LibraryVersion
-    /// The copy Play picks.
-    var playsByDefault = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 LibrarySourceBadge(source: version.source)
                 Text(version.quality).font(.caption2.weight(.bold))
-                if playsByDefault {
-                    Label("Play uses this", systemImage: "play.fill").font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                }
             }
             Text(version.item.fileName ?? version.quality).font(.callout).lineLimit(1)
             Text([version.origin, version.size].compactMap { $0 }.joined(separator: "  ·  "))

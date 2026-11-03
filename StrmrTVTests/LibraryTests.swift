@@ -1,8 +1,8 @@
 import XCTest
 @testable import StrmrTV
 
-/// Library copies (local, Plex, Jellyfin): decoding the server's shapes, the best-first order
-/// Play uses, episode mapping, the catalog ids a library card opens, library shelves and the
+/// Library copies (local, Plex, Jellyfin): decoding the server's shapes, the server's order
+/// (local first) Play uses, episode mapping, the catalog ids a library card opens, library shelves and the
 /// progress a library file reports.
 @MainActor
 final class LibraryTests: XCTestCase {
@@ -20,7 +20,7 @@ final class LibraryTests: XCTestCase {
         """
     }
 
-    func testVersionsSortBestFirstWithQualityLabels() throws {
+    func testVersionsKeepServerOrderWithQualityLabels() throws {
         let page = try decode(LibraryGroupPage.self, """
         {"groups":[{"id":"757910","groupType":"title","libraryType":"movie","title":"Example","tmdbId":1081003,
                     "items":[\(item("hd", width: 1920, height: 800, codec: "h264", gb: 6)),
@@ -30,13 +30,14 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(page.total, 1)
         XCTAssertEqual(page.alphabetBuckets, ["E"])
         let versions = LibraryVersions(group: page.groups[0], libraryName: "Films")
-        XCTAssertEqual(versions.movie.map(\.id), ["uhd", "hd"])
+        // The server's order, as Expo lists them: no re-sort by quality.
+        XCTAssertEqual(versions.movie.map(\.id), ["hd", "uhd"])
         // Wide 4K counts as 4K by its width, not "1608p".
-        XCTAssertEqual(versions.movie[0].quality, "4K · HEVC · HDR10")
-        XCTAssertEqual(versions.movie[1].quality, "1080p · H.264")
-        XCTAssertEqual(versions.movie[0].origin, "Plex · Films")
-        XCTAssertEqual(versions.movie[0].size?.hasSuffix("28 Mbps"), true)
-        XCTAssertEqual(versions.best(season: nil, episode: nil)?.id, "uhd")
+        XCTAssertEqual(versions.movie[1].quality, "4K · HEVC · HDR10")
+        XCTAssertEqual(versions.movie[0].quality, "1080p · H.264")
+        XCTAssertEqual(versions.movie[1].origin, "Plex · Films")
+        XCTAssertEqual(versions.movie[1].size?.hasSuffix("28 Mbps"), true)
+        XCTAssertEqual(versions.best(season: nil, episode: nil)?.id, "hd")
     }
 
     func testEpisodesMapBySeasonAndEpisode() throws {
@@ -62,8 +63,9 @@ final class LibraryTests: XCTestCase {
                      \(item("a", width: 1920, height: 1080, codec: "h264", gb: 8))]}}]
         """)
         let versions = LibraryVersions(matches: matches)
-        XCTAssertEqual(versions.movie.map(\.id), ["b", "a"])
-        XCTAssertEqual(versions.movie[0].source, .jellyfin)
+        // Libraries in the server's order (local before Plex / Jellyfin there), repeats dropped.
+        XCTAssertEqual(versions.movie.map(\.id), ["a", "b"])
+        XCTAssertEqual(versions.movie[1].source, .jellyfin)
     }
 
     func testCatalogTitleIDsAndTargets() throws {
@@ -112,8 +114,9 @@ final class LibraryTests: XCTestCase {
                                    imdbID: nil, tvdbID: nil, posterURL: "/api/library/items/x/artwork/poster",
                                    textPosterURL: nil, backdropURL: nil, logoURL: nil, overview: nil)
         var request = PlaybackRequest(title: target, episode: nil, start: nil)
-        XCTAssertNil(request.progressReport(position: 10, duration: 100, paused: false, ended: false,
-                                            sourcePath: "debrid/x.mkv")["sourcePath"])
+        // Every stream names its path (the server judges stream health by it, since Auto Switch).
+        XCTAssertEqual(request.progressReport(position: 10, duration: 100, paused: false, ended: false,
+                                              sourcePath: "debrid/x.mkv")["sourcePath"] as? String, "debrid/x.mkv")
         request.libraryVersion = try version("i")
         let body = request.progressReport(position: 10, duration: 100, paused: false, ended: false,
                                           sourcePath: "plexmedia:i")

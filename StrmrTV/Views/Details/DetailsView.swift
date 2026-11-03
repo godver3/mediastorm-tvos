@@ -258,7 +258,10 @@ struct DetailsView: View {
         .fullScreenCover(isPresented: $customizingButtons) { DetailsButtonsSheet() }
         .modifier(libraryVersionsPresentation)
         .fullScreenCover(item: $sourcePicker) { picker in
-            SourcePickerView(title: target, episode: picker.episode, contentPreference: contentPreference) { source, tracks in
+            SourcePickerView(title: target, episode: picker.episode,
+                             libraryVersions: libraryVersions(for: picker.episode),
+                             onPickLibrary: { pickVersion($0, episode: picker.episode) },
+                             contentPreference: contentPreference) { source, tracks in
                 choose(source, tracks: tracks, episode: picker.episode)
             }
         }

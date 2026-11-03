@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// Full-screen list of the backend's indexer / scraper results for one movie or episode.
+/// Full-screen list of the backend's indexer / scraper results for one movie or episode, below
+/// the title's copies in the profile's libraries (as the Expo app lists them first).
 struct SourcePickerView: View {
     let title: DetailsTarget
     let episode: Episode?
+    /// The movie's or episode's library copies, listed above the results.
+    var libraryVersions: [LibraryVersion] = []
+    var onPickLibrary: (LibraryVersion) -> Void = { _ in }
     /// The title's per-title track languages, for the defaults a long press shows.
     let contentPreference: ContentPreference?
     /// The source, with the track picks made for it this visit (nil = the server's choice).
@@ -47,6 +51,23 @@ struct SourcePickerView: View {
                     }
                 }
                 .padding(.bottom, 24)
+
+                if !libraryVersions.isEmpty {
+                    Text(libraryVersions.count == 1 ? String(localized: "In your libraries")
+                                                    : String(localized: "\(libraryVersions.count) in your libraries"))
+                        .font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(libraryVersions) { version in
+                        Button {
+                            dismiss()
+                            onPickLibrary(version)
+                        } label: {
+                            LibraryVersionRow(version: version)
+                        }
+                        .buttonStyle(SourceRowStyle())
+                    }
+                    Text("Streams").font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                        .padding(.top, 24)
+                }
 
                 if isLoading {
                     HStack(spacing: 24) {
