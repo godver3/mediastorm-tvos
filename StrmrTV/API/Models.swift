@@ -276,6 +276,10 @@ struct PersonDetails: Decodable {
 struct SeriesDetails: Decodable {
     let title: Title
     let seasons: [Season]
+    /// TVDB season types the series can be shown in (empty or one = no choice), and the one
+    /// these seasons use. The server applies the profile's saved choice (`series-ordering`).
+    var availableOrderings: [SeriesOrdering]?
+    var activeOrdering: String?
 }
 
 struct Season: Decodable, Identifiable, Hashable {
@@ -299,6 +303,8 @@ struct Episode: Decodable, Identifiable, Hashable {
     let itemId: String?
     let watched: Bool?
     let resume: ResumeState?
+    /// The ordering these numbers are in (stamped by the server on every episode).
+    var numbering: EpisodeNumbering?
 
     var code: String { String(format: "S%02dE%02d", seasonNumber, episodeNumber) }
 }

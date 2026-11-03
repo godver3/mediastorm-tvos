@@ -200,7 +200,7 @@ extension DetailsView {
     func episodeInfo(_ ep: Episode) -> PlaybackRequest.EpisodeInfo {
         PlaybackRequest.EpisodeInfo(season: ep.seasonNumber, episode: ep.episodeNumber,
                                     absolute: ep.absoluteEpisodeNumber, name: ep.name, itemID: ep.itemId,
-                                    imageURL: ep.image?.url, overview: ep.overview)
+                                    imageURL: ep.image?.url, overview: ep.overview, numbering: ep.numbering)
     }
 
     /// Regular-season episodes after `episode` that have aired, for Next Episode at the credits.

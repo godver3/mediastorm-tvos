@@ -74,6 +74,11 @@ struct DetailsView: View {
     /// Which secondary actions are in the row and which in More (`DetailsButtons`).
     @ObservedObject var buttons = DetailsButtonsStore.shared
     @State var customizingButtons = false
+    /// Series: the episode orderings on offer (`DetailsView+Ordering`), the one shown, and the
+    /// one picked this visit (asked for explicitly on reload, as the Expo app does).
+    @State var orderings: [SeriesOrdering] = []
+    @State var activeOrdering: String?
+    @State var pickedOrdering: String?
 
     enum DetailsAction: String, Hashable { case primary, startOver, versions, chooseSource, tracks, trailer, watchlist, lists, watched, more }
 

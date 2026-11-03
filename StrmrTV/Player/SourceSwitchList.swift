@@ -21,6 +21,8 @@ final class SourceSwitchList {
                            episode: request.episode.map { ($0.season, $0.episode) })
     }
 
+    private var numbering: EpisodeNumbering? { request.episode?.numbering }
+
     func cancel() {
         search?.cancel()
         healthTask?.cancel()
@@ -29,7 +31,7 @@ final class SourceSwitchList {
     /// The picker's recent results, else searches the first time (a failed search is
     /// retried on the next call).
     func load() async throws -> [SourceResult] {
-        if results.isEmpty, let recent = SourceSearch.recent(title: request.title, query: query) {
+        if results.isEmpty, let recent = SourceSearch.recent(title: request.title, query: query, numbering: numbering) {
             results = recent.results
             health = recent.health
             return results
@@ -37,8 +39,9 @@ final class SourceSwitchList {
         if search == nil {
             let title = request.title
             let query = query
+            let numbering = numbering
             search = Task {
-                do { return .success(try await SourceSearch.search(title: title, query: query)) } catch { return .failure(error) }
+                do { return .success(try await SourceSearch.search(title: title, query: query, numbering: numbering)) } catch { return .failure(error) }
             }
         }
         switch await search!.value {
@@ -58,6 +61,7 @@ final class SourceSwitchList {
         guard !tokens.isEmpty else { return }
         let title = request.title
         let query = query
+        let numbering = numbering
         healthTask = Task { [weak self] in
             for token in tokens {
                 var complete = false
@@ -65,7 +69,7 @@ final class SourceSwitchList {
                     guard let snapshot = try? await APIClient.shared.sourceHealth(token: token) else { break }
                     for entry in snapshot.results {
                         self?.health[entry.index] = entry.health
-                        SourceSearch.updateHealth(title: title, query: query, index: entry.index, health: entry.health)
+                        SourceSearch.updateHealth(title: title, query: query, numbering: numbering, index: entry.index, health: entry.health)
                     }
                     complete = snapshot.complete
                 }

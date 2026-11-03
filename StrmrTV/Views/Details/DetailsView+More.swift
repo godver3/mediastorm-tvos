@@ -47,6 +47,7 @@ extension DetailsView {
                     Label("Hide from This Profile", systemImage: "eye.slash.circle")
                 }
             }
+            orderingMenu
             Divider()
             Button { customizingButtons = true } label: {
                 Label("Customize Buttons…", systemImage: "slider.horizontal.3")

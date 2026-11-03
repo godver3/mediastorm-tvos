@@ -315,6 +315,7 @@ final class PlaybackCoordinator: ObservableObject {
             body["seasonNumber"] = ep.season
             body["episodeNumber"] = ep.episode
             if let abs = ep.absolute, abs > 0 { body["absoluteEpisodeNumber"] = abs }
+            if let numbering = ep.numbering { body["numbering"] = numbering.json }
         }
         if let start = request.startPosition { body["startOffset"] = start }
         return body

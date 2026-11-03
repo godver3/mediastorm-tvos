@@ -12,6 +12,8 @@ struct PlaybackRequest {
         /// Episode still, for the loading art and the player's Info panel.
         var imageURL: String? = nil
         var overview: String? = nil
+        /// The ordering `season` / `episode` are in (the details page's episode order).
+        var numbering: EpisodeNumbering? = nil
 
         var code: String { String(format: "S%02dE%02d", season, episode) }
     }
@@ -148,9 +150,11 @@ struct PlaybackRequest {
                                artwork: art, library: library)
     }
 
-    /// Identifies what a prequeue resolves: the title, the episode and the start point.
+    /// Identifies what a prequeue resolves: the title, the episode (in its ordering) and the
+    /// start point.
     var prequeueKey: String {
-        [title.titleID, episode?.code ?? "", startPosition.map { String(Int($0)) } ?? ""].joined(separator: "|")
+        [title.titleID, episode?.code ?? "", episode?.numbering?.ordering ?? "",
+         startPosition.map { String(Int($0)) } ?? ""].joined(separator: "|")
     }
 
     var displayTitle: String {

@@ -137,7 +137,7 @@ struct SourcePickerView: View {
         let debrid = result.serviceType.lowercased() == "debrid"
         let state = probe.playable ? (debrid ? "cached" : "healthy") : (debrid ? "not_cached" : "unhealthy")
         health[result.index] = SourceHealth(state: state, token: nil)
-        SourceSearch.updateHealth(title: title, query: query, index: result.index, health: SourceHealth(state: state, token: nil))
+        SourceSearch.updateHealth(title: title, query: query, numbering: numbering, index: result.index, health: SourceHealth(state: state, token: nil))
     }
 
     /// The picks made for `result` this visit, which a plain Select also plays with (as Expo).
@@ -153,11 +153,13 @@ struct SourcePickerView: View {
                            episode: episode.map { ($0.seasonNumber, $0.episodeNumber) })
     }
 
+    private var numbering: EpisodeNumbering? { episode?.numbering }
+
     private func load() async {
         Task { trackPreferences = await ManualTrackPreferences.current(content: contentPreference) }
         do {
             // Kept for Switch Source, which shows these in the same order.
-            results = try await SourceSearch.search(title: title, query: query)
+            results = try await SourceSearch.search(title: title, query: query, numbering: numbering)
             health = SourceSearch.initialHealth(results)
         } catch {
             self.error = error.localizedDescription
@@ -175,7 +177,7 @@ struct SourcePickerView: View {
                 guard let snapshot = try? await APIClient.shared.sourceHealth(token: token) else { break }
                 for entry in snapshot.results {
                     health[entry.index] = entry.health
-                    SourceSearch.updateHealth(title: title, query: query, index: entry.index, health: entry.health)
+                    SourceSearch.updateHealth(title: title, query: query, numbering: numbering, index: entry.index, health: entry.health)
                 }
                 complete = snapshot.complete
             }
@@ -184,7 +186,7 @@ struct SourcePickerView: View {
         if !Task.isCancelled {
             for (index, h) in health where h.state == "pending" {
                 health[index] = SourceHealth(state: "unknown", token: nil)
-                SourceSearch.updateHealth(title: title, query: query, index: index, health: SourceHealth(state: "unknown", token: nil))
+                SourceSearch.updateHealth(title: title, query: query, numbering: numbering, index: index, health: SourceHealth(state: "unknown", token: nil))
             }
         }
     }

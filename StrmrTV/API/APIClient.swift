@@ -71,8 +71,11 @@ final class APIClient: ObservableObject {
 
     /// Details plus per-user state (episode `itemId`/`watched`/`resume`, up-next, resume)
     /// in one call.
-    func detailsBundle(_ t: DetailsTarget) async throws -> DetailsBundle {
+    /// `seasonType` asks for an episode ordering (the one just picked); without it the
+    /// server applies the profile's saved one.
+    func detailsBundle(_ t: DetailsTarget, seasonType: String? = nil) async throws -> DetailsBundle {
         var q = ["type": t.isMovie ? "movie" : "series", "titleId": t.titleID, "name": t.name]
+        if let seasonType, !seasonType.isEmpty { q["seasonType"] = seasonType }
         if let v = t.tmdbID { q["tmdbId"] = v }
         if let v = t.imdbID { q["imdbId"] = v }
         if let v = t.tvdbID { q["tvdbId"] = v }
@@ -82,11 +85,16 @@ final class APIClient: ObservableObject {
 
     /// Manual-selection results from the backend's indexers / scrapers, annotated with
     /// debrid cache / usenet health (pending rows resolve via `sourceHealth(token:)`).
-    func searchSources(query: String, title: DetailsTarget) async throws -> [SourceResult] {
+    /// `numbering` is the episode's ordering, so "S01E02" is searched for as that ordering's episode.
+    func searchSources(query: String, title: DetailsTarget, numbering: EpisodeNumbering? = nil) async throws -> [SourceResult] {
         var q = ["q": query, "titleId": title.titleID, "mediaType": title.isMovie ? "movie" : "series",
                  "userId": profileID, "includeSourceHealth": "true", "limit": "50"]  // server default is 5
         if let imdb = title.imdbID { q["imdbId"] = imdb }
         if let year = title.year { q["year"] = String(year) }
+        if let numbering {
+            q["episodeNumberingId"] = numbering.seriesId
+            if let ordering = numbering.ordering, !ordering.isEmpty { q["episodeOrdering"] = ordering }
+        }
         let data = try await sendRaw("GET", "/api/indexers/search", query: q,
                                      headers: AdaptiveThroughput.shared.requestHeaders())
         let list = (try JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []

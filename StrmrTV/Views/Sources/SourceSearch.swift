@@ -15,6 +15,8 @@ enum SourceSearch {
     struct Key: Hashable {
         let titleID: String
         let query: String
+        /// The episode's ordering: "S01E02" is a different episode in each.
+        var ordering: String? = nil
     }
 
     struct Snapshot {
@@ -46,23 +48,25 @@ enum SourceSearch {
 
     /// Searches and keeps the results for this title / episode (the source picker, and
     /// Switch Source when nothing recent is kept).
-    static func search(title: DetailsTarget, query: String) async throws -> [SourceResult] {
-        let results = ordered(try await APIClient.shared.searchSources(query: query, title: title))
-        snapshots[Key(titleID: title.titleID, query: query)] =
+    static func search(title: DetailsTarget, query: String, numbering: EpisodeNumbering? = nil) async throws -> [SourceResult] {
+        let results = ordered(try await APIClient.shared.searchSources(query: query, title: title, numbering: numbering))
+        snapshots[Key(titleID: title.titleID, query: query, ordering: numbering?.ordering)] =
             Snapshot(results: results, health: initialHealth(results), at: Date())
         return results
     }
 
     /// The results kept for this title / episode, if recent enough.
-    static func recent(title: DetailsTarget, query: String, now: Date = Date()) -> Snapshot? {
-        guard let snapshot = snapshots[Key(titleID: title.titleID, query: query)],
+    static func recent(title: DetailsTarget, query: String, numbering: EpisodeNumbering? = nil,
+                       now: Date = Date()) -> Snapshot? {
+        guard let snapshot = snapshots[Key(titleID: title.titleID, query: query, ordering: numbering?.ordering)],
               now.timeIntervalSince(snapshot.at) < maxAge else { return nil }
         return snapshot
     }
 
     /// Records a result's latest health (a resolved check or a probe), so the other list
     /// shows it too.
-    static func updateHealth(title: DetailsTarget, query: String, index: Int, health: SourceHealth) {
-        snapshots[Key(titleID: title.titleID, query: query)]?.health[index] = health
+    static func updateHealth(title: DetailsTarget, query: String, numbering: EpisodeNumbering? = nil,
+                             index: Int, health: SourceHealth) {
+        snapshots[Key(titleID: title.titleID, query: query, ordering: numbering?.ordering)]?.health[index] = health
     }
 }

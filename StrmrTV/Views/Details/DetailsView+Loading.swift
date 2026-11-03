@@ -11,7 +11,7 @@ extension DetailsView {
         // Read alongside the bundle, so episodes never show unhidden while it loads.
         async let spoilerSettings: Void = target.isMovie ? () : spoilers.refresh()
         do {
-            let bundle = try await APIClient.shared.detailsBundle(target)
+            let bundle = try await APIClient.shared.detailsBundle(target, seasonType: pickedOrdering)
             if target.isMovie {
                 guard let movie = bundle.movieDetails else { throw APIError.notReady("Details unavailable") }
                 title = movie
@@ -20,6 +20,8 @@ extension DetailsView {
                 await spoilerSettings
                 title = details.title
                 seasons = details.seasons
+                orderings = details.availableOrderings ?? []
+                activeOrdering = details.activeOrdering
                 upNext = bundle.upNextEpisode
                 primaryEpisode = Self.findPrimaryEpisode(in: details.seasons, upNext: bundle.upNextEpisode)
                 airedRegularEpisodes = details.seasons.filter { $0.number > 0 }.flatMap(\.episodes)
