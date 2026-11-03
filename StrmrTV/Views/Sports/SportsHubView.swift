@@ -148,8 +148,16 @@ struct SportsHubView: View {
                 }
                 .padding(.vertical, 20)
             }
+            // Full screen width with the page inset inside, as on Home's shelves: a lazy row
+            // only builds cards inside the scroll view's bounds, so a row inset by the page
+            // margin built the next card only once it crossed that margin, and it popped in.
+            .contentMargins(.horizontal, CardGridLayout.inset, for: .scrollContent)
+            .padding(.horizontal, -CardGridLayout.inset)
             .scrollClipDisabled()
             .focusSection()
+            .task(id: section.items.map(\.id)) {
+                SportsTeamLogo.prefetch(section.items.compactMap { if case let .game(game) = $0 { game } else { nil } })
+            }
         }
     }
 

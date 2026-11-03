@@ -148,7 +148,8 @@ struct SportsTeamLine: View {
     let team: SportsTeam
     let score: String?
     let leads: Bool
-    var logoSize: CGFloat = 44
+    static let hubLogoSize: CGFloat = 44
+    var logoSize: CGFloat = hubLogoSize
     /// A line under the name (cricket's "161/5 (18/20 ov, target 156)").
     var detail: String?
     /// Shown muted where the score goes while there is none.
@@ -184,6 +185,15 @@ struct SportsTeamLogo: View {
                 .overlay(Text(team.monogram).font(.system(size: size * 0.3, weight: .bold)))
         }
         .frame(width: size, height: size)
+    }
+
+    /// Warms the logos of `games` at the hub card's size, so a card a row builds as it scrolls
+    /// in draws them at once (`RemoteImage` reads the cache when it is made).
+    @MainActor static func prefetch(_ games: [SportsGame], size: CGFloat = SportsTeamLine.hubLogoSize) {
+        let box = CGSize(width: size, height: size)
+        for url in Set(games.flatMap { [$0.awayTeam.logo, $0.homeTeam.logo] }.compactMap { $0 }) {
+            ImagePipeline.prefetch(url, size: box, mode: .fit)
+        }
     }
 }
 
