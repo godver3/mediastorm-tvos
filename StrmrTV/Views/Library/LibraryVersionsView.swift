@@ -68,7 +68,7 @@ struct LibraryVersionRow: View {
                 LibrarySourceBadge(source: version.source)
                 Text(version.quality).font(.caption2.weight(.bold))
             }
-            Text(version.item.fileName ?? version.quality).font(.callout).lineLimit(1)
+            MarqueeText(text: version.item.fileName ?? version.quality).font(.callout)
             Text([version.origin, version.size].compactMap { $0 }.joined(separator: "  ·  "))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }

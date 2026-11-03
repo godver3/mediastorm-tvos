@@ -60,7 +60,7 @@ struct SourceRow: View {
                         .background(RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary, lineWidth: 1.5))
                 }
             }
-            Text(releaseName).font(.callout).lineLimit(1)
+            MarqueeText(text: releaseName).font(.callout)
             Text(details).font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
         .padding(.vertical, 8)
