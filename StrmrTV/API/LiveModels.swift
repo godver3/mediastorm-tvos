@@ -132,4 +132,17 @@ struct LiveStart: Decodable {
     let isDirect: Bool?
     let sessionId: String?
     let playlistUrl: String?
+    /// An HLS session of a Stremio channel: the stream the server tuned and every playable
+    /// one, in the addon's order (a direct stream reports neither).
+    let stremioStreamIndex: Int?
+    let stremioStreamIndexes: [Int]?
+}
+
+/// An opened live channel (`APIClient.startLive`).
+struct LiveTune {
+    let url: URL
+    /// The HLS session, nil for a direct stream.
+    let sessionID: String?
+    let stremioStreamIndex: Int?
+    let stremioStreamIndexes: [Int]?
 }

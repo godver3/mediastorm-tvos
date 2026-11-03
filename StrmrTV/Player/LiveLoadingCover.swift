@@ -2,6 +2,8 @@ import UIKit
 
 /// The channel's logo and name over black until the first frame is up.
 final class LiveLoadingCover: UIView {
+    private let note = UILabel()
+
     init(channel: LiveChannel, program: EPGProgram?) {
         super.init(frame: .zero)
         backgroundColor = .black
@@ -19,7 +21,10 @@ final class LiveLoadingCover: UIView {
         let spinner = UIActivityIndicatorView(style: .large)
         spinner.color = .white
         spinner.startAnimating()
-        let stack = UIStackView(arrangedSubviews: [logo, title, subtitle, spinner])
+        note.font = .preferredFont(forTextStyle: .callout)
+        note.textColor = .white
+        note.isHidden = true
+        let stack = UIStackView(arrangedSubviews: [logo, title, subtitle, spinner, note])
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 24
@@ -41,6 +46,12 @@ final class LiveLoadingCover: UIView {
         } else {
             logo.isHidden = true
         }
+    }
+
+    /// A line under the spinner saying what the player is doing (Stremio failover); nil clears it.
+    func show(note text: String?) {
+        note.text = text
+        note.isHidden = text == nil
     }
 
     @available(*, unavailable)

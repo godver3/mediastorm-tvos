@@ -89,6 +89,8 @@ extension LivePlayerViewController {
         let reason = "no first frame in \(Int(deadline)) s"
         guard !fallBackToHLS(reason, rememberable: false) else { return }
         log.error("live direct stream: \(reason)")
+        // A Stremio channel has other streams of the broadcast to try.
+        if channel.hasStremioSources { failOrFailOver(reason) }
     }
 
     /// The source opened and its streams were probed and routed, and the reader isn't stalled:

@@ -21,14 +21,16 @@ enum LivePlayback {
 /// which AVPlayer plays directly and which is kept alive every ten seconds and stopped on
 /// close. When the engine gives up on the source (`liveSourceReset`, or an end of stream)
 /// the channel is re-opened, at most three times, twenty seconds apart. A direct stream that
-/// fails before its first frame is opened once more as HLS (`+HLSFallback`). Every tune uses
+/// fails before its first frame is opened once more as HLS (`+HLSFallback`). A Stremio channel
+/// that still fails moves on to its next stream (`+StremioFailover`). Every tune uses
 /// the fast live join, and a buffer that runs dry refills in place (`makeLoadOptions`).
 ///
 /// Captions: see `LivePlayerViewController+Captions.swift`.
 final class LivePlayerViewController: EnginePlayerViewController {
-    let channel: LiveChannel
+    /// Its `stremioStreamIndex` moves on under Stremio failover.
+    var channel: LiveChannel
     let program: EPGProgram?
-    private let api = APIClient.shared
+    let api = APIClient.shared
 
     private var loadTask: Task<Void, Never>?
     var sessionID: String?
@@ -37,7 +39,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     private var keepAliveTimer: Timer?
     var didFinish = false
 
-    private var retuneCount = 0
+    var retuneCount = 0
     private var lastTune: Date?
     private static let retuneBudget = 3
     private static let retuneSpacing: TimeInterval = 20
@@ -59,7 +61,11 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var directWorkedForSource = false
     var directStartTimer: Timer?
 
-    private lazy var cover = LiveLoadingCover(channel: channel, program: program)
+    // Stremio failover (`+StremioFailover`).
+    var stremioFailover = StremioFailover()
+    var failoverTask: Task<Void, Never>?
+
+    lazy var cover = LiveLoadingCover(channel: channel, program: program)
     private lazy var telemetry = LivePlaybackTelemetry(engine: engine, log: log)
 
     // Captions.
@@ -128,8 +134,13 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 endSession()
                 if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
                 let forceHLS = await hlsForTune()
-                let (url, sessionID) = try await api.startLive(channel, programTitle: program?.title, forceHLS: forceHLS)
+                let start = try await api.startLive(channel, programTitle: program?.title, forceHLS: forceHLS)
                 try Task.checkCancellation()
+                let (url, sessionID) = (start.url, start.sessionID)
+                if channel.hasStremioSources {
+                    stremioFailover.noteTuned(index: start.stremioStreamIndex ?? channel.stremioStreamIndex,
+                                              available: start.stremioStreamIndexes)
+                }
                 self.sessionID = sessionID
                 tuneIsDirect = sessionID == nil
                 playlistURL = sessionID == nil ? nil : url
@@ -143,7 +154,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 // A newer tune or the close replaced this one.
             } catch {
                 guard !Task.isCancelled, !fallBackToHLS(error.localizedDescription) else { return }
-                fail(error.localizedDescription)
+                failOrFailOver(error.localizedDescription)
             }
         }
     }
@@ -187,7 +198,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         let tooSoon = lastTune.map { Date().timeIntervalSince($0) < Self.retuneSpacing } ?? false
         guard retuneCount < Self.retuneBudget, !tooSoon else {
             log.error("retune exhausted after \(self.retuneCount) (\(reason))")
-            fail(String(localized: "The channel keeps dropping out. Try it again in a moment."))
+            failOrFailOver(String(localized: "The channel keeps dropping out. Try it again in a moment."))
             return
         }
         retuneCount += 1
@@ -246,6 +257,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 guard ready, let self else { return }
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
+                cover.show(note: nil)
                 tunePlayed = true
                 directStartTimer?.invalidate()
                 startRetuneRecovery()
@@ -302,7 +314,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 case .ended: self.retune("end of stream")
                 case let .error(message):
                     guard !self.fallBackToHLS(message) else { return }
-                    self.fail(message)
+                    self.failOrFailOver(message)
                 default: break
                 }
             }
@@ -357,7 +369,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     // MARK: Lifecycle
 
-    private func fail(_ message: String) {
+    func fail(_ message: String) {
         guard !didFinish else { return }
         log.error("live playback failed: \(message)")
         PlaybackCoordinator.shared.errorMessage = message
@@ -368,6 +380,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         guard !didFinish else { return }
         didFinish = true
         loadTask?.cancel()
+        failoverTask?.cancel()
         hlsProofTimer?.invalidate()
         directStartTimer?.invalidate()
         retuneRecoveryTimer?.invalidate()

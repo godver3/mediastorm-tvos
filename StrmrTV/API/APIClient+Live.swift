@@ -61,7 +61,7 @@ extension APIClient {
     /// `token=` / `profileUnlock=` ride in the query as on every header-less media URL.
     /// `forceHLS`: an HLS session even when the source is set to direct (`format=hls`).
     func startLive(_ channel: LiveChannel, programTitle: String?,
-                   forceHLS: Bool = false) async throws -> (url: URL, sessionID: String?) {
+                   forceHLS: Bool = false) async throws -> LiveTune {
         var query = liveStartQuery(channel, programTitle: programTitle)
         if forceHLS { query["format"] = "hls" }
         let start: LiveStart = try await send("GET", "/api/live/hls/start", query: query, timeout: 60)
@@ -69,7 +69,8 @@ extension APIClient {
         guard let path = isDirect ? start.streamUrl : start.playlistUrl, !path.isEmpty else {
             throw APIError.notReady("The server did not return a stream for this channel")
         }
-        return (try mediaURL(apiPath: path), isDirect ? nil : start.sessionId)
+        return LiveTune(url: try mediaURL(apiPath: path), sessionID: isDirect ? nil : start.sessionId,
+                        stremioStreamIndex: start.stremioStreamIndex, stremioStreamIndexes: start.stremioStreamIndexes)
     }
 
     /// The `/api/live/hls/start` query for `channel`.
