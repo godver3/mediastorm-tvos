@@ -26,14 +26,15 @@ enum LivePlayback {
 /// the fast live join, and a buffer that runs dry refills in place (`makeLoadOptions`).
 ///
 /// Captions: see `LivePlayerViewController+Captions.swift`. Pause and rewind (a 30-minute
-/// window the engine keeps on the device): `+Timeshift`.
+/// window the engine keeps on the device): `+Timeshift`. Rewinding further on a channel with
+/// provider catch-up plays its archive (`+Catchup`).
 final class LivePlayerViewController: EnginePlayerViewController {
     /// Its `stremioStreamIndex` moves on under Stremio failover.
     var channel: LiveChannel
     let program: EPGProgram?
     let api = APIClient.shared
 
-    private var loadTask: Task<Void, Never>?
+    var loadTask: Task<Void, Never>?
     var sessionID: String?
     /// The HLS session's playlist, which multiscreen takes over with the session (`addScreen`).
     private var playlistURL: URL?
@@ -83,6 +84,11 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var timeshiftWindow: Double?
     var playPauseSwallow: UITapGestureRecognizer?
     lazy var timeshiftStatus = LiveTimeshiftStatusView()
+    // Catch-up (`+Catchup`).
+    var catchupPrograms: [EPGProgram] = []
+    var catchupArchive: LiveCatchupArchive?
+    var catchupTask: Task<Void, Never>?
+    var catchupScheduleTask: Task<Void, Never>?
 
     /// The menu entry for the server's captions; clear of every engine id.
     static let serverCaptionsID = -608
@@ -106,6 +112,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         view.addGestureRecognizer(swallow)
         playPauseSwallow = swallow
         installTimeshiftStatus()
+        startCatchupSchedule()
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
@@ -209,7 +216,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         }
     }
 
-    private func endSession() {
+    func endSession() {
         keepAliveTimer?.invalidate()
         keepAliveTimer = nil
         stopServerCaptions()
@@ -235,6 +242,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] ready in
                 guard ready, let self else { return }
+                if inCatchupArchive { return hideCover() }
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
                 cover.isHidden = true
                 cover.show(note: nil)
@@ -278,7 +286,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
             .store(in: &cancellables)
         engine.liveSourceReset
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.retune("live source reset") }
+            .sink { [weak self] in if self?.inCatchupArchive == false { self?.retune("live source reset") } }
             .store(in: &cancellables)
         engine.$state
             .receive(on: DispatchQueue.main)
@@ -290,11 +298,17 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 case .paused:
                     // Without timeshift, anything that still pauses a live channel (a remote
                     // command, AVKit) resumes it.
-                    guard !self.didFinish, !self.timeshifting,
+                    guard !self.didFinish, !self.pausable,
                           UIApplication.shared.applicationState == .active else { return }
                     self.engine.play()
-                case .ended: self.retune("end of stream")
+                case .ended:
+                    if self.inCatchupArchive { self.catchupEnded() } else { self.retune("end of stream") }
                 case let .error(message):
+                    if self.inCatchupArchive {
+                        self.log.error("catch-up archive error: \(message); back to live")
+                        self.catchupGoLive()
+                        return
+                    }
                     guard !self.fallBackToHLS(message) else { return }
                     self.failOrFailOver(message)
                 default: break
@@ -320,8 +334,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
             presentSubtitlePicker()
             return
         }
-        if handleTimeshiftPress(presses) { return }
-        if presses.contains(where: { $0.type == .playPause }), !timeshifting { return }
+        if handleCatchupPress(presses) || handleTimeshiftPress(presses) { return }
+        if presses.contains(where: { $0.type == .playPause }), !pausable { return }
         super.pressesBegan(presses, with: event)
     }
 
@@ -365,6 +379,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
         didFinish = true
         loadTask?.cancel()
         failoverTask?.cancel()
+        catchupTask?.cancel()
+        catchupScheduleTask?.cancel()
         hlsProofTimer?.invalidate()
         directStartTimer?.invalidate()
         retuneRecoveryTimer?.invalidate()

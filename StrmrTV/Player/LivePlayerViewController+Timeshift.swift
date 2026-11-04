@@ -19,10 +19,13 @@ extension LivePlayerViewController {
     /// This tune keeps a timeshift window.
     var timeshifting: Bool { timeshiftWindow != nil }
 
+    /// It pauses and seeks: a timeshift window, or the provider's archive (`+Catchup`).
+    var pausable: Bool { timeshifting || inCatchupArchive }
+
     /// AVKit's linear-playback lock and the Play/Pause swallow follow the tune.
     func applyTimeshiftMode() {
-        requiresLinearPlayback = !timeshifting
-        playPauseSwallow?.isEnabled = !timeshifting
+        requiresLinearPlayback = !pausable
+        playPauseSwallow?.isEnabled = !pausable
         if let window = timeshiftWindow { log.info("timeshift window \(Int(window / 60)) min") }
         updateTimeshiftStatus()
     }
@@ -72,8 +75,8 @@ extension LivePlayerViewController {
     func updateTimeshiftStatus() {
         let paused: Bool
         if case .paused = engine.state { paused = true } else { paused = false }
-        let behind = engine.clock.behindLiveSeconds
-        let shown = timeshifting && softwareSurfaceMounted && (paused || behind > LiveTimeshiftStatusView.atLiveSeconds)
+        let behind = inCatchupArchive ? Date().timeIntervalSince(catchupPlayhead) : engine.clock.behindLiveSeconds
+        let shown = pausable && softwareSurfaceMounted && (paused || behind > LiveTimeshiftStatusView.atLiveSeconds)
         timeshiftStatus.isHidden = !shown
         if shown {
             timeshiftStatus.update(paused: paused, behindSeconds: behind)
