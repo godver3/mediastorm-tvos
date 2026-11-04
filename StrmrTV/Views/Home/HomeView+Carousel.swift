@@ -88,9 +88,15 @@ extension HomeView {
     func carouselSlot(size: HeroSize) -> some View {
         if let shelf = carouselSource.shelf {
             let peek = carouselPeek
+            // Under hero text the viewport is the shown row's height, so it changes from row
+            // to row; the stretch must not, or every row under it moves as focus changes row,
+            // and a scroll aimed before the move lands a short row's title above the viewport
+            // and the next row's title in it. It is the viewport it fills, the tallest row's.
+            let fixed = size.oneShelf ? tallestRowHeight : nil
             Color.clear
                 .containerRelativeFrame(.vertical) { length, _ in
-                    peek > 0 ? length - peek : length + HomeCarouselControls.focusRoom
+                    let length = fixed ?? length
+                    return peek > 0 ? length - peek : length + HomeCarouselControls.focusRoom
                 }
                 .overlay(alignment: .bottomLeading) {
                     HomeCarouselControls(shelf: shelf, focused: $focused, index: $carouselIndex,
