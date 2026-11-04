@@ -25,7 +25,8 @@ enum LivePlayback {
 /// that still fails moves on to its next stream (`+StremioFailover`). Every tune uses
 /// the fast live join, and a buffer that runs dry refills in place (`makeLoadOptions`).
 ///
-/// Captions: see `LivePlayerViewController+Captions.swift`.
+/// Captions: see `LivePlayerViewController+Captions.swift`. Pause and rewind (a 30-minute
+/// window the engine keeps on the device): `+Timeshift`.
 final class LivePlayerViewController: EnginePlayerViewController {
     /// Its `stremioStreamIndex` moves on under Stremio failover.
     var channel: LiveChannel
@@ -77,6 +78,12 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var captionsWanted = LiveCaptionPreference.isOn
     var serverCaptions: ServerLiveCaptions?
     var serverCaptionClock: Timer?
+    // Timeshift (`+Timeshift`).
+    /// This tune's rewind window in seconds, nil when it plays live only.
+    var timeshiftWindow: Double?
+    var playPauseSwallow: UITapGestureRecognizer?
+    lazy var timeshiftStatus = LiveTimeshiftStatusView()
+
     /// The menu entry for the server's captions; clear of every engine id.
     static let serverCaptionsID = -608
 
@@ -88,7 +95,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Live: no seeking, and play / pause do nothing. AVKit's bar stays for its HUD.
+        // Live without timeshift: no seeking, and play / pause do nothing. AVKit's bar stays for
+        // its HUD. A tune with a timeshift window lifts both (`applyTimeshiftMode`).
         requiresLinearPlayback = true
         let swallow = UITapGestureRecognizer(target: nil, action: nil)
         swallow.allowedPressTypes = [NSNumber(value: UIPress.PressType.playPause.rawValue)]
@@ -96,6 +104,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
         // bring up AVKit's controls.
         swallow.allowedTouchTypes = []
         view.addGestureRecognizer(swallow)
+        playPauseSwallow = swallow
+        installTimeshiftStatus()
         Self.fill(cover, in: view)
         view.addSubview(cover)
         bindEngine()
@@ -143,6 +153,9 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 }
                 self.sessionID = sessionID
                 tuneIsDirect = sessionID == nil
+                // The engine keeps the window on the device, for a direct stream only.
+                timeshiftWindow = sessionID == nil ? Self.timeshiftWindowSeconds : nil
+                applyTimeshiftMode()
                 playlistURL = sessionID == nil ? nil : url
                 startKeepAlive()
                 startServerCaptions()
@@ -158,39 +171,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
             }
         }
     }
-
-    /// Every tune joins with `.fastZap`, a few seconds behind the edge. A source that pauses and
-    /// then bursts (an IPTV line holding back 3 to 5 s, then handing over several segments) can
-    /// leave the playlist unchanged past AVPlayer's patience (-12888) or run the buffer dry; the
-    /// player rides that out in place, as ExoPlayer does on Android TV, rather than retuning. A
-    /// retune opened a new provider connection, dropped whatever was buffered and sat on black
-    /// for the standard join's 18 s holdback, often just as the next burst arrived. Real
-    /// failures (a source reset, the stream ending, an engine error) still retune or fail.
-    private func makeLoadOptions(remoteHLS: Bool) -> LoadOptions {
-        var options = baseLoadOptions()
-        options.isLive = true
-        options.liveJoinProfile = .fastZap
-        // The server's HLS session goes straight to AVPlayer; a direct stream is demuxed.
-        options.nativeRemoteHLS = remoteHLS
-        if !remoteHLS {
-            // The engine's 50 MiB probe is sized for VOD files with sparse tracks. A live TS read
-            // arrives in real time: a 4K channel at ~15 Mbps spent 24 s of open_input reading
-            // 45 MB of it and missed the 25 s first-frame deadline. 8 MiB is a few seconds of
-            // such a channel, still the PMT and several keyframes.
-            options.probesize = Self.liveDirectProbeBytes
-            options.liveEdgeCushionSeconds = Self.liveDirectCushionSeconds
-        }
-        return options
-    }
-
-    private static let liveDirectProbeBytes: Int64 = 8 << 20
-
-    /// Broadcast muxers (an HDHomeRun's ATSC feed) send each AC-3 frame up to ~0.8 s after the video
-    /// of the same timestamp. At the bare edge the software clock starts on the first keyframe, so
-    /// every audio frame reached the renderer already late: aLead sat at -0.2 to -0.8 s, the
-    /// renderer never had enough data and the sound cut out a few seconds in while the picture
-    /// played on. Joining 2 s back keeps the audio ~1.2 s ahead for ~1 s of extra tune time.
-    private static let liveDirectCushionSeconds: Double = 2
 
     /// The source died under the engine: open the channel again, within the budget.
     private func retune(_ reason: String) {
@@ -308,8 +288,10 @@ final class LivePlayerViewController: EnginePlayerViewController {
                 guard let self, self.engine.state == state else { return }
                 switch state {
                 case .paused:
-                    // Anything that still pauses a live channel (a remote command, AVKit) resumes it.
-                    guard !self.didFinish, UIApplication.shared.applicationState == .active else { return }
+                    // Without timeshift, anything that still pauses a live channel (a remote
+                    // command, AVKit) resumes it.
+                    guard !self.didFinish, !self.timeshifting,
+                          UIApplication.shared.applicationState == .active else { return }
                     self.engine.play()
                 case .ended: self.retune("end of stream")
                 case let .error(message):
@@ -324,6 +306,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     private func setSoftwareSurface(mounted: Bool) {
         guard mountSoftwareSurface(mounted) else { return }
         mountSubtitleOverlay()
+        updateTimeshiftStatus()
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -337,7 +320,8 @@ final class LivePlayerViewController: EnginePlayerViewController {
             presentSubtitlePicker()
             return
         }
-        if presses.contains(where: { $0.type == .playPause }) { return }
+        if handleTimeshiftPress(presses) { return }
+        if presses.contains(where: { $0.type == .playPause }), !timeshifting { return }
         super.pressesBegan(presses, with: event)
     }
 
