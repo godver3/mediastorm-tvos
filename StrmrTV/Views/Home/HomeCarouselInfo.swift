@@ -36,7 +36,7 @@ struct HomeCarouselInfo: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityLabel(card?.title ?? "")
-            if !line.isEmpty {
+            if let line = card?.infoLine, !line.isEmpty {
                 Text(line)
                     .font(.system(size: 26 * textScale, weight: .medium))
                     .foregroundStyle(.white.opacity(0.85))
@@ -58,13 +58,6 @@ struct HomeCarouselInfo: View {
     private var eyebrow: String {
         guard let badge = card?.badge?.text, badge.hasPrefix("#") else { return rowTitle }
         return "\(rowTitle) · \(badge)"
-    }
-
-    /// "2024 · Movie · PG-13 · Action, Thriller"
-    private var line: String {
-        guard let card else { return "" }
-        let genres = card.genres.prefix(2).joined(separator: ", ")
-        return [card.subtitle, card.certification ?? "", genres].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 

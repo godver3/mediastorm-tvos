@@ -79,9 +79,12 @@ struct SettingsView: View {
             Section("Home") {
                 NavigationLink("Home Layout") { HomeLayoutSettingsView() }
                 NavigationLink("Menu") { MenuSettingsView() }
-                ChoiceRow(title: "Title Logo Size", selection: $logos.scale,
+                ChoiceRow(title: "Home Title Logo Size", selection: $logos.scale,
                           choices: LogoScale.allCases.map { .init(value: $0, name: $0.label) })
-                    .accessibilityHint(Text("Sizes titles' logos on Home and details pages"))
+                    .accessibilityHint(Text("Sizes titles' logos in Home's hero and carousel"))
+                ChoiceRow(title: "Details Title Logo Size", selection: $logos.detailsScale,
+                          choices: LogoScale.allCases.map { .init(value: $0, name: $0.label) })
+                    .accessibilityHint(Text("Sizes titles' logos on details pages"))
             }
 
             Section("Playback") {

@@ -214,6 +214,7 @@ extension HomeView {
                      style: layout.style(for: shelf.id), cardHeight: cardHeight,
                      cardText: layout.effectiveCardText,
                      animateExpansion: layout.animateExpansion,
+                     expandedInfo: layout.expandedCardInfo,
                      onHide: shelf.id == HomeShelf.continueWatchingID ? { hide($0) } : nil)
                 .equatable()
         case let .loading(id, title), let .failed(id, title):

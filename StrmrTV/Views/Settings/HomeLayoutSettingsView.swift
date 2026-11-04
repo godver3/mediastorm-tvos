@@ -57,11 +57,12 @@ struct HomeLayoutSettingsView: View {
                                profileValue: layout.profile.expandPosters) { $0 ? "On" : "Off" }
                 if layout.usesExpandingPosters {
                     Toggle("Animate Expansion", isOn: $layout.animateExpansion)
+                    Toggle("Show Info When Expanded", isOn: $layout.expandedCardInfo)
                 }
             } header: {
                 Text("Cards")
             } footer: {
-                Text("In poster rows, the focused poster opens to a wide card. Applies to rows set to Default. Animate Expansion opens and folds the card in motion; off, it snaps open.")
+                Text("In poster rows, the focused poster opens to a wide card. Applies to rows set to Default. Animate Expansion opens and folds the card in motion; off, it snaps open. Show Info When Expanded draws the title's logo, details and overview on the opened card.")
             }
 
             Section {

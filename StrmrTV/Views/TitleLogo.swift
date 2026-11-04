@@ -5,7 +5,7 @@ import SwiftUI
 /// grace period instead of flashing the name in and then swapping it for the logo. The
 /// name shows when there is no logo, the load fails, or the grace period runs out.
 ///
-/// The logo is drawn at Title Logo Size (`LogoSettingsStore`) against `size`; the name
+/// The logo is drawn at `place`'s Title Logo Size (`LogoSettingsStore`) against `size`; the name
 /// keeps the full slot, and a larger logo grows the slot.
 struct TitleLogo<Fallback: View>: View {
     let url: URL?
@@ -13,13 +13,15 @@ struct TitleLogo<Fallback: View>: View {
     var pending = false
     let size: CGSize
     var grace: Duration = .seconds(1.5)
+    /// Which Title Logo Size applies.
+    var place: LogoPlace = .home
     @ViewBuilder let fallback: () -> Fallback
 
     @ObservedObject private var settings = LogoSettingsStore.shared
     @State private var graceOver = false
 
     var body: some View {
-        let factor = settings.scale.factor
+        let factor = settings.scale(for: place).factor
         let logo = CGSize(width: size.width * factor, height: size.height * factor)
         let slot = CGSize(width: max(size.width, logo.width), height: max(size.height, logo.height))
         Group {

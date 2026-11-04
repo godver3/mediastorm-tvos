@@ -193,6 +193,7 @@ final class HomeLayoutStore: ObservableObject {
             .flatMap(FocusedCardPosition.init(rawValue:)))
         _expandPosters = Published(initialValue: Self.bool(defaults, Keys.expandPosters))
         _animateExpansion = Published(initialValue: Self.bool(defaults, Keys.animateExpansion) ?? true)
+        _expandedCardInfo = Published(initialValue: Self.bool(defaults, Keys.expandedCardInfo) ?? false)
         _heroSize = Published(initialValue: defaults.string(forKey: Keys.heroSize).flatMap(HeroSize.init(rawValue:)))
         _heroTextSize = Published(initialValue: defaults.string(forKey: Keys.heroTextSize)
             .flatMap(HeroTextSize.init(rawValue:)) ?? .medium)
@@ -220,6 +221,7 @@ final class HomeLayoutStore: ObservableObject {
         static let focusPosition = "homeLayout.focusPosition"
         static let expandPosters = "homeLayout.expandPosters"
         static let animateExpansion = "homeLayout.animateExpansion"
+        static let expandedCardInfo = "homeLayout.expandedCardInfo"
         static let shelfStyles = "homeLayout.shelfStyles"
         static let hiddenShelves = "homeLayout.hiddenShelves"
         static let heroSize = "homeLayout.heroSize"
@@ -251,6 +253,12 @@ final class HomeLayoutStore: ObservableObject {
     /// (device only, on by default); off, the card and the row snap into place.
     @Published var animateExpansion: Bool {
         didSet { defaults.set(animateExpansion, forKey: Keys.animateExpansion) }
+    }
+
+    /// Whether an expanded poster draws the title's logo, its year / rating / genre line
+    /// and overview over its art (device only, off by default).
+    @Published var expandedCardInfo: Bool {
+        didSet { defaults.set(expandedCardInfo, forKey: Keys.expandedCardInfo) }
     }
 
     /// Whether any row on Home draws expanding posters: by default, or set on a row.

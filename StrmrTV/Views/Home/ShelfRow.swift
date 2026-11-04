@@ -19,6 +19,8 @@ struct ShelfRow: View, Equatable {
     let cardText: CardText
     /// Whether an expanding poster opens and folds in motion; off, it snaps.
     let animateExpansion: Bool
+    /// Whether an expanded poster draws the title's logo, line and overview.
+    let expandedInfo: Bool
     /// Set on Continue Watching: the cards offer hiding the title from the row.
     var onHide: ((HomeCard) -> Void)?
 
@@ -72,7 +74,7 @@ struct ShelfRow: View, Equatable {
                         let expanded = style == .expandingPoster && activeCard == card.id
                         LandscapeCard(card: card, width: expanded ? landscapeWidth : cardWidth, height: cardHeight,
                                       poster: style != .landscape && !expanded, opens: style == .expandingPoster,
-                                      text: cardText,
+                                      text: cardText, info: expanded && expandedInfo,
                                       onHide: onHide.map { hide in { hide(card) } })
                             .animation(moveAnimation, value: expanded)
                             .focused(focused, equals: HomeFocus(shelf: shelf.id, card: card.id))
@@ -145,6 +147,7 @@ struct ShelfRow: View, Equatable {
                 && lhs.menuCard == rhs.menuCard
                 && lhs.position == rhs.position && lhs.style == rhs.style && lhs.cardHeight == rhs.cardHeight
                 && lhs.cardText == rhs.cardText && lhs.animateExpansion == rhs.animateExpansion
+                && lhs.expandedInfo == rhs.expandedInfo
                 && (lhs.onHide == nil) == (rhs.onHide == nil)
         }
     }

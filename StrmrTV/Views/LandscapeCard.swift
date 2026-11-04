@@ -20,6 +20,9 @@ struct LandscapeCard: View {
     var opens = false
     /// Where the title and line go: under the card, over its art, or nowhere.
     var text = CardText.below
+    /// An opened poster draws the title's logo, line and overview over its art
+    /// (Show Info When Expanded), in place of the title overlay.
+    var info = false
     var onHide: (() -> Void)?
 
     private var size: CGSize { CGSize(width: width, height: height ?? (width * 9 / 16).rounded()) }
@@ -68,7 +71,10 @@ struct LandscapeCard: View {
                 // A poster opened to 16:9 on focus draws it too, as a 16:9 card (left-aligned,
                 // over the same gradient and lifted clear of the progress bar): the Expo app
                 // leaves it off, but the user wants it there.
-                if text.overlays(poster: poster) {
+                if showsInfo {
+                    ExpandedCardInfo(card: card, size: size, hasProgress: ProgressBar.shows(card.progress))
+                        .transition(.opacity)
+                } else if text.overlays(poster: poster) {
                     CardTextOverlay(title: card.title, subtitle: card.subtitle, size: size, poster: poster,
                                     hasProgress: ProgressBar.shows(card.progress))
                 }
@@ -81,6 +87,9 @@ struct LandscapeCard: View {
                 }
             }
     }
+
+    /// Info only on an opened poster with art, for a title (not a list or channel).
+    private var showsInfo: Bool { info && !poster && hasArt && card.target != nil }
 
     /// A card drawing artwork (not a symbol or logo tile).
     private var hasArt: Bool { card.symbol == nil && !card.logoTile }

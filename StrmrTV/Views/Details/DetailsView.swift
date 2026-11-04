@@ -311,7 +311,7 @@ struct DetailsView: View {
             // showing the name first and swapping it out.
             TitleLogo(url: Artwork.logoURL(title?.logo?.url ?? target.logoURL),
                       pending: title == nil && loadError == nil,
-                      size: CGSize(width: 640, height: 220)) {
+                      size: CGSize(width: 640, height: 220), place: .details) {
                 titleText.frame(width: 1000, alignment: .bottomLeading)
             }
             .accessibilityLabel(target.name)
