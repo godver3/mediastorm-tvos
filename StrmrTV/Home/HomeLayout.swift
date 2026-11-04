@@ -16,16 +16,21 @@ enum FocusedCardPosition: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// How much of Home the hero (logo, episode line, overview) takes above the rows.
+/// How much the hero (logo, episode line, overview) says above the focused row.
 enum HeroSize: String, CaseIterable, Identifiable, Sendable {
-    /// Logo, line and a three-line overview; one row below.
+    /// Logo, line and a three-line overview.
     case full
-    /// A smaller logo and a two-line overview; more room for rows.
+    /// A smaller logo and a two-line overview.
     case compact
     /// The title and its line only.
     case minimal
-    /// No hero text; the backdrop still follows focus.
+    /// No hero text; the backdrop still follows focus, over a list of rows.
     case off
+
+    /// Focused Title Info is one shelf to a screen: the hero's text over the focused row alone,
+    /// on the bottom safe area, the rows above and below it out of sight. Every size with text
+    /// is; Off, with none, lists the rows under the menu.
+    var oneShelf: Bool { self != .off }
 
     var id: String { rawValue }
 

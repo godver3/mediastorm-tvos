@@ -67,7 +67,7 @@ final class HomeStyleStore: ObservableObject {
         }
     }
 
-    /// How Focused Title Info's full hero, one shelf to a screen, moves between shelves (and
+    /// How Focused Title Info, one shelf to a screen, moves between shelves (and
     /// from the carousel's controls into the first one).
     @Published var shelfTransition: ShelfTransition {
         didSet {
@@ -102,7 +102,7 @@ final class HomeStyleStore: ObservableObject {
     }
 }
 
-/// How the full hero moves from shelf to shelf.
+/// How Focused Title Info moves from shelf to shelf.
 enum ShelfTransition: String, CaseIterable, Identifiable, Sendable {
     /// The rows scroll up or down, the next shelf sliding into place.
     case slide

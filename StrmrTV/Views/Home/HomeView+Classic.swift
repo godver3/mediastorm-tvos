@@ -19,7 +19,7 @@ extension HomeView {
         // needs a scroll view at the top of the content, but nothing may move.
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: size == .off ? 0 : 36) {
-                if size == .full { Spacer(minLength: 0) }
+                if size.oneShelf { Spacer(minLength: 0) }
                 if size != .off {
                     // Mid-swap, the row fading out keeps its title's info.
                     HeroInfo(hero: hero(swapFrom) ?? hero, size: size, textScale: layout.heroTextSize.scale)
@@ -30,23 +30,23 @@ extension HomeView {
                     rowEntryGuide
                     rows(size: size, carousel: carousel)
                 }
-                // Full hero: exactly the shown row's height, so that shelf sits on the
-                // bottom edge and the row under it never shows. Smaller: every bit of height
-                // left, so more rows show.
-                .frame(height: size == .full ? rowHeight : nil, alignment: .top)
-                .frame(maxHeight: size == .full ? nil : .infinity, alignment: .top)
+                // With hero text: exactly the shown row's height, so that shelf sits on the
+                // bottom edge and the row under it never shows, whatever the text's height.
+                // Without (Off): every bit of height left, so more rows show.
+                .frame(height: size.oneShelf ? rowHeight : nil, alignment: .top)
+                .frame(maxHeight: size.oneShelf ? nil : .infinity, alignment: .top)
             }
-            // The full hero swaps rows by fading the page out and back (see `rows`).
-            .opacity(size == .full ? rowFade : 1)
-            .padding(.top, size == .full ? 0 : Self.tabBarClearance)
+            // One shelf to a screen swaps rows by fading the page out and back (see `rows`).
+            .opacity(size.oneShelf ? rowFade : 1)
+            .padding(.top, size.oneShelf ? 0 : Self.tabBarClearance)
             .padding(.horizontal, 80)
             .containerRelativeFrame(.vertical, alignment: .bottomLeading)
         }
         .scrollDisabled(true)
         .scrollClipDisabled()
-        // With a smaller hero the rows run to the screen's bottom edge, as a
+        // Without hero text the rows run to the screen's bottom edge, as a
         // scrolling list does, so the row below shows more of itself.
-        .ignoresSafeArea(.container, edges: size == .full ? [] : .bottom)
+        .ignoresSafeArea(.container, edges: size.oneShelf ? [] : .bottom)
     }
 
     /// The focused card's backdrop (or a streaming service's framed logo), darkened where
@@ -127,8 +127,8 @@ extension HomeView {
                     guard let shelf else { return }
                     // The carousel's controls are the first place, and move as a row does.
                     let place = shelf == HomeCarousel.focusShelf ? Self.carouselSlotID : shelf
-                    if size == .full && style.shelfTransition == .swap && old != nil {
-                        // Swap: the full hero is one shelf to a screen, and from row to row (and
+                    if size.oneShelf && style.shelfTransition == .swap && old != nil {
+                        // Swap: with hero text Home is one shelf to a screen, and from row to row (and
                         // between the carousel's controls and the first row) the page fades out,
                         // the next place (and its height) takes over, and it fades back in,
                         // rather than the rows sliding up or down. The carousel's art crossfades
@@ -155,7 +155,7 @@ extension HomeView {
         }
     }
 
-    /// The full hero's move from row to row: fade out, put `shelf` in place unanimated, fade in.
+    /// One shelf to a screen's move from row to row: fade out, put `shelf` in place unanimated, fade in.
     /// A move made mid-fade takes over, so a held Down lands on the last row reached.
     private func swapRow(from left: HomeFocus?, to shelf: String, place: @escaping () -> Void) {
         if swapFrom == nil { swapFrom = left }
@@ -179,12 +179,8 @@ extension HomeView {
 
     /// Roughly where the rows start, as a fraction of the screen height.
     private var rowsTop: CGFloat {
-        switch heroSize {
-        case .full: 0.5
-        case .compact: 0.4
-        case .minimal: 0.3
-        case .off: 0.2
-        }
+        // Under any hero text the focused row sits on the bottom safe area.
+        heroSize.oneShelf ? 0.5 : 0.2
     }
 
     /// What Home shows with no rows: loading, the load's error, or an empty page.

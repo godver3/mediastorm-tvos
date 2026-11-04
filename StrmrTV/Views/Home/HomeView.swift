@@ -49,10 +49,10 @@ struct HomeView: View {
     /// The art prefetch waiting for focus to settle. A box, so restarting it on every
     /// focus move doesn't re-render the page.
     @State private var artPrefetch = PendingTask()
-    /// The row the full hero's rows show, which sizes them: the focused row, once the fade
+    /// The row one shelf to a screen shows, which sizes them: the focused row, once the fade
     /// from the last one has hidden the swap.
     @State var shownRow: String?
-    /// The full hero's page while it fades from row to row.
+    /// One shelf to a screen's page while it fades from row to row.
     @State var rowFade = 1.0
     @State var rowSwap = PendingTask()
     /// The card left in the row fading out, whose info shows until the swap.
@@ -63,7 +63,7 @@ struct HomeView: View {
     /// A row's height: the row title, room for the focus lift, the card and its caption
     /// (60 pt of text under the gap that clears the lift). Without captions the gap stays,
     /// plus 24 pt so the next row's title sits nearer its own cards than a focused card
-    /// above it. With rows stacked (any hero but the full one), captions also get
+    /// above it. With rows stacked (no hero text), captions also get
     /// `captionGap` under them, or the next row's title sat on the caption's last line.
     static func rowHeight(cardHeight: CGFloat, captions: Bool, stacked: Bool = false) -> CGFloat {
         let caption = PosterFocusStyle.captionSpacing(cardHeight: cardHeight)
@@ -72,11 +72,11 @@ struct HomeView: View {
     }
     static let captionGap: CGFloat = 28
 
-    /// More than one row shows: the rows sit under a smaller hero, or under none (Focused
-    /// Title Info off, or on without a carousel row to go with it on a Top Carousel page).
+    /// More than one row shows: the rows sit under no hero text (Focused Title Info off, or
+    /// Hero Size Off, or on without a carousel row to go with it on a Top Carousel page).
     var rowsStacked: Bool {
         let info = style.focusedInfo && (!style.topCarousel || carouselSource.shelf != nil)
-        return !info || heroSize != .full
+        return !info || !heroSize.oneShelf
     }
     /// Room left above the hero for the tab bar when the hero is smaller than full.
     static let tabBarClearance: CGFloat = 90
@@ -102,7 +102,7 @@ struct HomeView: View {
             ?? Self.rowHeight(cardHeight: cardHeight, captions: layout.effectiveCardText == .below, stacked: rowsStacked)
     }
 
-    /// The rows' viewport with the full hero: the shown row's height, so that row sits on
+    /// The rows' viewport under hero text: the shown row's height, so that row sits on
     /// the bottom edge and the one under it never shows; a row of smaller cards brings the
     /// hero down with it. On the carousel's controls (or before any row has focus), the
     /// tallest row's, which the carousel's controls are laid out for.

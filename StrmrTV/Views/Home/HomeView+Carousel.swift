@@ -5,7 +5,7 @@ import SwiftUI
 /// and title text are a fixed layer (`HomeCarousel`), and its buttons and dots
 /// (`HomeCarouselControls`) are the first place in the rows' scroll view, one viewport tall
 /// with the buttons on the bottom safe area. Down from them scrolls the first row into
-/// Classic's place exactly as one row scrolls to the next (with the full hero, fades to it, as
+/// Classic's place exactly as one row scrolls to the next (one shelf to a screen with Swap, fades to it, as
 /// one row fades to the next), while the carousel's art
 /// crossfades to the focused card's backdrop (Focused Title Info on) or the page's black,
 /// and its text to the card's (or away). Up from the first row brings it all back.
@@ -70,15 +70,15 @@ extension HomeView {
 
     /// How far above the bottom safe area the carousel's buttons sit, so its text stays just
     /// above them: 0 without Peek Next Row; with it, the peeking row and the room under the
-    /// buttons, from the rows' viewport foot (the screen's edge unless the hero is full).
+    /// buttons, from the rows' viewport foot (the bottom safe area under hero text, else the screen's edge).
     func carouselControlsLift(size: HeroSize) -> CGFloat {
         let peek = carouselPeek
         guard peek > 0 else { return 0 }
-        return max(0, peek + HomeCarouselControls.focusRoom - (size == .full ? 0 : safeBottom))
+        return max(0, peek + HomeCarouselControls.focusRoom - (size.oneShelf ? 0 : safeBottom))
     }
 
     /// The carousel's controls, near the foot of a stretch one viewport tall: at rest they
-    /// sit on the bottom safe area (the rows' viewport ends there with the full hero, and runs
+    /// sit on the bottom safe area (the rows' viewport ends there under hero text, and runs
     /// to the screen's edge otherwise) and the first row waits just out of sight below. The
     /// stretch runs `focusRoom` past the viewport, under the buttons, so a focused button's
     /// growth and shadow are drawn there (see `carouselClip`) rather than cut off. With Peek
@@ -96,14 +96,14 @@ extension HomeView {
                     HomeCarouselControls(shelf: shelf, focused: $focused, index: $carouselIndex,
                                          entry: carouselButton, advancedAt: carouselAdvancedAt)
                         // The scroll view's content keeps to the 80 pt side safe area already.
-                        .padding(.bottom, (size == .full || peek > 0 ? 0 : safeBottom) + HomeCarouselControls.focusRoom)
+                        .padding(.bottom, (size.oneShelf || peek > 0 ? 0 : safeBottom) + HomeCarouselControls.focusRoom)
                 }
                 .id(Self.carouselSlotID)
         }
     }
 
     /// The rows' scroll view clips to its viewport, except, while the carousel is up, for
-    /// `focusRoom` below it: the room under the carousel's buttons, which with the full hero
+    /// `focusRoom` below it: the room under the carousel's buttons, which under hero text
     /// falls on the bottom safe area. Without the carousel up it is the plain clip, so the next
     /// row never peeks below the focused one. With Peek Next Row the buttons sit inside the
     /// viewport, so it is the plain clip throughout (the peeking row stops at the viewport's foot).
