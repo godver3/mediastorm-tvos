@@ -18,7 +18,7 @@ enum ClientTrackSelector {
         var audioLanguage: String?
         var allowedLanguages: [String] = []
         var subtitleLanguage: String?
-        /// `off`, `forced-only` or `on`.
+        /// `off`, `forced-only`, `foreign-audio` or `on`.
         var subtitleMode: String
         /// Settings › Playback › Audio Format is Lossless: TrueHD first (`findAudio`).
         var losslessAudio = false
@@ -31,22 +31,42 @@ enum ClientTrackSelector {
         let audioPick = describe(audio, audioIndex)
         var subtitlePick: SelectedTrack?
         var textPick: SelectedTrack?
-        if p.subtitleMode != "off" {
+        // The engine starts the first track when none matched the preferences.
+        let mode = p.subtitleMode == foreignAudio
+            ? resolveMode(audioLanguage: audioPick?.language ?? audio.first?.language,
+                          subtitleLanguage: p.subtitleLanguage, preferredAudio: p.audioLanguage)
+            : p.subtitleMode
+        if mode != "off" {
             let audioLanguage = audioPick?.language ?? p.audioLanguage ?? ""
             let language = p.subtitleLanguage ?? ""
-            subtitlePick = describe(subtitles, findSubtitle(subtitles, language: language, mode: p.subtitleMode,
+            subtitlePick = describe(subtitles, findSubtitle(subtitles, language: language, mode: mode,
                                                             audioLanguage: audioLanguage))
             if let subtitlePick, isText(subtitlePick.codec ?? "") {
                 textPick = subtitlePick
             } else {
                 let text = subtitles.filter { isText($0.codec) }
-                textPick = describe(subtitles, findSubtitle(text, language: language, mode: p.subtitleMode,
+                textPick = describe(subtitles, findSubtitle(text, language: language, mode: mode,
                                                             audioLanguage: audioLanguage))
             }
         }
         return TrackSelection(audio: audioPick, subtitle: subtitlePick, textSubtitle: textPick,
                               audioLanguage: p.audioLanguage, subtitleLanguage: p.subtitleLanguage,
-                              subtitleMode: p.subtitleMode)
+                              subtitleMode: mode,
+                              subtitleModePreference: p.subtitleMode == foreignAudio ? foreignAudio : nil)
+    }
+
+    /// The mode that shows forced subtitles when the audio is in the viewer's language and full
+    /// ones when it is not (`trackselect.SubtitleModeForeignAudio`).
+    static let foreignAudio = "foreign-audio"
+
+    /// `ResolveForeignAudioMode`: `on` when the audio's language is known and is not the
+    /// subtitle language (else the preferred audio language), otherwise `forced-only`.
+    static func resolveMode(audioLanguage: String?, subtitleLanguage: String?, preferredAudio: String?) -> String {
+        let mine = [subtitleLanguage, preferredAudio].lazy.compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty } ?? ""
+        let audio = (audioLanguage ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        if mine.isEmpty || audio.isEmpty || audio == "und" || matches(audio, "", mine) { return "forced-only" }
+        return "on"
     }
 
     // MARK: Audio
@@ -102,6 +122,8 @@ enum ClientTrackSelector {
     // MARK: Subtitles
 
     static func findSubtitle(_ streams: [Stream], language: String, mode: String, audioLanguage: String) -> Int {
+        let mode = mode == foreignAudio
+            ? resolveMode(audioLanguage: audioLanguage, subtitleLanguage: language, preferredAudio: nil) : mode
         guard mode != "off" else { return -1 }
         let selectable = streams.filter { !isUnsupported($0.codec) }
         guard !selectable.isEmpty else { return -1 }

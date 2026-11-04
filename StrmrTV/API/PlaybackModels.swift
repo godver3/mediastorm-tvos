@@ -104,8 +104,11 @@ struct TrackSelection: Decodable, Hashable {
     let textSubtitle: SelectedTrack?
     let audioLanguage: String?
     let subtitleLanguage: String?
-    /// off | forced-only | on
+    /// off | forced-only | on (a `foreign-audio` preference arrives resolved to one of these)
     let subtitleMode: String?
+    /// `foreign-audio` when `subtitleMode` was resolved from it, for re-resolving on another
+    /// audio track (`ClientTrackSelector.resolveMode`).
+    var subtitleModePreference: String? = nil
 }
 
 // MARK: - Skip segments

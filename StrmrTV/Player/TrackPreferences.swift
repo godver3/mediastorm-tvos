@@ -155,14 +155,17 @@ extension TrackPreferences {
         let preferences = devicePreferences(over: selection)
         let client = ClientTrackSelector.select(audio: audio, subtitles: subtitles, preferences: preferences)
         let keepAudio = store.audioLanguage == nil && !store.losslessAudio && selection != nil
+        // A `foreign-audio` pick follows the audio, so it is redone when the audio is.
         let keepSubtitle = store.subtitleMode == nil && store.subtitleLanguage == nil && selection != nil
+            && (keepAudio || selection?.subtitleModePreference == nil)
         let merged = TrackSelection(
             // Lossless alone with no language to pick in keeps the server's track.
             audio: keepAudio ? selection?.audio : client.audio ?? (store.audioLanguage == nil ? selection?.audio : nil),
             subtitle: keepSubtitle ? selection?.subtitle : client.subtitle,
             textSubtitle: keepSubtitle ? selection?.textSubtitle : client.textSubtitle,
             audioLanguage: preferences.audioLanguage, subtitleLanguage: preferences.subtitleLanguage,
-            subtitleMode: preferences.subtitleMode)
+            subtitleMode: keepSubtitle ? selection?.subtitleMode : client.subtitleMode,
+            subtitleModePreference: keepSubtitle ? selection?.subtitleModePreference : client.subtitleModePreference)
         var tracks = TrackPreferences(selection: merged)
         tracks.isClientPick = true
         AppLog(category: "player").notice(
@@ -201,7 +204,9 @@ extension TrackPreferences {
             audioLanguage: store.audioLanguage ?? selection?.audioLanguage ?? server.audioLanguage,
             allowedLanguages: allowed,
             subtitleLanguage: store.subtitleLanguage ?? selection?.subtitleLanguage ?? server.subtitleLanguage,
-            subtitleMode: store.subtitleMode ?? selection?.subtitleMode ?? server.subtitleMode ?? "off",
+            // A server mode resolved from `foreign-audio` resolves again against this device's audio.
+            subtitleMode: store.subtitleMode ?? selection?.subtitleModePreference ?? selection?.subtitleMode
+                ?? server.subtitleMode ?? "off",
             losslessAudio: store.losslessAudio)
     }
 

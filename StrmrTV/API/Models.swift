@@ -335,7 +335,7 @@ struct DetailsBundle: Decodable {
 struct ContentPreference: Decodable, Hashable {
     let audioLanguage: String?
     let subtitleLanguage: String?
-    /// `off`, `on` or `forced-only`.
+    /// `off`, `on`, `forced-only` or `foreign-audio`.
     let subtitleMode: String?
 }
 

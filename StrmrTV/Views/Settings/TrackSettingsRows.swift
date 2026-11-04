@@ -24,6 +24,8 @@ struct TrackSettingsRows: View {
                   defaultValue: store.server.subtitleMode ?? "off", choices: [
                       .init(value: "off", name: String(localized: "Off")),
                       .init(value: "forced-only", name: String(localized: "Forced Only")),
+                      // Forced subtitles for audio in your language, full ones for any other.
+                      .init(value: ClientTrackSelector.foreignAudio, name: String(localized: "Foreign Audio")),
                       .init(value: "on", name: String(localized: "On")),
                   ])
             .accessibilityHint(Text("Which subtitles start with playback"))

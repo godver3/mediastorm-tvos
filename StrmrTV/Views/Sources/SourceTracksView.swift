@@ -120,8 +120,9 @@ struct SourceTracksView: View {
             ?? ManualTrackSelection.defaultAudio(audio, preferredLanguage: preferences.audioLanguage,
                                                 lossless: preferences.losslessAudio)
         let defaultSubtitle = defaults.map { (index: $0.subtitle, searchesOnline: $0.searchesOnline) }
-            ?? ManualTrackSelection.defaultSubtitle(subtitles, language: preferences.subtitleLanguage,
-                                                    mode: preferences.subtitleMode)
+            ?? ManualTrackSelection.defaultSubtitle(
+                subtitles, language: preferences.subtitleLanguage, mode: preferences.subtitleMode,
+                audioLanguage: audio.first { $0.index == defaultAudio }?.language)
         let selectedAudio = overrides.audioTrack ?? defaultAudio
         let selectedSubtitle: Int? = overrides.subtitleTrack.map { $0 == ManualTrackOverrides.off ? nil : $0 }
             ?? defaultSubtitle.index

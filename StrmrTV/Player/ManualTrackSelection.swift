@@ -69,7 +69,7 @@ struct ManualTrackOverrides: Hashable {
 struct ManualTrackPreferences: Hashable {
     var audioLanguage = ""
     var subtitleLanguage = ""
-    /// `off`, `forced-only` or `on`.
+    /// `off`, `forced-only`, `foreign-audio` or `on`.
     var subtitleMode = "off"
     var allowedLanguages: [String] = []
     /// Settings › Playback › Audio Format is Lossless.
@@ -153,9 +153,14 @@ enum ManualTrackSelection {
     }
 
     /// The subtitle preselected (container index; nil = off) and whether the player would
-    /// search online for one instead.
-    static func defaultSubtitle(_ tracks: [ProbedSubtitleTrack], language: String,
-                                mode: String) -> (index: Int?, searchesOnline: Bool) {
+    /// search online for one instead. `audioLanguage` (the preselected audio's) resolves
+    /// `foreign-audio`.
+    static func defaultSubtitle(_ tracks: [ProbedSubtitleTrack], language: String, mode: String,
+                                audioLanguage: String? = nil) -> (index: Int?, searchesOnline: Bool) {
+        let mode = mode == ClientTrackSelector.foreignAudio
+            ? ClientTrackSelector.resolveMode(audioLanguage: audioLanguage, subtitleLanguage: language,
+                                              preferredAudio: nil)
+            : mode
         let lang = language.lowercased()
         if mode == "off" { return (nil, false) }
         guard !tracks.isEmpty else { return (nil, mode == "on" && !lang.isEmpty) }
@@ -234,8 +239,10 @@ enum ManualTrackSelection {
         var subtitlePick = server?.subtitle
         var textPick = server?.textSubtitle
         var mode = server?.subtitleMode
+        var modePreference = server?.subtitleModePreference
         var subtitleLanguage = server?.subtitleLanguage
         if let index = overrides.subtitleTrack {
+            modePreference = nil
             if index == ManualTrackOverrides.off {
                 subtitlePick = nil
                 textPick = nil
@@ -251,7 +258,7 @@ enum ManualTrackSelection {
         }
         return TrackSelection(audio: audioPick, subtitle: subtitlePick, textSubtitle: textPick,
                               audioLanguage: server?.audioLanguage, subtitleLanguage: subtitleLanguage,
-                              subtitleMode: mode)
+                              subtitleMode: mode, subtitleModePreference: modePreference)
     }
 
     private static func describe(index: Int, language: String?, codec: String?, title: String?, forced: Bool?,

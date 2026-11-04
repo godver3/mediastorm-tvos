@@ -19,7 +19,7 @@ final class TrackSettingsStore: ObservableObject {
         var translationEnabled: Bool?
     }
 
-    /// `off`, `forced-only` or `on`.
+    /// `off`, `forced-only`, `foreign-audio` or `on`.
     @Published var subtitleMode: String? { didSet { store(subtitleMode, Keys.mode) } }
     @Published var translation: Bool? { didSet { store(translation, Keys.translation) } }
     /// ISO 639-2 (`SubtitleSearchModel.Language.settingCode`).
@@ -84,6 +84,7 @@ final class TrackSettingsStore: ObservableObject {
         switch raw {
         case "auto": return "forced-only"
         case "always": return "on"
+        case "smart", "foreign": return ClientTrackSelector.foreignAudio
         case "": return "off"
         default: return raw
         }
