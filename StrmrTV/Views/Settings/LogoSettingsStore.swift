@@ -2,7 +2,7 @@ import SwiftUI
 
 /// How large titles' logos are drawn, against their usual size.
 enum LogoScale: Int, CaseIterable, Identifiable, Sendable {
-    case p25 = 25, p50 = 50, p75 = 75, p100 = 100, p125 = 125
+    case p25 = 25, p50 = 50, p75 = 75, p100 = 100, p125 = 125, p150 = 150
 
     var id: Int { rawValue }
     var label: String { "\(rawValue)%" }
