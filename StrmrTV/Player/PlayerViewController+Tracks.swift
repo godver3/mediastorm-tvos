@@ -75,26 +75,56 @@ extension PlayerViewController {
     /// AVPlayer) and Subtitles button (the engine's native renditions are off) with identically
     /// styled menus listing every track in the source. The audio checkmark follows the pick
     /// immediately and the engine's active track once it lands.
-    func rebuildTrackMenus(active: Int? = nil) {
-        let selected = pendingAudioPick ?? active ?? engine.activeAudioTrackIndex
-        let audioItems = audioTracks.map {
-            TrackMenuItem(id: $0.id, title: $0.audioMenuTitle, detail: $0.audioMenuDetail, isSelected: $0.id == selected)
+    ///
+    /// Startup publishes track lists, the active audio track, the server and subtitle picks in
+    /// a burst, and every `transportBarCustomMenuItems` assignment makes AVKit reload the
+    /// button row (recycling its cells, with AVKit's own Audio button coming and going as the
+    /// audio list fills), which showed as the buttons reshuffling until they settled. So the
+    /// menus stay back until the load's picks are in, a burst coalesces into one rebuild on
+    /// the next run-loop pass, and a rebuild that would change nothing is skipped.
+    func rebuildTrackMenus() {
+        guard trackMenusReady else {
+            // AVKit's own buttons stay hidden too, so the row fills in once, complete.
+            settingsHider.start(on: view, hiding: [TransportSettingsHider.legible, TransportSettingsHider.audible])
+            return
         }
-        let subtitleItems = subtitleMenuItems
+        guard !trackMenuRebuildQueued else { return }
+        trackMenuRebuildQueued = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            trackMenuRebuildQueued = false
+            // A rebuild queued as the player closes would restart the hider it stopped.
+            guard !didFinish else { return }
+            applyTrackMenus()
+        }
+    }
+
+    private func applyTrackMenus() {
+        let selected = pendingAudioPick ?? engine.activeAudioTrackIndex
+        let state = TrackMenuState(
+            audio: audioTracks.map {
+                TrackMenuItem(id: $0.id, title: $0.audioMenuTitle, detail: $0.audioMenuDetail, isSelected: $0.id == selected)
+            },
+            subtitles: subtitleMenuItems, subtitlesOff: activeSubtitle == nil, style: SubtitleStyleStore.shared.style,
+            canSearch: onlineSubtitles.searchAvailable, canTranslate: onlineSubtitles.translateAvailable,
+            speeds: engine.isLive ? nil : Self.speedChoices.filter { $0 <= engine.maxSupportedRate },
+            speed: playbackSpeed)
+        guard state != trackMenuState else { return }
+        trackMenuState = state
+
         var menus: [UIMenu] = []
         // Always audio, subtitles, settings (AVKit's own Audio button, shown for a single
         // track, is moved to the front by the hider).
-        if audioItems.count > 1 {
-            menus.append(NativeChrome.audioMenu(audioItems) { [weak self] id in self?.selectAudio(id) })
+        if state.audio.count > 1 {
+            menus.append(NativeChrome.audioMenu(state.audio) { [weak self] id in self?.selectAudio(id) })
         }
-        let canSearch = onlineSubtitles.searchAvailable
         var onSearch: (@MainActor () -> Void)?
-        if canSearch { onSearch = { [weak self] in self?.openSubtitleSearch() } }
+        if state.canSearch { onSearch = { [weak self] in self?.openSubtitleSearch() } }
         var onTranslate: (@MainActor () -> Void)?
-        if onlineSubtitles.translateAvailable { onTranslate = { [weak self] in self?.openSubtitleTranslate() } }
-        if !subtitleItems.isEmpty || canSearch {
+        if state.canTranslate { onTranslate = { [weak self] in self?.openSubtitleTranslate() } }
+        if !state.subtitles.isEmpty || state.canSearch {
             menus.append(NativeChrome.subtitleMenu(
-                subtitleItems, offSelected: activeSubtitle == nil, style: SubtitleStyleStore.shared.style,
+                state.subtitles, offSelected: state.subtitlesOff, style: state.style,
                 onSelect: { [weak self] id in
                     self?.userPickedSubtitle = true
                     self?.selectSubtitle(id, reason: "menu pick")
@@ -102,9 +132,8 @@ extension PlayerViewController {
                 onStyle: { style in SubtitleStyleStore.shared.style = style },
                 onSearch: onSearch, onTranslate: onTranslate))
         }
-        if !engine.isLive {
-            let speeds = Self.speedChoices.filter { $0 <= engine.maxSupportedRate }
-            menus.append(NativeChrome.settingsMenu(speeds: speeds, current: playbackSpeed,
+        if let speeds = state.speeds {
+            menus.append(NativeChrome.settingsMenu(speeds: speeds, current: state.speed,
                                                    extra: [switchSourceAction()]) { [weak self] speed in
                 self?.selectSpeed(speed)
             })
@@ -113,7 +142,7 @@ extension PlayerViewController {
         softwareHUD.setMenus(menus)
         // AVKit's Subtitles button would offer the legible group, which these sessions don't use.
         var hidden: Set<String> = [TransportSettingsHider.legible]
-        if audioItems.count > 1 { hidden.insert(TransportSettingsHider.audible) }
+        if state.audio.count > 1 { hidden.insert(TransportSettingsHider.audible) }
         settingsHider.start(on: view, hiding: hidden)
     }
 
@@ -179,4 +208,17 @@ extension PlayerViewController {
             fail("Couldn't switch audio: \(error.localizedDescription)")
         }
     }
+}
+
+/// Everything the transport-bar menus show; equal states build identical menus.
+struct TrackMenuState: Equatable {
+    let audio: [TrackMenuItem]
+    let subtitles: [TrackMenuItem]
+    let subtitlesOff: Bool
+    let style: SubtitleStyle
+    let canSearch: Bool
+    let canTranslate: Bool
+    /// Nil on live, which has no settings menu.
+    let speeds: [Float]?
+    let speed: Float
 }

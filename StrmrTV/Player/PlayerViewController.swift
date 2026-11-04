@@ -92,6 +92,11 @@ final class PlayerViewController: EnginePlayerViewController {
     var audioTracks: [TrackInfo] = []
     var pendingAudioPick: Int?
     var audioPickTask: Task<Void, Never>?
+    /// Transport-bar menus: held back until the load's track picks are in, then rebuilt at
+    /// most once per run-loop pass and only when their contents change.
+    var trackMenusReady = false
+    var trackMenuRebuildQueued = false
+    var trackMenuState: TrackMenuState?
 
     init(engine: AetherEngine, request: PlaybackRequest, url: URL, streamPath: String,
          tracks: TrackPreferences, previewsEnabled: Bool) {
@@ -145,6 +150,8 @@ final class PlayerViewController: EnginePlayerViewController {
                 engine.play()
                 startProgressTimer()
                 await applySubtitlePick()
+                trackMenusReady = true
+                rebuildTrackMenus()
                 startAutoSubtitleSearch()
             } catch is CancellationError {
                 return
@@ -238,7 +245,7 @@ final class PlayerViewController: EnginePlayerViewController {
                     pendingAudioPick = nil
                     audioPickTask?.cancel()
                 }
-                rebuildTrackMenus(active: active)
+                rebuildTrackMenus()
             }
             .store(in: &cancellables)
 
