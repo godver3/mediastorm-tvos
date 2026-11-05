@@ -67,7 +67,8 @@ struct LiveGuideView: View {
                 .padding(.vertical, 12)
             }
             .scrollClipDisabled(false)
-            .background(alignment: .topLeading) { nowLine }
+            // The rows scroll on under the bottom safe area, so the line runs on to the screen's edge.
+            .background(alignment: .topLeading) { nowLine.ignoresSafeArea(edges: .bottom) }
             .onMoveCommand(perform: move)
             .liveContentFocus($focus, request: $request, memory: $store.focusMemory, match: match, onExit: onExit)
         }
@@ -79,12 +80,16 @@ struct LiveGuideView: View {
         }
     }
 
+    /// The brand yellow, as on Android TV (the app sets no accent colour, so tvOS's is white).
+    static let nowLineColor = Color(red: 0xF5 / 255, green: 0xB4 / 255, blue: 0)
+
     /// Behind the cells: the unfocused ones are translucent, the focused one covers it.
     @ViewBuilder private var nowLine: some View {
         if now >= windowStart, now < windowEnd {
             Rectangle()
-                .fill(Color.accentColor)
+                .fill(Self.nowLineColor)
                 .frame(width: 3)
+                .frame(maxHeight: .infinity)
                 .offset(x: CardGridLayout.inset + Self.channelWidth + now.timeIntervalSince(windowStart) * scale - 1.5)
                 .allowsHitTesting(false)
         }
