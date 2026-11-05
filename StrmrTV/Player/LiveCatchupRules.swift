@@ -19,6 +19,35 @@ enum LiveCatchupRules {
         case nothing
     }
 
+    /// Where a seek on the programme bar lands.
+    enum Decision: Equatable {
+        case live
+        /// Inside what the player holds (the timeshift window, or the archive playing).
+        case inPlayer(Date)
+        case archive(EPGProgram, position: TimeInterval)
+        case nothing
+    }
+
+    /// A seek to `date`: in place when the player holds it (`loaded`; live near its edge), else
+    /// the archive there, or live when that is within `minimumBehind`. A rewind past what the
+    /// player holds goes at least `minimumBehind` back (`rewindTarget`), so one press from a
+    /// fresh tune reaches the archive rather than counting as live.
+    static func decide(_ date: Date, now: Date, loaded: ClosedRange<Date>?, programs: [EPGProgram],
+                       archiveWindow: TimeInterval) -> Decision {
+        var date = date
+        if let loaded, loaded.contains(date) { return now.timeIntervalSince(date) <= atLive ? .live : .inPlayer(date) }
+        if loaded.map({ date < $0.lowerBound }) ?? true, date < now {
+            date = rewindTarget(date, now: now)
+        } else if now.timeIntervalSince(date) <= atLive {
+            return .live
+        }
+        switch seek(to: date, now: now, programs: programs, archiveWindow: archiveWindow) {
+        case .live: return .live
+        case let .archive(program, position): return .archive(program, position: position)
+        case .nothing: return .nothing
+        }
+    }
+
     /// The programme airing at `date`: the last one to start at or before it that hasn't stopped.
     static func program(at date: Date, in programs: [EPGProgram]) -> EPGProgram? {
         programs.last { $0.start <= date && date < $0.stop }
@@ -30,6 +59,13 @@ enum LiveCatchupRules {
         if behind > archiveWindow { return .nothing }
         guard let program = program(at: date, in: programs) else { return .nothing }
         return .archive(program, position: date.timeIntervalSince(program.start))
+    }
+
+    /// A rewind past what the player holds (the start of the timeshift window, or a tune without
+    /// one), asked for at `date`: at least `minimumBehind` back, so it opens the archive even when
+    /// the window holds only a few seconds (a fresh tune) rather than counting as live.
+    static func rewindTarget(_ date: Date, now: Date) -> Date {
+        min(date, now.addingTimeInterval(-minimumBehind))
     }
 
     /// An archive played to its end at `playhead` (it ran up to what had aired when it was asked

@@ -76,7 +76,7 @@ extension LivePlayerViewController {
         let paused: Bool
         if case .paused = engine.state { paused = true } else { paused = false }
         let behind = inCatchupArchive ? Date().timeIntervalSince(catchupPlayhead) : engine.clock.behindLiveSeconds
-        let shown = pausable && softwareSurfaceMounted && (paused || behind > LiveTimeshiftStatusView.atLiveSeconds)
+        let shown = pausable && softwareSurfaceMounted && !usesProgrammeBar && (paused || behind > LiveTimeshiftStatusView.atLiveSeconds)
         timeshiftStatus.isHidden = !shown
         if shown {
             timeshiftStatus.update(paused: paused, behindSeconds: behind)

@@ -5,13 +5,17 @@ import UIKit
 /// look the same: a thin full-width bar, elapsed time (with a pause glyph while paused) under its
 /// leading end and the time remaining under its trailing end, and the menu buttons in a row above
 /// the trailing end that Up focuses. Down opens the Info card; the Skip Intro / Next Episode
-/// capsule sits above the row.
+/// capsule sits above the row. A live programme (`setLive`) also shades what has aired past the
+/// playhead and shows a LIVE / behind-live pill before the time remaining.
 final class SoftwareTransportHUD: UIView {
     private let scrim = CAGradientLayer()
     /// Everything that fades in and out with the bar.
     private let chrome = UIView()
     private let track = UIView()
+    private let aired = UIView()
     private let fill = UIView()
+    private let livePill = UILabel()
+    private var airedFraction: CGFloat?
     private let playhead = UIView()
     private let elapsedLabel = UILabel()
     private let pauseGlyph = UIImageView(image: UIImage(systemName: "pause.circle"))
@@ -55,7 +59,10 @@ final class SoftwareTransportHUD: UIView {
         track.layer.cornerRadius = 5
         track.clipsToBounds = true
         fill.backgroundColor = UIColor.white.withAlphaComponent(0.5)
+        aired.backgroundColor = UIColor.white.withAlphaComponent(0.14)
+        aired.isHidden = true
         playhead.backgroundColor = .white
+        track.addSubview(aired)
         track.addSubview(fill)
         track.addSubview(playhead)
         for label in [elapsedLabel, remainingLabel] {
@@ -63,6 +70,12 @@ final class SoftwareTransportHUD: UIView {
             label.textColor = .white
         }
         remainingLabel.textAlignment = .right
+        livePill.font = .systemFont(ofSize: 20, weight: .bold)
+        livePill.textAlignment = .center
+        livePill.layer.cornerRadius = 6
+        livePill.layer.cornerCurve = .continuous
+        livePill.clipsToBounds = true
+        livePill.isHidden = true
         pauseGlyph.tintColor = .white
         pauseGlyph.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 26, weight: .medium)
         pauseGlyph.isHidden = true
@@ -73,7 +86,7 @@ final class SoftwareTransportHUD: UIView {
 
         info.alpha = 0
         preview.alpha = 0
-        for view in [track, elapsed, remainingLabel, buttonRow, info] as [UIView] {
+        for view in [track, elapsed, remainingLabel, livePill, buttonRow, info] as [UIView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             chrome.addSubview(view)
         }
@@ -91,6 +104,9 @@ final class SoftwareTransportHUD: UIView {
             elapsed.topAnchor.constraint(equalTo: track.bottomAnchor, constant: 10),
             remainingLabel.trailingAnchor.constraint(equalTo: track.trailingAnchor),
             remainingLabel.centerYAnchor.constraint(equalTo: elapsedLabel.centerYAnchor),
+            livePill.trailingAnchor.constraint(equalTo: remainingLabel.leadingAnchor, constant: -16),
+            livePill.centerYAnchor.constraint(equalTo: remainingLabel.centerYAnchor),
+            livePill.heightAnchor.constraint(equalToConstant: 32),
             buttonRow.trailingAnchor.constraint(equalTo: track.trailingAnchor),
             buttonRow.bottomAnchor.constraint(equalTo: track.topAnchor, constant: -39),
             info.leadingAnchor.constraint(equalTo: track.leadingAnchor),
@@ -107,6 +123,7 @@ final class SoftwareTransportHUD: UIView {
         scrim.frame = bounds
         let width = track.bounds.width * fraction
         fill.frame = CGRect(x: 0, y: 0, width: width, height: track.bounds.height)
+        aired.frame = CGRect(x: 0, y: 0, width: track.bounds.width * (airedFraction ?? 0), height: track.bounds.height)
         playhead.frame = CGRect(x: max(0, width - 2), y: 0, width: 2, height: track.bounds.height)
         layoutPreview()
     }
@@ -126,6 +143,8 @@ final class SoftwareTransportHUD: UIView {
 
     func setArtwork(_ image: UIImage) { info.setArtwork(image) }
 
+    func setTitle(_ title: String, subtitle: String?) { info.setTitle(title, subtitle: subtitle) }
+
     func setDetails(_ text: String?) { info.setDetails(text) }
 
     /// Down on the bar: the Info card, as AVKit's Info tab. Up, Down or Menu closes it.
@@ -140,17 +159,17 @@ final class SoftwareTransportHUD: UIView {
 
     // MARK: Menus and the Skip capsule
 
-    /// The same menus AVKit's bar shows on the hardware route. Rebuilt menus replace the
-    /// buttons' menus in place, so a focused button keeps its focus.
-    func setMenus(_ menus: [UIMenu]) {
+    /// The same items AVKit's bar shows on the hardware route: menus, or actions (Start Over).
+    /// Rebuilt items replace the buttons' in place, so a focused button keeps its focus.
+    func setMenus(_ menus: [UIMenuElement]) {
         let buttons = buttonRow.arrangedSubviews.compactMap { $0 as? TransportMenuButton }
         if buttons.count == menus.count {
-            zip(buttons, menus).forEach { $0.setMenu($1) }
+            zip(buttons, menus).forEach { $0.setElement($1) }
             return
         }
         buttons.forEach { $0.removeFromSuperview() }
         for menu in menus {
-            let button = TransportMenuButton(menu: menu)
+            let button = TransportMenuButton(element: menu)
             button.focusable = { [weak self] in self?.rowFocused ?? false }
             buttonRow.addArrangedSubview(button)
         }
@@ -209,10 +228,11 @@ final class SoftwareTransportHUD: UIView {
 
     /// Shows the seek target's thumbnail (if any) above the bar at `time`. A nil image keeps the
     /// previous one until the next arrives; with no thumbnails at all only the target time is shown.
-    func showPreview(time: Double, duration: Double, image: UIImage?, hasThumbnails: Bool) {
+    /// `label` replaces the time shown (a live programme shows the time of day).
+    func showPreview(time: Double, duration: Double, image: UIImage?, hasThumbnails: Bool, label: String? = nil) {
         guard duration > 0 else { return }
         previewFraction = CGFloat(min(max(time / duration, 0), 1))
-        preview.set(time: Self.clock(time), image: image, showsImage: hasThumbnails)
+        preview.set(time: label ?? Self.clock(time), image: image, showsImage: hasThumbnails)
         setNeedsLayout()
         layoutIfNeeded()
         guard preview.alpha < 1 else { return }
@@ -256,6 +276,23 @@ final class SoftwareTransportHUD: UIView {
             self.paused = paused
             if paused { flash() }
         }
+    }
+
+    /// A live programme: what has aired so far (a fraction of the bar, past the playhead when
+    /// behind live), and the pill before the time remaining: LIVE at the edge, else how far
+    /// behind. Nil clears both (a VOD title).
+    func setLive(airedFraction: Double?, behind: Double?) {
+        self.airedFraction = airedFraction.map { CGFloat(min(max($0, 0), 1)) }
+        aired.isHidden = airedFraction == nil
+        livePill.isHidden = behind == nil
+        if let behind {
+            let atLive = behind <= LiveTimeshiftStatusView.atLiveSeconds
+            livePill.text = atLive ? "  " + String(localized: "LIVE") + "  "
+                : "  " + String(localized: "\(LiveTimeshiftStatusView.clock(behind)) behind") + "  "
+            livePill.backgroundColor = atLive ? .systemRed : UIColor.white.withAlphaComponent(0.2)
+            livePill.textColor = .white
+        }
+        setNeedsLayout()
     }
 
     /// AVKit's clock: "00:04", "1:02:03".

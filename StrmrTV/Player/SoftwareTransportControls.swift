@@ -44,25 +44,36 @@ class TransportGlassButton: UIButton {
     }
 }
 
-/// One of AVKit's round transport buttons, opening `menu` (Audio, Subtitles, Settings).
+/// One of AVKit's round transport buttons: opening a menu (Audio, Subtitles, Settings), or
+/// running an action (a live channel's Start Over, Go Live).
 final class TransportMenuButton: TransportGlassButton {
     static let size: CGFloat = 70
+    private var action: UIAction?
 
-    init(menu: UIMenu) {
+    init(element: UIMenuElement) {
         super.init()
-        showsMenuAsPrimaryAction = true
-        setMenu(menu)
+        setElement(element)
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: Self.size),
             heightAnchor.constraint(equalToConstant: Self.size),
         ])
     }
 
-    func setMenu(_ menu: UIMenu) {
-        self.menu = menu
-        accessibilityLabel = menu.title
+    func setElement(_ element: UIMenuElement) {
+        if let action { removeAction(action, for: .primaryActionTriggered) }
+        action = nil
+        if let menu = element as? UIMenu {
+            self.menu = menu
+            showsMenuAsPrimaryAction = true
+        } else if let item = element as? UIAction {
+            menu = nil
+            showsMenuAsPrimaryAction = false
+            action = item
+            addAction(item, for: .primaryActionTriggered)
+        }
+        accessibilityLabel = element.title
         let symbol = UIImage.SymbolConfiguration(pointSize: 26, weight: .semibold)
-        setImage(menu.image?.withConfiguration(symbol), for: .normal)
+        setImage(element.image?.withConfiguration(symbol), for: .normal)
     }
 }
 
@@ -152,6 +163,12 @@ final class TransportInfoCard: UIView {
     func setArtwork(_ image: UIImage) {
         artwork.image = image
         artwork.isHidden = false
+    }
+
+    func setTitle(_ title: String, subtitle: String?) {
+        titleLabel.text = title
+        subtitleLabel.text = subtitle
+        subtitleLabel.isHidden = subtitle?.isEmpty ?? true
     }
 
     func setDetails(_ text: String?) {

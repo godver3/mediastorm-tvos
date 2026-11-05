@@ -1,5 +1,4 @@
 import AetherEngine
-import AVKit
 import UIKit
 
 /// The provider's archive playing in place of the channel.
@@ -9,27 +8,32 @@ struct LiveCatchupArchive {
     let start: Date
     /// Where playback started in the file.
     let firstPosition: TimeInterval
+    /// Its first frame is up; until then the engine's clock is the previous session's.
+    var started = false
 }
 
-/// Rewind into the provider's catch-up from a live channel that has it. Rewinding past what the
-/// player holds (the start of the engine's timeshift window, or anything on a tune without one)
-/// plays the provider's archive of the programme at that point instead; Start Over plays it from
-/// the programme's start. The archive is always asked for from the programme's start, so AVKit's
-/// bar spans the programme up to what had aired, and playback starts at the point wanted. The
-/// channel's session is stopped meanwhile (a provider may allow one connection). An archive runs
-/// up to when it was asked for, so at its end a fresh one carries on from there, into the next
-/// programme when this one has ended; Go Live (or catching up with the edge) tunes the channel.
+/// Rewind into the provider's catch-up from a live channel that has it. A seek on the programme
+/// bar (`+ProgrammeBar`) past what the player holds (the engine's timeshift window, or anything
+/// on a tune without one) plays the provider's archive of the programme at that point instead;
+/// Start Over plays it from the programme's start. The archive is always asked for from the
+/// programme's start, and playback starts at the point wanted. The channel's session is stopped
+/// meanwhile (a provider may allow one connection). An archive runs up to when it was asked for,
+/// so at its end a fresh one carries on from there, into the next programme when this one has
+/// ended; Go Live (or catching up with the edge) tunes the channel.
 extension LivePlayerViewController {
     var inCatchupArchive: Bool { catchupArchive != nil }
 
     func hideCover() {
         cover.isHidden = true
         cover.show(note: nil)
+        if usesProgrammeBar { scrub.hud.flash() }
     }
 
     /// The playhead as a wall-clock date: the archive's point, or now less how far behind live.
     var catchupPlayhead: Date {
-        if let archive = catchupArchive { return archive.start.addingTimeInterval(engine.clock.currentTime) }
+        if let archive = catchupArchive {
+            return archive.start.addingTimeInterval(archive.started ? engine.clock.currentTime : archive.firstPosition)
+        }
         return Date().addingTimeInterval(-(timeshifting ? engine.clock.behindLiveSeconds : 0))
     }
 
@@ -37,7 +41,6 @@ extension LivePlayerViewController {
     /// archive is asked for by.
     func startCatchupSchedule() {
         guard let window = channel.catchupWindow else { return }
-        delegate = self
         catchupScheduleTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.loadCatchupSchedule(window: window)
@@ -52,26 +55,10 @@ extension LivePlayerViewController {
             let programs = try await api.epgSchedule([channel.guideKey], startOffsetMinutes: -back, hours: back / 60 + 4)
             catchupPrograms = (programs[channel.guideKey] ?? []).filter { $0.stop > $0.start }.sorted { $0.start < $1.start }
             log.info("catch-up: \(self.catchupPrograms.count) programmes in the guide")
-            rebuildSubtitleMenu()
+            refreshProgrammeBar()
         } catch {
             log.error("catch-up: schedule failed: \(error.localizedDescription)")
         }
-    }
-
-    /// The transport bar's Start Over and Go Live.
-    func catchupMenuItems() -> [UIMenuElement] {
-        guard channel.catchupWindow != nil, !catchupPrograms.isEmpty else { return [] }
-        var items: [UIMenuElement] = [
-            UIAction(title: String(localized: "Start Over"), image: UIImage(systemName: "gobackward")) { [weak self] _ in
-                self?.startOver()
-            },
-        ]
-        if inCatchupArchive {
-            items.append(UIAction(title: String(localized: "Go Live"), image: UIImage(systemName: "forward.end")) { [weak self] _ in
-                self?.catchupGoLive()
-            })
-        }
-        return items
     }
 
     /// The programme at the playhead from its start.
@@ -81,19 +68,6 @@ extension LivePlayerViewController {
             return
         }
         openCatchup(program, position: 0)
-    }
-
-    /// A rewind to `date`: the archive there, live when it is now, else nothing.
-    @discardableResult
-    func rewindIntoCatchup(to date: Date) -> Bool {
-        guard let window = channel.catchupWindow else { return false }
-        switch LiveCatchupRules.seek(to: date, now: Date(), programs: catchupPrograms, archiveWindow: window) {
-        case let .archive(program, position):
-            openCatchup(program, position: position)
-            return true
-        case .live, .nothing:
-            return false
-        }
     }
 
     func openCatchup(_ program: EPGProgram, position: TimeInterval) {
@@ -115,7 +89,6 @@ extension LivePlayerViewController {
                 timeshiftWindow = nil
                 applyTimeshiftMode()
                 setInfoPanel(title: program.title, subtitle: channel.name, description: program.description)
-                rebuildSubtitleMenu()
                 log.info("catch-up: archive from \(archive.offsetSeconds)s for \(archive.durationSeconds)s, starting at \(Int(first))s")
                 _ = try await engine.load(url: api.catchupStreamURL(archive, channel: channel, program: program),
                                           startPosition: first, options: baseLoadOptions())
@@ -141,6 +114,9 @@ extension LivePlayerViewController {
         log.notice("catch-up: back to live from \(Int(Date().timeIntervalSince(self.catchupPlayhead)))s behind")
         catchupArchive = nil
         retuneCount = 0
+        // A fresh engine session: loaded straight over the archive, the live window carried the
+        // archive's length into its edge (the bar read half an hour behind at the live edge).
+        engine.stop()
         setInfoPanel(title: program?.title ?? channel.name, subtitle: program == nil ? nil : channel.name,
                      description: program?.description)
         tune()
@@ -160,40 +136,5 @@ extension LivePlayerViewController {
             catchupGoLive()
         }
     }
-
-    /// On the software route: the archive's Play/Pause, Left / Right (10 s) and Up (live), and
-    /// Left at the start of the timeshift window (or on a tune without one) into the archive.
-    func handleCatchupPress(_ presses: Set<UIPress>) -> Bool {
-        guard softwareSurfaceMounted, channel.catchupWindow != nil, let press = presses.first?.type else { return false }
-        if inCatchupArchive {
-            switch press {
-            case .playPause: engine.togglePlayPause()
-            case .leftArrow, .rightArrow:
-                let step: TimeInterval = press == .leftArrow ? -10 : 10
-                let target = min(max(0, engine.clock.currentTime + step), max(0, engine.duration - 1))
-                Task { await engine.seek(to: target) }
-            case .upArrow: catchupGoLive()
-            default: return false
-            }
-            return true
-        }
-        guard press == .leftArrow else { return false }
-        if timeshifting, let range = engine.clock.seekableLiveRange,
-           engine.clock.currentTime - 10 > range.lowerBound + 2 { return false }
-        return rewindIntoCatchup(to: catchupPlayhead.addingTimeInterval(-10))
-    }
 }
 
-extension LivePlayerViewController: @MainActor AVPlayerViewControllerDelegate {
-    /// AVKit's scrubber or skip reaching the start of the timeshift window: on back into the
-    /// provider's archive from there.
-    func playerViewController(_ playerViewController: AVPlayerViewController,
-                              timeToSeekAfterUserNavigatedFrom oldTime: CMTime, to targetTime: CMTime) -> CMTime {
-        guard timeshifting, !inCatchupArchive, oldTime.isNumeric, targetTime.isNumeric,
-              let range = player?.currentItem?.seekableTimeRanges.last?.timeRangeValue,
-              targetTime.seconds <= range.start.seconds + 3 else { return targetTime }
-        let date = catchupPlayhead.addingTimeInterval(min(targetTime.seconds - oldTime.seconds, -10))
-        log.info("catch-up: rewind to the window's start (\(Int(targetTime.seconds - oldTime.seconds))s)")
-        return rewindIntoCatchup(to: date) ? oldTime : targetTime
-    }
-}

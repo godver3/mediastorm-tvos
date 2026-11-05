@@ -48,4 +48,30 @@ final class LiveCatchupRulesTests: XCTestCase {
         XCTAssertEqual(LiveCatchupRules.continueAfter(playhead: now.addingTimeInterval(-600), played: 1, now: now,
                                                       programs: programs, archiveWindow: week), .live)
     }
+
+    func testRewindFromAFreshTuneReachesAMinuteBack() {
+        let now = Date(timeIntervalSince1970: 1_793_824_200)
+        let near = now.addingTimeInterval(-10)
+        XCTAssertEqual(LiveCatchupRules.rewindTarget(near, now: now), now.addingTimeInterval(-LiveCatchupRules.minimumBehind))
+        let far = now.addingTimeInterval(-600)
+        XCTAssertEqual(LiveCatchupRules.rewindTarget(far, now: now), far)
+    }
+
+    func testBarSeekInPlaceInArchiveOrLive() {
+        let window = now.addingTimeInterval(-300)...now
+        XCTAssertEqual(LiveCatchupRules.decide(now.addingTimeInterval(-5), now: now, loaded: window, programs: programs,
+                                               archiveWindow: week), .live)
+        let inWindow = now.addingTimeInterval(-120)
+        XCTAssertEqual(LiveCatchupRules.decide(inWindow, now: now, loaded: window, programs: programs, archiveWindow: week),
+                       .inPlayer(inWindow))
+        XCTAssertEqual(LiveCatchupRules.decide(now.addingTimeInterval(-25 * 60), now: now, loaded: window, programs: programs,
+                                               archiveWindow: week), .archive(programs[2], position: 5 * 60))
+        // One press back from a fresh tune (nothing held): a minute back, into the archive.
+        XCTAssertEqual(LiveCatchupRules.decide(now.addingTimeInterval(-10), now: now, loaded: nil, programs: programs,
+                                               archiveWindow: week), .archive(programs[2], position: 29 * 60))
+        // Forward past the archive's end, close to now: live.
+        let archive = now.addingTimeInterval(-20 * 60)...now.addingTimeInterval(-10 * 60)
+        XCTAssertEqual(LiveCatchupRules.decide(now.addingTimeInterval(-30), now: now, loaded: archive, programs: programs,
+                                               archiveWindow: week), .live)
+    }
 }

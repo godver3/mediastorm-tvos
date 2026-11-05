@@ -89,6 +89,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var catchupArchive: LiveCatchupArchive?
     var catchupTask: Task<Void, Never>?
     var catchupScheduleTask: Task<Void, Never>?
+    lazy var scrub = LiveProgrammeScrub(channel: channel)
 
     /// The menu entry for the server's captions; clear of every engine id.
     static let serverCaptionsID = -608
@@ -115,6 +116,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         startCatchupSchedule()
         Self.fill(cover, in: view)
         view.addSubview(cover)
+        installProgrammeBar()
         bindEngine()
         telemetry.onDistress = { [weak self] in self?.noteHLSProofDistress($0) }
         telemetry.start()
@@ -242,10 +244,9 @@ final class LivePlayerViewController: EnginePlayerViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] ready in
                 guard ready, let self else { return }
-                if inCatchupArchive { return hideCover() }
+                hideCover()
+                if inCatchupArchive { catchupArchive?.started = true; return }
                 log.info("first frame (route \(self.engine.videoRoute.rawValue))")
-                cover.isHidden = true
-                cover.show(note: nil)
                 tunePlayed = true
                 directStartTimer?.invalidate()
                 startRetuneRecovery()
@@ -319,6 +320,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
 
     private func setSoftwareSurface(mounted: Bool) {
         guard mountSoftwareSurface(mounted) else { return }
+        if usesProgrammeBar { showsPlaybackControls = false }
         mountSubtitleOverlay()
         updateTimeshiftStatus()
     }
@@ -329,12 +331,13 @@ final class LivePlayerViewController: EnginePlayerViewController {
             dismiss(animated: true)
             return
         }
+        if handleProgrammeBarPress(presses) { return }
         // Nor is there a transport bar for the Subtitles menu: Select opens it instead.
         if softwareSurfaceMounted, presses.contains(where: { $0.type == .select }), !subtitleChoices.isEmpty {
             presentSubtitlePicker()
             return
         }
-        if handleCatchupPress(presses) || handleTimeshiftPress(presses) { return }
+        if handleTimeshiftPress(presses) { return }
         if presses.contains(where: { $0.type == .playPause }), !pausable { return }
         super.pressesBegan(presses, with: event)
     }
@@ -381,6 +384,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
         failoverTask?.cancel()
         catchupTask?.cancel()
         catchupScheduleTask?.cancel()
+        stopProgrammeBar()
         hlsProofTimer?.invalidate()
         directStartTimer?.invalidate()
         retuneRecoveryTimer?.invalidate()
