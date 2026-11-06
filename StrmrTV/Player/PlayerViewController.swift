@@ -173,118 +173,6 @@ final class PlayerViewController: EnginePlayerViewController {
         return options
     }
 
-    // MARK: Engine binding
-
-    private func bindEngine() {
-        engine.$videoRoute
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] route in self?.setSoftwareSurface(mounted: route == .software) }
-            .store(in: &cancellables)
-
-        engine.clock.$currentTime
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] time in
-                guard let self else { return }
-                noteProgress(time)
-                updateSkipAction(at: time)
-                prefetchNextIfNear(time)
-                guard softwareSurfaceMounted else { return }
-                softwareHUD.update(position: scrubTarget ?? time, duration: engine.duration,
-                                   paused: engine.state == .paused)
-            }
-            .store(in: &cancellables)
-
-        // Both routes: the overlay draws the engine's cues against the frame on screen.
-        engine.$subtitleCues
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] cues in
-                // The online track's cues are the app's own; the engine has none selected then.
-                guard let self, activeSubtitle != OnlineSubtitles.trackID else { return }
-                subtitleOverlay.setCues(cues)
-            }
-            .store(in: &cancellables)
-        // The device's subtitle style (Settings, or the subtitle menu's Style picks), live.
-        SubtitleStyleStore.shared.$style
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] style in
-                guard let self else { return }
-                subtitleOverlay.style = style
-                if !subtitleTracks.isEmpty { rebuildTrackMenus() }
-            }
-            .store(in: &cancellables)
-        engine.clock.$sourceTime
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] time in
-                guard let self, subtitleOverlay.superview != nil else { return }
-                subtitleOverlay.update(sourceTime: time)
-            }
-            .store(in: &cancellables)
-
-        // Audio: the engine serves only the active track to AVPlayer, so AVKit's own audio
-        // list has one entry. A transport-bar menu lists every track in the source.
-        engine.$audioTracks
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] tracks in
-                self?.audioTracks = tracks
-                self?.rebuildTrackMenus()
-            }
-            .store(in: &cancellables)
-        engine.$subtitleTracks
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] tracks in
-                self?.subtitleTracks = tracks
-                self?.rebuildTrackMenus()
-            }
-            .store(in: &cancellables)
-        engine.$activeAudioTrackIndex
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] active in
-                guard let self else { return }
-                if let pending = pendingAudioPick, pending == active {
-                    log.info("audio switch to stream \(pending) confirmed")
-                    pendingAudioPick = nil
-                    audioPickTask?.cancel()
-                }
-                rebuildTrackMenus()
-            }
-            .store(in: &cancellables)
-
-        engine.$state
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in self?.handleStateChange(state) }
-            .store(in: &cancellables)
-    }
-
-    /// The software route also gets its own HUD (and scrub previews) and the subtitle overlay
-    /// above its surface; the native route's overlay goes back in AVKit's content overlay.
-    private func setSoftwareSurface(mounted: Bool) {
-        guard mountSoftwareSurface(mounted) else { return }
-        if mounted {
-            softwareHUD.onFocusChange = { [weak self] in
-                self?.setNeedsFocusUpdate()
-                self?.updateFocusIfNeeded()
-            }
-            Self.fill(softwareHUD, in: view)
-            Self.fill(subtitleOverlay, in: overlayHost)
-            overlayHost.insertSubview(subtitleOverlay, aboveSubview: softwareSurface)
-            view.addSubview(softwareHUD)
-            softwareHUD.flash()
-            startThumbnails()
-        } else {
-            subtitleOverlay.removeFromSuperview()
-            softwareHUD.removeFromSuperview()
-            if !didFinish { mountSubtitleOverlay() }
-        }
-    }
-
-    /// The engine loaded the server's audio pick by container stream index; confirm it against
-    /// the engine's track list (typeIndex, then language + languageIndex) and switch if needed.
-    private func applyServerAudioPick() {
-        guard let id = tracks.audioTrackID(in: engine.audioTracks), id != engine.activeAudioTrackIndex else { return }
-        log.info("server audio pick: switching to stream \(id)")
-        engine.selectAudioTrack(index: id)
-    }
-
     /// The software route's HUD takes focus for its menu row and Skip capsule.
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
         softwareSurfaceMounted && softwareHUD.wantsFocus ? [softwareHUD] : super.preferredFocusEnvironments
@@ -330,7 +218,7 @@ final class PlayerViewController: EnginePlayerViewController {
         dismiss(animated: true)
     }
 
-    private func handleStateChange(_ state: PlaybackState) {
+    func handleStateChange(_ state: PlaybackState) {
         // While backgrounded the engine's own suspension policy may tear the item down;
         // nothing it reports then is the user's playback (we leave on return anyway).
         guard !isInBackground, !didFinish, !isExitingToDetails else { return }
