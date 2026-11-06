@@ -31,7 +31,8 @@ final class LiveHLSPreferenceTests: XCTestCase {
 
     func testResetClearsOlderBuildsJoinChoice() {
         UserDefaults.standard.set("standard", forKey: "live.joinPreference.v1:a:1")
-        XCTAssertEqual(LiveHLSPreference.resetAll(), 1)
+        // Cleared, but not counted: the reset reports only sources remembered as needing HLS.
+        XCTAssertEqual(LiveHLSPreference.resetAll(), 0)
         XCTAssertNil(UserDefaults.standard.string(forKey: "live.joinPreference.v1:a:1"))
     }
 
