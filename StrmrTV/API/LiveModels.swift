@@ -79,8 +79,15 @@ struct EPGProgram: Decodable, Hashable {
     let icon: String?
     let categories: [String]?
     let episode: String?
+    /// The guide flags a first airing (XMLTV <new/>, <premiere> or <live/>) or a rerun
+    /// (<previously-shown>). Most guides set neither.
+    let isNew: Bool
+    let isRerun: Bool
 
-    private enum CodingKeys: String, CodingKey { case title, description, start, stop, icon, categories, episode }
+    private enum CodingKeys: String, CodingKey {
+        case title, description, start, stop, icon, categories, episode
+        case isNew = "new", isRerun = "previouslyShown"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -91,6 +98,8 @@ struct EPGProgram: Decodable, Hashable {
         icon = try c.decodeIfPresent(String.self, forKey: .icon)
         categories = try c.decodeIfPresent([String].self, forKey: .categories)
         episode = try c.decodeIfPresent(String.self, forKey: .episode)
+        isNew = try c.decodeIfPresent(Bool.self, forKey: .isNew) ?? false
+        isRerun = try c.decodeIfPresent(Bool.self, forKey: .isRerun) ?? false
     }
 
     /// RFC 3339, with or without fractional seconds.

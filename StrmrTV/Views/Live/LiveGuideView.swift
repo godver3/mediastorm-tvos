@@ -274,6 +274,7 @@ private struct GuideCellLabel: View {
                     Image(systemName: "chevron.left").font(.caption2.weight(.bold))
                 }
                 if let recording { LiveRecordingBadge(recording: recording) }
+                if cell.program?.isNew == true { NewAiringTag() }
                 Text(cell.program?.title ?? String(localized: "No Information"))
                     .font(.callout.weight(.semibold))
                     .lineLimit(1)

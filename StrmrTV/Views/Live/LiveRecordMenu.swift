@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The long-press recording actions on a guide programme that hasn't ended (Expo's TV
 /// programme menu): Stop / Cancel the recording that covers it, else Record (on now) or
-/// Record Once (later); then Record Series, every airing of the title on this channel.
+/// Record Once (later); then Record Series, every airing of the title on this channel, or only
+/// the airings the guide doesn't flag as reruns.
 struct LiveProgramRecordMenu: View {
     let channel: LiveChannel
     let program: EPGProgram
@@ -27,6 +28,11 @@ struct LiveProgramRecordMenu: View {
             store.recordSeries(program, on: channel)
         } label: {
             Label("Record Series", systemImage: "repeat.circle")
+        }
+        Button {
+            store.recordSeries(program, on: channel, newOnly: true)
+        } label: {
+            Label("Record New Episodes Only", systemImage: "sparkles")
         }
     }
 }

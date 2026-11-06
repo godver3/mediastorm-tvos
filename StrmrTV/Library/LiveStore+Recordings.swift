@@ -36,9 +36,14 @@ extension LiveStore {
         }
     }
 
-    func recordSeries(_ program: EPGProgram, on channel: LiveChannel) {
-        perform(success: String(localized: "Series recording set for “\(program.title)” on \(channel.name).")) {
-            try await APIClient.shared.recordSeries(program.title, on: channel)
+    /// `newOnly` skips airings the guide flags as reruns; re-recording a series with the other
+    /// choice switches the existing rule.
+    func recordSeries(_ program: EPGProgram, on channel: LiveChannel, newOnly: Bool = false) {
+        let success = newOnly
+            ? String(localized: "Recording new episodes of “\(program.title)” on \(channel.name).")
+            : String(localized: "Series recording set for “\(program.title)” on \(channel.name).")
+        perform(success: success) {
+            try await APIClient.shared.recordSeries(program.title, on: channel, newOnly: newOnly)
         }
     }
 

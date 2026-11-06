@@ -85,9 +85,9 @@ extension APIClient {
 
     /// Records every airing of `title` on this channel: a title rule scoped to the channel, so +1 /
     /// simulcast channels don't record it twice (Expo's Record Series).
-    func recordSeries(_ title: String, on channel: LiveChannel) async throws {
+    func recordSeries(_ title: String, on channel: LiveChannel, newOnly: Bool = false) async throws {
         var body: [String: Any] = ["profileId": profileID, "matchType": "title", "pattern": title,
-                                   "channelId": channel.id, "channelName": channel.name]
+                                   "channelId": channel.id, "channelName": channel.name, "newOnly": newOnly]
         if let tvg = channel.tvgId, !tvg.isEmpty { body["tvgId"] = tvg }
         try await sendRaw("POST", "/api/live/recording-rules", jsonObject: body)
     }

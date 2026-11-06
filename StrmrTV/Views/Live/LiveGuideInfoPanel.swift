@@ -20,6 +20,7 @@ struct GuideInfoPanel: View {
                                 .padding(.horizontal, 10).padding(.vertical, 4)
                                 .background(Capsule().fill(.red))
                         }
+                        if program.isNew { NewAiringTag(prominent: true) }
                         if channel?.canReplay(program, now: now) == true {
                             Label(program.stop <= now ? "Catch-up" : "Start Over", systemImage: "gobackward")
                                 .font(.caption2.weight(.heavy))
@@ -63,8 +64,29 @@ struct GuideInfoPanel: View {
             parts.append(p.start.formatted(.relative(presentation: .named)))
         }
         if let ep = p.episode, !ep.isEmpty { parts.append(ep) }
+        if p.isRerun && !p.isNew { parts.append(String(localized: "Rerun")) }
         if let cat = p.categories?.first { parts.append(cat) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// "NEW" on a programme the guide flags as a first airing: accent text in a guide cell, an
+/// accent capsule in the info panel.
+struct NewAiringTag: View {
+    var prominent = false
+
+    var body: some View {
+        if prominent {
+            Text("NEW")
+                .font(.caption2.weight(.heavy))
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(Capsule().fill(Color.accentColor))
+                .foregroundStyle(.white)
+        } else {
+            Text("NEW")
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(Color.accentColor)
+        }
     }
 }
 
