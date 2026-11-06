@@ -226,6 +226,12 @@ final class APIClient: ObservableObject {
         #if DEBUG
         if method == "GET", let fixture = SportsFixtures.response(path: path) { return fixture }
         #endif
+        var query = query
+        // While cards show the unwatched count, lists ask the server to look up the episode
+        // totals it hasn't cached yet (it sends the cached ones regardless), as Expo does.
+        if method == "GET", path.hasSuffix("/display-list"), BadgeSettingsStore.shared.shows(.unwatchedCount) {
+            query["includeUnwatchedCounts"] = "true"
+        }
         var req = URLRequest(url: url(path, query: query, encodedQuery: encodedQuery))
         req.httpMethod = method
         req.timeoutInterval = timeout

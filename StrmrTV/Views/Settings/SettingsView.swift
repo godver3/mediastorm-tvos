@@ -38,6 +38,7 @@ struct SettingsView: View {
         .task { await trailers.refresh() }
         .task { await TrackSettingsStore.shared.refresh() }
         .task { await SpoilerSettingsStore.shared.refresh() }
+        .task { await BadgeSettingsStore.shared.refresh() }
         .confirmationDialog("Sign out of \(session.username ?? "this account")?", isPresented: $confirmSignOut) {
             Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
             Button("Cancel", role: .cancel) {}
@@ -103,6 +104,10 @@ struct SettingsView: View {
                 TrackSettingsRows()
                 AtmosSettingsRows()
                 LiveHLSResetRow()
+            }
+
+            Section("Card Badges") {
+                BadgeSettingsRows()
             }
 
             Section("Spoilers") {

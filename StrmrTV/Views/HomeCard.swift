@@ -44,6 +44,8 @@ struct HomeCard: Identifiable, Hashable {
     let badge: CardBadge?
     /// Watched or in progress, shown beside `badge` (a watched title can still be in theaters).
     var watchBadge: CardBadge?
+    /// Series: unwatched episodes, drawn in the watch badge (`ArtworkBadges` decides if it shows).
+    var unwatchedCount: Int?
     /// "New": Continue Watching's next episode came out in the last 72 hours.
     var newEpisode: NewEpisodeBadge?
     /// The card draws `logoURL` on a plain tile instead of artwork (services, hubs).
@@ -111,6 +113,7 @@ struct HomeCard: Identifiable, Hashable {
         progress = 0
         badge = ReleaseBadge.forTitle(item)
         watchBadge = CardBadge.forWatchState(item.watchState)
+        unwatchedCount = item.isMovie ? nil : item.unwatchedCount
     }
 
     /// A list title; `rank` (Top 10) shows as the first badge.
@@ -127,6 +130,7 @@ struct HomeCard: Identifiable, Hashable {
         progress = 0
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
         watchBadge = CardBadge.forWatchState(title.watchState)
+        unwatchedCount = title.isMovie ? nil : title.unwatchedCount
         certification = title.certification
         genres = title.genres ?? []
     }

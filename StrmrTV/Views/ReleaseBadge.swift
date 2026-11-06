@@ -5,12 +5,32 @@ import SwiftUI
 struct CardBadge: Hashable {
     let text: String
     var symbol: String?
+    /// Which Settings › Card Badges switch hides it on artwork (`BadgeVisibility`).
+    var kind: Kind = .other
+    /// A series' unwatched episodes, drawn as a number after the symbol.
+    var count: Int?
 
-    static let comingSoon = CardBadge(text: String(localized: "Coming Soon"), symbol: "calendar.badge.clock")
-    static let unreleased = CardBadge(text: String(localized: "Unreleased"), symbol: "hourglass")
-    static let inTheaters = CardBadge(text: String(localized: "In Theaters"), symbol: "popcorn.fill")
-    static let watched = CardBadge(text: String(localized: "Watched"), symbol: "checkmark")
-    static let inProgress = CardBadge(text: String(localized: "In Progress"), symbol: "circle.lefthalf.filled")
+    enum Kind: Hashable {
+        /// Release Status: Coming Soon, Unreleased, In Theaters.
+        case release
+        /// Watch State: Watched, In Progress (and the unwatched count drawn in it).
+        case watch
+        /// Always shown: ranks, air dates.
+        case other
+    }
+
+    static let comingSoon = CardBadge(text: String(localized: "Coming Soon"), symbol: "calendar.badge.clock", kind: .release)
+    static let unreleased = CardBadge(text: String(localized: "Unreleased"), symbol: "hourglass", kind: .release)
+    static let inTheaters = CardBadge(text: String(localized: "In Theaters"), symbol: "popcorn.fill", kind: .release)
+    static let watched = CardBadge(text: String(localized: "Watched"), symbol: "checkmark", kind: .watch)
+    static let inProgress = CardBadge(text: String(localized: "In Progress"), symbol: "circle.lefthalf.filled", kind: .watch)
+
+    /// The spoken label: the status, then the count ("In Progress, 5 unwatched episodes").
+    var accessibilityText: String {
+        guard let count else { return text }
+        let episodes = String(localized: "\(count) unwatched episodes")
+        return text.isEmpty ? episodes : "\(text), \(episodes)"
+    }
 
     /// The server's `watchState`: watched, or started (a movie's progress, a series' episodes).
     static func forWatchState(_ state: String?) -> CardBadge? {
@@ -105,7 +125,11 @@ struct ArtworkBadge: View {
     var poster = true
 
     var body: some View {
-        if poster, let symbol = badge.symbol {
+        if let count = badge.count {
+            CountBadge(symbol: badge.symbol, count: count, poster: poster)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(badge.accessibilityText)
+        } else if poster, let symbol = badge.symbol {
             Image(systemName: symbol)
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.white)
@@ -119,15 +143,44 @@ struct ArtworkBadge: View {
     }
 }
 
+/// The watch-state badge with a series' unwatched episode count: the symbol, then the
+/// number, in a capsule as tall as the poster's disc (the Expo card's icon and count).
+private struct CountBadge: View {
+    let symbol: String?
+    let count: Int
+    let poster: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let symbol { Image(systemName: symbol) }
+            Text(count, format: .number).monospacedDigit()
+        }
+        .font(poster ? .system(size: 24, weight: .semibold) : .caption2.weight(.bold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .frame(minWidth: poster ? 52 : nil, minHeight: poster ? 52 : nil)
+        .padding(.vertical, poster ? 0 : 6)
+        .background(Capsule().fill(.black.opacity(0.65)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+    }
+}
+
 /// A card's badges stacked in its top-left corner, as the Expo app stacks a release status
-/// with the watch state.
+/// with the watch state: `badge` (rank, air date or release status), then the watch state
+/// with the unwatched count, each shown as Settings › Card Badges says (`BadgeSettingsStore`).
 struct ArtworkBadges: View {
-    let badges: [CardBadge]
+    @ObservedObject private var settings = BadgeSettingsStore.shared
+    let badge: CardBadge?
+    let watch: CardBadge?
+    var unwatchedCount: Int?
     var poster = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(badges, id: \.self) { ArtworkBadge(badge: $0, poster: poster) }
+        let badges = settings.visibility.badges(badge: badge, watch: watch, unwatchedCount: unwatchedCount)
+        if !badges.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(badges, id: \.self) { ArtworkBadge(badge: $0, poster: poster) }
+            }
         }
     }
 }

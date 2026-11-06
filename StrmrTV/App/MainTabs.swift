@@ -113,6 +113,7 @@ struct MainTabs: View {
         .task { await customLists.refresh() }
         .task { await titles.refresh() }
         .task { await listShelves.refresh() }
+        .task { await BadgeSettingsStore.shared.refresh() }
         // Hidden / Set Aside / watched state behind the long-press menus.
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
             Task { await titles.refreshContinueWatching() }

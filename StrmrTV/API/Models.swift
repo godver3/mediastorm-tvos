@@ -211,6 +211,8 @@ struct Title: Decodable, Identifiable, Hashable {
     let collection: CollectionRef?
     /// none | partial | complete, for the profile that asked (Search, list rows).
     let watchState: String?
+    /// Series: released episodes the profile hasn't watched (absent until the server knows).
+    let unwatchedCount: Int?
     /// Multi-source ratings (IMDb, Rotten Tomatoes, …), hydrated from MDBList when enabled.
     let ratings: [Rating]?
 
@@ -375,6 +377,8 @@ struct WatchlistItem: Decodable, Identifiable, Hashable {
     let externalIds: [String: String]?
     /// none | partial | complete
     let watchState: String?
+    /// Series: released episodes the profile hasn't watched (absent until the server knows).
+    let unwatchedCount: Int?
     let status: String?
     let releaseDate: String?
     let availability: String?

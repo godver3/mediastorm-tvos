@@ -10,6 +10,8 @@ struct PosterCard: View {
     let badge: CardBadge?
     /// Watched or in progress, shown under `badge`.
     var watchBadge: CardBadge?
+    /// Series: unwatched episodes, drawn in the watch badge.
+    var unwatchedCount: Int?
     let subtitle: String
     /// Grids that fill their width pass the column width; height keeps the 2:3 shape.
     var width: CGFloat = PosterCard.width
@@ -31,6 +33,7 @@ struct PosterCard: View {
         target = DetailsTarget(title)
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
         watchBadge = CardBadge.forWatchState(title.watchState)
+        unwatchedCount = title.isMovie ? nil : title.unwatchedCount
         subtitle = Self.subtitle(year: title.year, isMovie: title.isMovie)
     }
 
@@ -48,6 +51,7 @@ struct PosterCard: View {
         target = DetailsTarget(item)
         badge = ReleaseBadge.forTitle(item)
         watchBadge = CardBadge.forWatchState(item.watchState)
+        unwatchedCount = item.isMovie ? nil : item.unwatchedCount
         subtitle = Self.subtitle(year: item.year, isMovie: item.isMovie)
     }
 
@@ -84,7 +88,7 @@ struct PosterCard: View {
                 .overlay(Text(target.name).font(.caption).multilineTextAlignment(.center).padding())
         }
         .overlay(alignment: .topLeading) {
-            ArtworkBadges(badges: [badge, watchBadge].compactMap { $0 }).padding(10)
+            ArtworkBadges(badge: badge, watch: watchBadge, unwatchedCount: unwatchedCount).padding(10)
         }
     }
 }
