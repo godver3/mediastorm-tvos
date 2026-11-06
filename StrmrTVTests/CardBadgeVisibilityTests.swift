@@ -38,11 +38,21 @@ final class CardBadgeVisibilityTests: XCTestCase {
         XCTAssertEqual(badges.first?.accessibilityText, "3 unwatched episodes")
     }
 
-    func testCountHiddenWhenZeroMissingOrOff() {
-        XCTAssertEqual(all.badges(badge: nil, watch: .watched, unwatchedCount: 0), [.watched])
+    func testZeroCountShowsMissingOrOffHides() {
+        var zero = CardBadge.watched
+        zero.count = 0
+        XCTAssertEqual(all.badges(badge: nil, watch: .watched, unwatchedCount: 0), [zero])
         XCTAssertEqual(all.badges(badge: nil, watch: nil, unwatchedCount: nil), [])
         let noCount = BadgeVisibility(watchState: true, releaseStatus: false, unwatchedCount: false)
         XCTAssertEqual(noCount.badges(badge: nil, watch: .inProgress, unwatchedCount: 4), [.inProgress])
+    }
+
+    func testContinueWatchingSeriesWatch() {
+        XCTAssertTrue(HomeCard.seriesWatch(total: 10, watched: 3, started: false) == (.inProgress, 7))
+        XCTAssertTrue(HomeCard.seriesWatch(total: 10, watched: 10, started: false) == (.watched, 0))
+        XCTAssertTrue(HomeCard.seriesWatch(total: 10, watched: 12, started: false) == (.watched, 0))
+        XCTAssertTrue(HomeCard.seriesWatch(total: nil, watched: nil, started: true) == (.inProgress, nil))
+        XCTAssertTrue(HomeCard.seriesWatch(total: 8, watched: 0, started: false) == (nil, 8))
     }
 
     func testReleaseStatusGatedButRankAndAirDateAlwaysShow() {

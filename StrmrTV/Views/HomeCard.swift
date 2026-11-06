@@ -93,11 +93,27 @@ struct HomeCard: Identifiable, Hashable {
         } else {
             badge = ReleaseBadge.forTitle(status: item.status)
         }
+        if !item.isMovie {
+            let series = Self.seriesWatch(total: item.totalEpisodeCount, watched: item.watchedEpisodeCount,
+                                          started: progress > 0)
+            watchBadge = series.badge
+            unwatchedCount = series.unwatched
+        }
         if !item.isMovie, let ep = item.nextEpisode {
             episode = CardEpisode(ep)
             newEpisode = NewEpisodeBadge(airDate: ep.airDate, airDateTimeUTC: ep.airDateTimeUTC,
                                          prequeueStatus: item.prequeueStatus)
         }
+    }
+
+    /// A Continue Watching series' watch state and unwatched count from its episode counts
+    /// (Expo `watch-state-cards.ts`): watched once every released episode is, in progress
+    /// once one is or the next has progress; the count needs a known total.
+    static func seriesWatch(total: Int?, watched: Int?, started: Bool) -> (badge: CardBadge?, unwatched: Int?) {
+        let total = total ?? 0, watched = watched ?? 0
+        let badge: CardBadge? = total > 0 && watched >= total ? .watched
+            : watched > 0 || started ? .inProgress : nil
+        return (badge, total > 0 ? max(0, total - watched) : nil)
     }
 
     init(_ item: WatchlistItem) {

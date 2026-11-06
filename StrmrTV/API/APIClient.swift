@@ -176,6 +176,8 @@ final class APIClient: ObservableObject {
     }
 
     static let unlockHeader = "X-Profile-Unlock"
+    /// Lists, search and Top 10: the GETs that carry series episode counts.
+    private static let countsPaths = ["/display-list", "/api/search", "/api/discover/top-ten"]
 
     // MARK: Plumbing
 
@@ -229,7 +231,7 @@ final class APIClient: ObservableObject {
         var query = query
         // While cards show the unwatched count, lists ask the server to look up the episode
         // totals it hasn't cached yet (it sends the cached ones regardless), as Expo does.
-        if method == "GET", path.hasSuffix("/display-list"), BadgeSettingsStore.shared.shows(.unwatchedCount) {
+        if method == "GET", Self.countsPaths.contains(where: path.hasSuffix), BadgeSettingsStore.shared.shows(.unwatchedCount) {
             query["includeUnwatchedCounts"] = "true"
         }
         var req = URLRequest(url: url(path, query: query, encodedQuery: encodedQuery))

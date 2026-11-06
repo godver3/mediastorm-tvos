@@ -164,6 +164,9 @@ struct ContinueWatchingItem: Decodable, Identifiable, Hashable {
     let status: String?
     /// The prequeue / prewarm state of the item the row plays ("ready" once resolved).
     let prequeueStatus: String?
+    /// Series: released episodes and those watched, for the card's watch state and count.
+    let totalEpisodeCount: Int?
+    let watchedEpisodeCount: Int?
 
     var id: String { seriesId }
     var isMovie: Bool { seriesId.contains(":movie:") }
