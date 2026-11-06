@@ -31,6 +31,8 @@ final class SoftwareTransportHUD: UIView {
 
     /// The menu row has focus (Up from the bar); the bar dims behind it, as AVKit's does.
     private(set) var rowFocused = false
+    /// The row button that last had focus, which focus goes back to (`preferredFocusEnvironments`).
+    private var lastRowIndex: Int?
     /// Called when what the HUD wants focused changes; the player re-runs its focus update.
     var onFocusChange: (() -> Void)?
 
@@ -136,7 +138,29 @@ final class SoftwareTransportHUD: UIView {
 
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
         if !rowFocused, let actionButton { return [actionButton] }
-        return buttonRow.arrangedSubviews
+        // Back to the button last focused (a focus update the player re-runs, or a rebuilt row),
+        // not the first one.
+        let buttons = buttonRow.arrangedSubviews
+        guard let index = lastRowIndex, buttons.indices.contains(index) else { return buttons }
+        return [buttons[index]] + buttons.enumerated().filter { $0.offset != index }.map(\.element)
+    }
+
+    /// While the row has focus it keeps it: a move past either end, or a swipe that carries on,
+    /// would land on AVKit's views behind the HUD, which the player hands back to the row's
+    /// first button. Menus a button opens are outside the player's view, so they still open.
+    override func shouldUpdateFocus(in context: UIFocusUpdateContext) -> Bool {
+        if rowFocused, let next = context.nextFocusedView, let host = superview,
+           next.isDescendant(of: host), !next.isDescendant(of: self) {
+            return false
+        }
+        return super.shouldUpdateFocus(in: context)
+    }
+
+    override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
+        super.didUpdateFocus(in: context, with: coordinator)
+        if let next = context.nextFocusedView, let index = buttonRow.arrangedSubviews.firstIndex(of: next) {
+            lastRowIndex = index
+        }
     }
 
     // MARK: Info card
@@ -167,6 +191,9 @@ final class SoftwareTransportHUD: UIView {
             zip(buttons, menus).forEach { $0.setElement($1) }
             return
         }
+        // A different number of buttons (Subtitles appearing once captions are found) rebuilds
+        // the row; focus stays on the same place in it rather than going back to the first.
+        let focusedIndex = buttons.firstIndex { $0.isFocused }
         buttons.forEach { $0.removeFromSuperview() }
         for menu in menus {
             let button = TransportMenuButton(element: menu)
@@ -174,6 +201,10 @@ final class SoftwareTransportHUD: UIView {
             buttonRow.addArrangedSubview(button)
         }
         if menus.isEmpty { releaseRow() }
+        if rowFocused, let focusedIndex {
+            lastRowIndex = min(focusedIndex, menus.count - 1)
+            onFocusChange?()
+        }
     }
 
     /// Up from the bar: the row takes focus (and the bar stays up while it has it).
@@ -190,6 +221,7 @@ final class SoftwareTransportHUD: UIView {
     func releaseRow() {
         guard rowFocused else { return }
         rowFocused = false
+        lastRowIndex = nil // Up starts on the first button again
         dimBar(false)
         onFocusChange?()
     }
