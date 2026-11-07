@@ -148,12 +148,27 @@ final class SoftwareTransportHUD: UIView {
     /// While the row has focus it keeps it: a move past either end, or a swipe that carries on,
     /// would land on AVKit's views behind the HUD, which the player hands back to the row's
     /// first button. Menus a button opens are outside the player's view, so they still open.
+    /// The focus engine can pick AVKit's full-screen container over the next button, so a
+    /// sideways move it sends there goes to the neighbouring button instead.
     override func shouldUpdateFocus(in context: UIFocusUpdateContext) -> Bool {
         if rowFocused, let next = context.nextFocusedView, let host = superview,
            next.isDescendant(of: host), !next.isDescendant(of: self) {
+            stepRow(from: context.previouslyFocusedView, heading: context.focusHeading)
             return false
         }
         return super.shouldUpdateFocus(in: context)
+    }
+
+    /// Focus to the button beside `from` (the engine may ask twice for one move, so the
+    /// target comes from `from`, not from a running count).
+    private func stepRow(from view: UIView?, heading: UIFocusHeading) {
+        let buttons = buttonRow.arrangedSubviews
+        guard let view, let index = buttons.firstIndex(of: view) else { return }
+        let step = heading.contains(.right) ? 1 : heading.contains(.left) ? -1 : 0
+        let target = index + step
+        guard step != 0, buttons.indices.contains(target) else { return }
+        lastRowIndex = target
+        DispatchQueue.main.async { [weak self] in self?.onFocusChange?() }
     }
 
     override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
