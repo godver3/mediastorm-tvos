@@ -1,194 +1,207 @@
 #if os(iOS)
 import SwiftUI
 
-/// Home on a phone: the profile's shelves from the shared `HomeStore`, each a horizontally
-/// scrolling row. Continue Watching (and rows without posters) use landscape art, the rest
-/// posters. Tapping a title pushes its details page.
+/// Home on a phone: the chosen Home view's shelves from the shared `HomeStore`, each a
+/// horizontally scrolling row, poster or 16:9 as the row's `ShelfStyle` says. The toolbar's
+/// menu switches Home views (Home, Movies, Shows and the profile's pages), as the Expo
+/// app's view picker. Watch Something cards search, pick a surprise or ask the AI.
 struct MobileHomeView: View {
-    @ObservedObject var store: HomeStore
-    @ObservedObject private var playback = PlaybackCoordinator.shared
-    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var views = HomeViewsStore.shared
 
     var body: some View {
+        MobileHomeContent(store: views.store(for: views.selected))
+            .id(views.selected)
+            .navigationTitle(views.label(views.selected))
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { viewMenu }
+            }
+            .task { await views.refresh() }
+    }
+
+    private var viewMenu: some View {
+        Menu {
+            Picker("Home View", selection: Binding(get: { views.selected }, set: { views.select($0) })) {
+                ForEach(views.ids, id: \.self) { view in
+                    Label(views.label(view), systemImage: views.icon(view)).tag(view)
+                }
+            }
+        } label: {
+            Label("Home View", systemImage: views.icon(views.selected))
+        }
+        .accessibilityIdentifier("homeViewSwitcher")
+    }
+}
+
+/// One Home view's page.
+private struct MobileHomeContent: View {
+    @ObservedObject var store: HomeStore
+    @EnvironmentObject private var watchlist: WatchlistStore
+    @ObservedObject private var playback = PlaybackCoordinator.shared
+    @ObservedObject private var layout = HomeLayoutStore.shared
+    @ObservedObject private var views = HomeViewsStore.shared
+    @Environment(\.scenePhase) private var scenePhase
+
+    @State private var searching = false
+    @State private var surprisePick: DetailsTarget?
+    @State private var findingSurprise = false
+    @State private var surpriseError: String?
+    @State private var askingAI = false
+    @State private var aiPrompt = ""
+    @State private var aiList: BrowseList?
+
+    var body: some View {
+        lifecycle(page)
+            .environment(\.homeAction) { run($0) }
+            .navigationDestination(isPresented: $searching) { MobileSearchView() }
+            .navigationDestination(item: $surprisePick) { MobileDetailsView(target: $0) }
+            .navigationDestination(item: $aiList) { MobileListPage(list: $0) }
+            .modifier(actionAlerts)
+    }
+
+    private var page: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 26) {
                 if let first = firstHero { MobileHomeHero(card: first) }
                 ForEach(store.slots) { slot in
                     switch slot {
                     case let .shelf(shelf) where !shelf.cards.isEmpty:
-                        MobileShelfRow(shelf: shelf)
+                        MobileShelfRow(shelf: shelf, landscape: layout.style(for: shelf.id) == .landscape,
+                                       onHide: hideAction(shelf))
                     case let .loading(_, title):
                         MobileShelfPlaceholder(title: title)
                     default:
                         EmptyView()
                     }
                 }
-                if let error = store.loadError, store.slots.isEmpty {
-                    VStack(spacing: 12) {
-                        Text(error).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                        Button("Try Again") { Task { await store.load() } }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 80)
+                if store.slots.isEmpty, !store.isLoading {
+                    status.padding(.top, 60)
                 }
             }
             .padding(.bottom, 24)
         }
         .scrollIndicators(.hidden)
+        .overlay { if store.slots.isEmpty, store.isLoading { ProgressView() } }
         .refreshable { await store.load() }
-        .navigationTitle("Home")
-        .toolbarTitleDisplayMode(.inlineLarge)
-        .task {
-            if store.slots.isEmpty {
-                await store.load()
-            } else {
-                store.activate()
-                await store.refreshIfStale()
-            }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await store.refreshIfStale() } }
-        }
-        .onChange(of: playback.sessionsEnded) { Task { await store.reloadPlaybackRows() } }
     }
 
-    /// The first card of the first loaded row, as a large tile at the top of the page.
+    private func lifecycle(_ content: some View) -> some View {
+        content
+            .task {
+                store.watchlist = watchlist.items
+                if store.hasLoaded {
+                    store.activate()
+                    await store.refreshIfStale()
+                } else {
+                    await store.load()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await store.refreshIfStale() } }
+            }
+            .onChange(of: watchlist.items) { _, items in store.watchlist = items }
+            .onChange(of: playback.sessionsEnded) { Task { await store.reloadPlaybackRows() } }
+            .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
+                Task { await store.reloadPlaybackRows() }
+            }
+            // Hidden / unhidden titles leave or rejoin every row the server builds.
+            .onReceive(NotificationCenter.default.publisher(for: .titleStateChanged)) { _ in
+                Task { await store.load() }
+            }
+    }
+
+    private var actionAlerts: ActionAlerts {
+        ActionAlerts(surpriseError: $surpriseError, askingAI: $askingAI, aiPrompt: $aiPrompt, aiList: $aiList)
+    }
+}
+
+/// Surprise Me's failure and Ask AI's prompt.
+private struct ActionAlerts: ViewModifier {
+    @Binding var surpriseError: String?
+    @Binding var askingAI: Bool
+    @Binding var aiPrompt: String
+    @Binding var aiList: BrowseList?
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Couldn't Pick a Title", isPresented: Binding(get: { surpriseError != nil }, set: { if !$0 { surpriseError = nil } }),
+                   presenting: surpriseError) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { Text($0) }
+            .alert("Ask AI", isPresented: $askingAI) {
+                TextField("A cozy mystery from the 90s", text: $aiPrompt)
+                Button("Ask") {
+                    let prompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !prompt.isEmpty { aiList = .askAI(prompt) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Describe what you're in the mood for.")
+            }
+    }
+}
+
+private extension MobileHomeContent {
+    @ViewBuilder
+    private var status: some View {
+        if let error = store.loadError {
+            ContentUnavailableView {
+                Label("Couldn't Load Home", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Try Again") { Task { await store.load() } }.buttonStyle(.bordered)
+            }
+        } else {
+            ContentUnavailableView("Nothing on Home", systemImage: "house",
+                                   description: Text("Turn on shelves for this profile in the server's settings."))
+        }
+    }
+
+    /// The first title card of the first loaded row, as a large tile at the top of the page.
     private var firstHero: HomeCard? {
         for slot in store.slots {
             if case let .shelf(shelf) = slot, let card = shelf.shown.first(where: { $0.target != nil }) { return card }
         }
         return nil
     }
-}
 
-private struct MobileHomeHero: View {
-    let card: HomeCard
+    func hideAction(_ shelf: HomeShelf) -> ((HomeCard) -> Void)? {
+        guard shelf.id == HomeShelf.continueWatchingID else { return nil }
+        return { hide($0) }
+    }
 
-    var body: some View {
-        if let target = card.target {
-            NavigationLink(value: target) {
-                GeometryReader { geo in
-                    RemoteImage(url: Artwork.url(card.backdropURL ?? card.artworkURL), size: geo.size) { _ in
-                        Color.white.opacity(0.08)
-                    }
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-                    .overlay {
-                        LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
-                    }
-                    .overlay(alignment: .bottomLeading) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            if let logo = Artwork.logoURL(card.logoURL, size: "w500") {
-                                RemoteImage(url: logo, size: CGSize(width: 220, height: 70), contentMode: .fit,
-                                            alignment: .bottomLeading) { _ in
-                                    Text(card.title).font(.title2.bold())
-                                }
-                                .frame(width: 220, height: 70, alignment: .bottomLeading)
-                            } else {
-                                Text(card.title).font(.title2.bold())
-                            }
-                            Text(card.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        .padding(16)
-                    }
-                    .overlay(alignment: .bottom) {
-                        if card.progress > 0 { MobileProgressBar(value: card.progress).padding(.horizontal, 16).padding(.bottom, 6) }
-                    }
-                }
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .padding(.horizontal, 16)
-            }
-            .buttonStyle(.plain)
+    /// Hide from Continue Watching: the card leaves at once; a failure brings it back.
+    private func hide(_ card: HomeCard) {
+        withAnimation { store.remove(card: card.id, from: HomeShelf.continueWatchingID) }
+        Task {
+            do { try await APIClient.shared.hideFromContinueWatching(seriesID: card.id) } catch { await store.reloadPlaybackRows() }
         }
     }
-}
 
-struct MobileShelfRow: View {
-    let shelf: HomeShelf
-
-    private var landscape: Bool {
-        shelf.id == HomeShelf.continueWatchingID
-            || shelf.shown.filter { $0.posterURL != nil }.count < shelf.shown.count / 2
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(shelf.title).font(.title3.weight(.semibold)).padding(.horizontal, 16)
-            ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: 12) {
-                    ForEach(shelf.shown) { card in
-                        if let target = card.target {
-                            NavigationLink(value: target) { MobileCard(card: card, landscape: landscape) }
-                                .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-            .scrollIndicators(.hidden)
-        }
-    }
-}
-
-struct MobileCard: View {
-    let card: HomeCard
-    let landscape: Bool
-
-    private var size: CGSize { landscape ? CGSize(width: 240, height: 135) : CGSize(width: 116, height: 174) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            RemoteImage(url: Artwork.url(landscape ? card.artworkURL : (card.posterURL ?? card.artworkURL), size: "w500"),
-                        size: size) { _ in
-                ZStack {
-                    Color.white.opacity(0.08)
-                    Text(card.title).font(.caption).multilineTextAlignment(.center).padding(6)
+    /// Watch Something: Search opens search over Home; Surprise Me asks the server for a pick
+    /// of the view's media type and opens it; Ask AI asks for a description, then opens the
+    /// server's picks for it as a list.
+    private func run(_ action: HomeAction) {
+        switch action {
+        case .search:
+            searching = true
+        case .askAI:
+            aiPrompt = ""
+            askingAI = true
+        case .surprise:
+            guard !findingSurprise else { return }
+            findingSurprise = true
+            let filter = views.filter(store.view)
+            Task {
+                defer { findingSurprise = false }
+                do {
+                    surprisePick = DetailsTarget(try await APIClient.shared.surprise(filter: filter))
+                } catch {
+                    surpriseError = error.localizedDescription
                 }
             }
-            .frame(width: size.width, height: size.height)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(alignment: .bottom) {
-                if card.progress > 0 { MobileProgressBar(value: card.progress).padding(.horizontal, 8).padding(.bottom, 6) }
-            }
-            if landscape {
-                Text(card.title).font(.footnote.weight(.semibold)).lineLimit(1)
-                Text(card.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
         }
-        .frame(width: size.width, alignment: .leading)
-        .contentShape(Rectangle())
-    }
-}
-
-struct MobileProgressBar: View {
-    let value: Double
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.3))
-                Capsule().fill(Color.white).frame(width: geo.size.width * min(max(value, 0), 1))
-            }
-        }
-        .frame(height: 4)
-    }
-}
-
-private struct MobileShelfPlaceholder: View {
-    let title: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.title3.weight(.semibold)).padding(.horizontal, 16)
-            HStack(spacing: 12) {
-                ForEach(0..<4, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.06)).frame(width: 116, height: 174)
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .redacted(reason: .placeholder)
     }
 }
 #endif

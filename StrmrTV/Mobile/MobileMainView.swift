@@ -22,7 +22,7 @@ struct MobileMainView: View {
         TabView {
             Tab("Home", systemImage: "house") {
                 NavigationStack(path: $homePath) {
-                    MobileHomeView(store: HomeViewsStore.shared.store(for: HomeViews.all))
+                    MobileHomeView()
                         .mobileDestinations()
                 }
             }
@@ -82,6 +82,11 @@ struct MobileMainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
             Task { await titles.refreshContinueWatching() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .titleStateChanged)) { _ in
+            customLists.titlesChanged()
+            Task { await watchlist.refresh() }
+        }
+        .mobileLongPressModals(customLists: customLists, titles: titles)
     }
 }
 #endif
