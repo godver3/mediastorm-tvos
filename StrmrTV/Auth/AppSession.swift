@@ -282,6 +282,13 @@ final class AppSession: ObservableObject {
         profiles = list
     }
 
+    /// Re-reads the list after a profile is created, edited or deleted, keeping the current
+    /// profile's record (name, colour, PIN) fresh.
+    func reloadProfiles() async throws {
+        try await loadProfiles()
+        if let id = profile?.id, let fresh = profiles.first(where: { $0.id == id }) { profile = fresh }
+    }
+
     /// Picks a profile, checking its PIN first when it has one, and remembers it for
     /// launch when `automatic`. Returns false for a wrong PIN.
     func select(_ candidate: Profile, pin: String? = nil, automatic: Bool = false) async throws -> Bool {

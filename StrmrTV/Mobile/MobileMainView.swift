@@ -89,7 +89,7 @@ struct MobileMainView: View {
 
 /// A top-level phone section, in the Expo mobile tab order.
 enum MobileSection: String, CaseIterable, Identifiable, Hashable {
-    case home, watchlist, search, lists, calendar, recordings, live, sports, downloads, settings
+    case home, watchlist, search, lists, calendar, recordings, live, sports, profiles, downloads, settings
 
     var id: String { rawValue }
 
@@ -103,7 +103,7 @@ enum MobileSection: String, CaseIterable, Identifiable, Hashable {
         case .recordings: .recordings
         case .live: .live
         case .sports: .sports
-        case .home, .downloads, .settings: nil
+        case .home, .profiles, .downloads, .settings: nil
         }
     }
 
@@ -117,6 +117,7 @@ enum MobileSection: String, CaseIterable, Identifiable, Hashable {
         case .recordings: String(localized: "Recordings")
         case .live: String(localized: "Live")
         case .sports: String(localized: "Sports")
+        case .profiles: String(localized: "Profiles")
         case .downloads: String(localized: "Downloads")
         case .settings: String(localized: "Settings")
         }
@@ -132,6 +133,7 @@ enum MobileSection: String, CaseIterable, Identifiable, Hashable {
         case .recordings: "record.circle"
         case .live: "dot.radiowaves.left.and.right"
         case .sports: "trophy"
+        case .profiles: "person.2"
         case .downloads: "arrow.down.circle"
         case .settings: "gear"
         }
@@ -149,6 +151,7 @@ enum MobileSection: String, CaseIterable, Identifiable, Hashable {
         case .recordings: MobileRecordingsView()
         case .live: MobileLiveView()
         case .sports: MobileSportsView()
+        case .profiles: MobileProfilesView()
         case .downloads: MobileDownloadsView()
         case .settings: MobileSettingsView()
         }
