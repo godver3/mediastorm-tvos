@@ -54,6 +54,7 @@ class EnginePlayerViewController: AVPlayerViewController {
         // taps on the video that bring AVKit's controls back once they have hidden.
         #if os(iOS)
         installTouchClose()
+        observeVideoSize()
         #endif
 
         // Native path: hand AVKit the engine's AVPlayer. nil on the software route, which
