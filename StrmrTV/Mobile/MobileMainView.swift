@@ -68,14 +68,6 @@ struct MobileMainView: View {
         .task { await titles.refresh() }
         .task { await listShelves.refresh() }
         .task { await BadgeSettingsStore.shared.refresh() }
-        #if DEBUG
-        // `-StrmrChromeProbeLate 1` (debug): the stock AVKit probe over the signed-in tab view.
-        .task {
-            guard UserDefaults.standard.bool(forKey: "StrmrChromeProbeLate") else { return }
-            try? await Task.sleep(for: .seconds(4))
-            ChromeProbe.present()
-        }
-        #endif
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
             Task { await titles.refreshContinueWatching() }
         }
