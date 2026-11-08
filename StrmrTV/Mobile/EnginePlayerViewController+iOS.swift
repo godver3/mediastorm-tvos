@@ -1,4 +1,5 @@
 #if os(iOS)
+import Combine
 import UIKit
 
 /// Phone player behaviour: landscape while the player is up (or portrait, or turning with the
@@ -45,6 +46,19 @@ extension EnginePlayerViewController {
             button.widthAnchor.constraint(equalToConstant: 44),
             button.heightAnchor.constraint(equalToConstant: 44),
         ])
+    }
+
+    /// Keeps the subtitle overlay told the source's size, so bitmap cues land on the picture as it is
+    /// fitted to the phone's screen (`SubtitleOverlayView+Phone`).
+    func observeVideoSize() {
+        engine.$sourceVideoWidth.combineLatest(engine.$sourceVideoHeight)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] width, height in
+                guard let self else { return }
+                subtitleOverlay.pixelAspect = CGFloat(engine.sourceVideoPixelAspectRatio)
+                subtitleOverlay.videoSize = CGSize(width: Int(width), height: Int(height))
+            }
+            .store(in: &cancellables)
     }
 
     /// Shows the close button while the software surface (with no AVKit chrome) is up.
