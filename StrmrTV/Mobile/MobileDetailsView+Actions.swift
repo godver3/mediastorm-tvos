@@ -7,7 +7,7 @@ import SwiftUI
 extension MobileDetailsView {
     var actionsSection: some View {
         VStack(spacing: 18) {
-            primaryRow
+            playArea
             HStack(alignment: .top, spacing: 4) {
                 MobileActionItem(caption: String(localized: "Sources")) {
                     Button { model.chooseSource(for: model.activeEpisode) } label: {
@@ -41,6 +41,15 @@ extension MobileDetailsView {
             .controlSize(.large)
             .frame(maxWidth: .infinity)
         }
+    }
+
+    @ViewBuilder
+    private var playArea: some View {
+        #if DEBUG
+        if let variant = PlayPrototype.selected { playPrototype(variant) } else { primaryRow }
+        #else
+        primaryRow
+        #endif
     }
 
     private var primaryRow: some View {
