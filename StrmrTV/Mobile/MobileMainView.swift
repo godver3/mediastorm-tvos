@@ -2,22 +2,25 @@
 import SwiftUI
 
 /// The signed-in phone app: a system tab bar in the Expo mobile app's order. Which sections
-/// show follows the profile's menu (`MenuTabsStore`), as on the TV. On iPhone the first four
-/// are tabs and the rest sit in a More tab of our own: the system More wraps each tab's
-/// NavigationStack in its own navigation bar, which stacked two bars on every page under it.
+/// show follows the profile's menu (`MenuTabsStore`), as on the TV. On iPhone the bar's
+/// five items are the first sections, Search and a More tab of our own (`MobileTabSplit`);
+/// More opens a menu of the rest (`MobileMoreMenu`) rather than a page, and the section
+/// chosen there shows in the More tab. (The system More wraps each tab's
+/// NavigationStack in its own navigation bar, which stacked two bars on every page under it.)
 /// On iPad every section is a tab (or a sidebar row).
 struct MobileMainView: View {
-    @StateObject private var watchlist = WatchlistStore()
-    @StateObject private var customLists = CustomListsStore()
-    @StateObject private var titles = TitleStateStore()
-    @StateObject private var listShelves = ListShelvesStore()
+    /// Held, not observed: the stores' changes reach the screens through the environment.
+    /// Observing them here re-ran this body, so rebuilt the tab view, on every store update,
+    /// mid tab switch included, which knocked the tab bar's selection animation about.
+    @StateObject private var stores = MobileMainStores()
     @ObservedObject private var menu = MenuTabsStore.shared
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var selection: MobileTab = .section(.home)
+    /// The section the More tab shows, chosen from its menu.
+    @State private var moreSection: MobileSection?
+    @State private var showsMoreMenu = false
     @State private var homePath = NavigationPath()
     @State private var morePath = NavigationPath()
-
-    /// Tabs on a compact-width screen before the rest go under More.
-    private static let compactTabs = 4
 
     init() {
         HomeViewsStore.shared.configure(profileID: APIClient.shared.profileID)
@@ -33,49 +36,80 @@ struct MobileMainView: View {
         }
     }
 
-    private var split: (tabs: [MobileSection], more: [MobileSection]) {
-        let all = sections
-        guard sizeClass == .compact, all.count > Self.compactTabs + 1 else { return (all, []) }
-        return (Array(all.prefix(Self.compactTabs)), Array(all.dropFirst(Self.compactTabs)))
+    private var split: MobileTabSplit {
+        MobileTabSplit(sections: sections, compact: sizeClass == .compact)
+    }
+
+    /// Choosing More opens its menu instead of switching tabs; the tab switches once a
+    /// section is picked.
+    private var tabSelection: Binding<MobileTab> {
+        Binding {
+            selection
+        } set: { tab in
+            if tab == .more {
+                showsMoreMenu = true
+            } else {
+                selection = tab
+            }
+        }
     }
 
     var body: some View {
         let split = split
-        TabView {
+        let shownMore = moreSection.flatMap { split.more.contains($0) ? $0 : nil } ?? split.more.first
+        TabView(selection: tabSelection) {
             ForEach(split.tabs) { section in
-                Tab(section.title, systemImage: section.symbol, role: section == .search ? .search : nil) {
+                Tab(section.title, systemImage: section.symbol, value: MobileTab.section(section),
+                    role: section == .search ? .search : nil) {
                     stack(for: section)
                 }
             }
-            if !split.more.isEmpty {
-                Tab("More", systemImage: "ellipsis") {
-                    NavigationStack(path: $morePath) {
-                        MobileMoreList(sections: split.more)
-                            .navigationDestination(for: MobileSection.self) { $0.screen }
-                            .mobileDestinations()
-                    }
+            if let shownMore {
+                Tab(MobileMoreMenu.title, systemImage: "ellipsis", value: MobileTab.more) {
+                    NavigationStack(path: $morePath) { shownMore.screen.mobileDestinations() }
+                        .id(shownMore)
                 }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .mobileMoreMenu(isPresented: $showsMoreMenu, sections: split.more,
+                        current: selection == .more ? shownMore : nil) { section in
+            if section != shownMore || selection != .more { morePath = NavigationPath() }
+            moreSection = section
+            selection = .more
+        }
+        // A section that leaves the More menu (the profile's menu changed, or a regular
+        // width that shows every tab) is shown as its own tab, and the other way round.
+        .onChange(of: split) { _, split in
+            if selection == .more {
+                if split.more.isEmpty { selection = .section(shownMore ?? .home) }
+            } else if case let .section(section) = selection, !split.tabs.contains(section) {
+                if split.more.contains(section) {
+                    moreSection = section
+                    selection = .more
+                } else {
+                    selection = .section(.home)
+                }
+            }
+        }
         .mobileConnectionAccessory()
-        .environmentObject(watchlist)
-        .environmentObject(customLists)
-        .environmentObject(titles)
-        .environmentObject(listShelves)
-        .task { await watchlist.refresh() }
-        .task { await customLists.refresh() }
-        .task { await titles.refresh() }
-        .task { await listShelves.refresh() }
+        .environmentObject(stores.watchlist)
+        .environmentObject(stores.customLists)
+        .environmentObject(stores.titles)
+        .environmentObject(stores.listShelves)
+        .task { await stores.watchlist.refresh() }
+        .task { await stores.customLists.refresh() }
+        .task { await stores.titles.refresh() }
+        .task { await stores.listShelves.refresh() }
         .task { await BadgeSettingsStore.shared.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: .continueWatchingChanged)) { _ in
-            Task { await titles.refreshContinueWatching() }
+            Task { await stores.titles.refreshContinueWatching() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .titleStateChanged)) { _ in
-            customLists.titlesChanged()
-            Task { await watchlist.refresh() }
+            stores.customLists.titlesChanged()
+            Task { await stores.watchlist.refresh() }
         }
-        .mobileLongPressModals(customLists: customLists, titles: titles)
+        .mobileLongPressModals(customLists: stores.customLists, titles: stores.titles)
     }
 
     @ViewBuilder
@@ -156,20 +190,6 @@ enum MobileSection: String, CaseIterable, Identifiable, Hashable {
         case .downloads: MobileDownloadsView()
         case .settings: MobileSettingsView()
         }
-    }
-}
-
-/// The More tab's list of the sections past the tab bar, like the system More list.
-private struct MobileMoreList: View {
-    let sections: [MobileSection]
-
-    var body: some View {
-        List(sections) { section in
-            NavigationLink(value: section) {
-                Label(section.title, systemImage: section.symbol)
-            }
-        }
-        .navigationTitle("More")
     }
 }
 #endif
