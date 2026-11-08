@@ -14,6 +14,10 @@ final class SubtitleOverlayView: UIView {
     /// frame that fits the view, at that frame's height over 1080 (`SubtitleOverlayView+Phone`), so
     /// a size reads the same share of the picture on every screen, in either orientation.
     private var layoutScale: CGFloat = 1
+    /// The text's scale: on a phone the screen's short side over 1080, so a size reads the same
+    /// in portrait as in landscape (as the Expo app's fixed sizes did) rather than shrinking to
+    /// the portrait video band; margins still follow the picture's frame. 1 on a TV.
+    private var textScale: CGFloat = 1
     /// How far that frame sits inside the view on each side; zero on a TV.
     private var canvasInsets: UIEdgeInsets = .zero
     private var cues: [SubtitleCue] = []
@@ -63,7 +67,7 @@ final class SubtitleOverlayView: UIView {
 
     private func applyStyle() {
         textView.style = style
-        textView.scale = layoutScale
+        textView.scale = textScale
         bottomConstraint.constant = -(canvasInsets.bottom + style.bottomMargin * layoutScale)
         sideConstraints.first?.constant = canvasInsets.left + 160 * layoutScale
         sideConstraints.last?.constant = -(canvasInsets.right + 160 * layoutScale)
@@ -79,8 +83,10 @@ final class SubtitleOverlayView: UIView {
         let scale = canvas.height > 0 ? min(1, canvas.height / 1080) : 1
         let insets = UIEdgeInsets(top: canvas.minY - bounds.minY, left: canvas.minX - bounds.minX,
                                   bottom: bounds.maxY - canvas.maxY, right: bounds.maxX - canvas.maxX)
-        if abs(scale - layoutScale) > 0.001 || insets != canvasInsets {
+        let text = min(1, min(bounds.width, bounds.height) / 1080)
+        if abs(scale - layoutScale) > 0.001 || abs(text - textScale) > 0.001 || insets != canvasInsets {
             layoutScale = scale
+            textScale = text
             canvasInsets = insets
             applyStyle()
         }

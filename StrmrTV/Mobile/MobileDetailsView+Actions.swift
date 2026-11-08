@@ -7,7 +7,7 @@ import SwiftUI
 extension MobileDetailsView {
     var actionsSection: some View {
         VStack(spacing: 18) {
-            playArea
+            primaryRow
             HStack(alignment: .top, spacing: 4) {
                 MobileActionItem(caption: String(localized: "Sources")) {
                     Button { model.chooseSource(for: model.activeEpisode) } label: {
@@ -40,63 +40,6 @@ extension MobileDetailsView {
             .buttonBorderShape(.circle)
             .controlSize(.large)
             .frame(maxWidth: .infinity)
-        }
-    }
-
-    @ViewBuilder
-    private var playArea: some View {
-        #if DEBUG
-        if let variant = PlayPrototype.selected { playPrototype(variant) } else { primaryRow }
-        #else
-        primaryRow
-        #endif
-    }
-
-    private var primaryRow: some View {
-        HStack(spacing: 10) {
-            let primary = model.primaryTarget
-            Button { model.playPrimary() } label: {
-                VStack(spacing: 2) {
-                    Label(primary?.label ?? String(localized: "Play"), systemImage: "play.fill")
-                        .font(.headline)
-                    if let start = primary?.start {
-                        Text("From \(start.label)").font(.caption2).opacity(0.7)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .tint(.white)
-            .foregroundStyle(.black)
-            .controlSize(.large)
-            .overlay(alignment: .bottom) {
-                if let primary, primary.start != nil {
-                    let fraction = model.resumeFraction(primary.episode)
-                    if fraction > 0 {
-                        GeometryReader { geo in
-                            Capsule().fill(.black.opacity(0.5))
-                                .frame(width: geo.size.width * fraction, height: 3)
-                        }
-                        .frame(height: 3)
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 5)
-                        .allowsHitTesting(false)
-                    }
-                }
-            }
-            .disabled(primary == nil || model.title == nil)
-
-            if let primary, primary.start != nil {
-                Button { model.play(primary.episode, from: nil) } label: {
-                    Image(systemName: "arrow.counterclockwise").font(.headline).padding(.vertical, 6)
-                }
-                .modifier(MobileSecondaryActionStyle())
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-                .accessibilityLabel("Start Over")
-            }
         }
     }
 
