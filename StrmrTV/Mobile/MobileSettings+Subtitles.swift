@@ -74,16 +74,16 @@ struct MobileSubtitleStyleView: View {
             if !store.overrides.isEmpty {
                 Section {
                     Button("Reset All to Default", role: .destructive) { confirmReset = true }
+                        .confirmationDialog("Reset every subtitle setting to its default?", isPresented: $confirmReset,
+                                            titleVisibility: .visible) {
+                            Button("Reset", role: .destructive) { store.reset() }
+                        }
                 }
             }
         }
         .navigationTitle("Subtitle Style")
         .navigationBarTitleDisplayMode(.inline)
         .task { await PlaybackCoordinator.shared.refreshSubtitleStyle() }
-        .confirmationDialog("Reset every subtitle setting to its default?", isPresented: $confirmReset,
-                            titleVisibility: .visible) {
-            Button("Reset", role: .destructive) { store.reset() }
-        }
     }
 
     private var style: SubtitleStyle { store.style }

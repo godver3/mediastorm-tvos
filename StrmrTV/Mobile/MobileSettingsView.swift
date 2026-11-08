@@ -104,6 +104,10 @@ struct MobileSettingsView: View {
                 }
                 .disabled(reloading)
                 Button("Sign Out", role: .destructive) { confirmingSignOut = true }
+                    .confirmationDialog("Sign out of \(session.username ?? String(localized: "this account"))?",
+                                        isPresented: $confirmingSignOut, titleVisibility: .visible) {
+                        Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
+                    }
             }
 
             MobileAboutSection()
@@ -112,10 +116,6 @@ struct MobileSettingsView: View {
         .task { nickname = await APIClient.shared.deviceNickname() }
         .task { await TrackSettingsStore.shared.refresh() }
         .task { await SpoilerSettingsStore.shared.refresh() }
-        .confirmationDialog("Sign out of \(session.username ?? String(localized: "this account"))?",
-                            isPresented: $confirmingSignOut, titleVisibility: .visible) {
-            Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
-        }
     }
 
     /// Expo's Reload: reads the profile's and this device's server settings again.

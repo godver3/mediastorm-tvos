@@ -15,7 +15,10 @@ struct MobileServerSection: View {
 
     var body: some View {
         Section {
+            // A Section's modifiers apply to each row, so the section's own go on one row.
             LabeledContent("Address", value: address)
+                .task { await check() }
+                .onAppear { adaptive.reload() }
             LabeledContent("Status") {
                 switch status {
                 case .checking:
@@ -56,17 +59,15 @@ struct MobileServerSection: View {
                 }
             }
             Button("Change Server…") { confirmChangeServer = true }
+                .confirmationDialog("Change server?", isPresented: $confirmChangeServer, titleVisibility: .visible) {
+                    Button("Change Server", role: .destructive) { session.changeServer() }
+                } message: {
+                    Text("You'll sign in again on the new server.")
+                }
         } header: {
             Text("Server")
         } footer: {
             Text("Test Connection Speed downloads test data from the server; with adaptive playback on, searches use the result to pick a release that fits. Server settings are managed in the server's web UI.")
-        }
-        .task { await check() }
-        .onAppear { adaptive.reload() }
-        .confirmationDialog("Change server?", isPresented: $confirmChangeServer, titleVisibility: .visible) {
-            Button("Change Server", role: .destructive) { session.changeServer() }
-        } message: {
-            Text("You'll sign in again on the new server.")
         }
     }
 
@@ -118,7 +119,9 @@ struct MobileAboutSection: View {
 
     var body: some View {
         Section("About") {
+            // On one row: a Section's modifiers apply to each of its rows.
             LabeledContent("Version", value: "\(Config.appVersion) (\(Config.buildNumber))")
+                .task { logFile = await Self.exportLog() }
             LabeledContent("Server Version", value: serverVersion)
             LabeledContent("Device ID") {
                 Text(Config.clientID).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
@@ -145,7 +148,6 @@ struct MobileAboutSection: View {
                 }
             }
         }
-        .task { logFile = await Self.exportLog() }
     }
 
     private var serverVersion: String {
