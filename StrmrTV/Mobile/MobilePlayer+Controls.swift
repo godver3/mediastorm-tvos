@@ -43,7 +43,7 @@ extension PlayerViewController {
     }
 
     /// The Settings menu's rows beyond the speeds: Switch Source…, then Stream Info and, on a
-    /// phone, the orientation lock (the Expo player's rotate button).
+    /// phone, the orientation (the Expo player's rotate button, plus following the device).
     func mobileSettingsExtras() -> [UIMenuElement] {
         var extras: [UIMenuElement] = [
             UIAction(title: String(localized: "Stream Info"), image: UIImage(systemName: "info.circle")) { [weak self] _ in
@@ -51,18 +51,24 @@ extension PlayerViewController {
             },
         ]
         if UIDevice.current.userInterfaceIdiom == .phone {
-            let portrait = Self.phoneOrientation == .portrait
-            extras.append(UIAction(title: portrait ? String(localized: "Rotate to Landscape") : String(localized: "Rotate to Portrait"),
-                                   image: UIImage(systemName: portrait ? "rectangle.landscape.rotate" : "rectangle.portrait.rotate")) { [weak self] _ in
-                self?.togglePhoneOrientation()
-            })
+            let current = Self.phoneOrientationChoice
+            let choices = PhonePlayerOrientation.allCases.map { choice in
+                UIAction(title: choice.title, image: UIImage(systemName: choice.systemImage),
+                         state: choice == current ? .on : .off) { [weak self] _ in
+                    self?.setPhoneOrientation(choice)
+                }
+            }
+            let menu = UIMenu(title: String(localized: "Orientation"),
+                              image: UIImage(systemName: current.systemImage), children: choices)
+            menu.subtitle = current.title
+            extras.append(menu)
         }
         return extras
     }
 
-    private func togglePhoneOrientation() {
-        Self.phoneOrientation = Self.phoneOrientation == .portrait ? .landscape : .portrait
-        log.notice("orientation lock: \(Self.phoneOrientation == .portrait ? "portrait" : "landscape")")
+    private func setPhoneOrientation(_ choice: PhonePlayerOrientation) {
+        Self.phoneOrientationChoice = choice
+        log.notice("orientation: \(choice.rawValue)")
         enterPreferredOrientation()
         trackMenuState = nil
         rebuildTrackMenus()
