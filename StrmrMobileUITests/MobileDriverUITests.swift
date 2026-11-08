@@ -108,9 +108,9 @@ final class MobileDriverUITests: XCTestCase {
     /// `q=TEXT` (exact label / identifier first, then contains; `i=N` picks the Nth match), or
     /// `x=&y=` in points from the top left of the screen.
     private func tap(_ q: [String: String], long: Bool) -> DriverServer.Response {
-        let target: XCUICoordinate
         if let x = Double(q["x"] ?? ""), let y = Double(q["y"] ?? "") {
-            target = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: y))
+            let target = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: y))
+            if long { target.press(forDuration: 1.0) } else { target.tap() }
         } else {
             let text = q["q"] ?? ""
             var element = match(text)
@@ -120,9 +120,11 @@ final class MobileDriverUITests: XCTestCase {
                     .element(boundBy: i)
             }
             guard element.waitForExistence(timeout: 5) else { return .text("not found: \(text)", status: 404) }
-            target = element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            // The element's own tap, not a computed coordinate: building a touch from a coordinate
+            // inside a landscape-only player on a portrait device asserted in XCTest and ended the
+            // driver (and with it the app).
+            if long { element.press(forDuration: 1.0) } else { element.tap() }
         }
-        if long { target.press(forDuration: 1.0) } else { target.tap() }
         Thread.sleep(forTimeInterval: 0.4)
         return .text("ok")
     }

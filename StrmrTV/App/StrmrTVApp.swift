@@ -2,6 +2,10 @@ import SwiftUI
 
 @main
 struct StrmrTVApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(MobileAppDelegate.self) private var appDelegate
+    #endif
+
     init() {
         CrashReporter.install()
         MainThreadWatchdog.shared.start()
