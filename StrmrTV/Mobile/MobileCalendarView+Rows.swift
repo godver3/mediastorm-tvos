@@ -165,9 +165,13 @@ struct MobileCalendarRow: View {
                     Text(CalendarModel.episodeLine(item)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     Text(CalendarModel.summary(item)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    .frame(maxHeight: .infinity)
             }
-            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .contextMenu { TitleActionsMenu(target: target, episode: CardEpisode(item)) }
         .accessibilityIdentifier("calendar-item-\(CalendarModel.itemKey(item))")
     }

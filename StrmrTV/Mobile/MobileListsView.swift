@@ -55,14 +55,8 @@ struct MobileListsView: View {
                 MobileTileRow(title: String(localized: "Recommended"),
                               tiles: [TileSpec(.personalized)] + catalog.seeds.map { TileSpec($0) })
                 // All shows each kind's genres, then each kind's decades, as the Expo app does.
-                let kinds = kind.map { [$0] } ?? BrowseKind.allCases
-                ForEach(kinds) { rowKind in
-                    MobileTileRow(title: ListsCatalog.rowTitle(String(localized: "Genres"), rowKind, chosen: kind),
-                                  tiles: rowKind.genres.map { TileSpec(.genre($0, rowKind)) })
-                }
-                ForEach(kinds) { rowKind in
-                    MobileTileRow(title: ListsCatalog.rowTitle(String(localized: "Decades"), rowKind, chosen: kind),
-                                  tiles: rowKind.decades.map { TileSpec(.decade($0, rowKind)) })
+                ForEach(discoveryRows, id: \.id) { row in
+                    MobileTileRow(title: row.title, tiles: row.tiles)
                 }
             }
             .padding(.vertical, 8)
@@ -110,6 +104,21 @@ struct MobileListsView: View {
         } message: {
             Text("Describe what you're in the mood for.")
         }
+    }
+
+    /// Genre rows then decade rows, for the chosen kind or both. One list with its own ids:
+    /// two `ForEach` over the kinds would give the stack duplicate ids and drop rows.
+    private var discoveryRows: [(id: String, title: String, tiles: [TileSpec])] {
+        let kinds = kind.map { [$0] } ?? BrowseKind.allCases
+        let genres = kinds.map { rowKind in
+            ("genres-\(rowKind.rawValue)", ListsCatalog.rowTitle(String(localized: "Genres"), rowKind, chosen: kind),
+             rowKind.genres.map { TileSpec(.genre($0, rowKind)) })
+        }
+        let decades = kinds.map { rowKind in
+            ("decades-\(rowKind.rawValue)", ListsCatalog.rowTitle(String(localized: "Decades"), rowKind, chosen: kind),
+             rowKind.decades.map { TileSpec(.decade($0, rowKind)) })
+        }
+        return genres + decades
     }
 
     private func startNewList() {

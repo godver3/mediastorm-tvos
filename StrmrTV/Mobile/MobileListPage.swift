@@ -67,7 +67,8 @@ struct MobileBrowseGrid: View {
         .overlay { status }
         .refreshable { await model.refreshInPlace() }
         .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.large)
+        // A long name (an Ask AI prompt) would be cut off as a large title.
+        .navigationBarTitleDisplayMode(title.count > 24 ? .inline : .large)
         .modifier(TitleFilter(enabled: list.filters, text: $model.titleFilter))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {

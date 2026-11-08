@@ -10,8 +10,8 @@ struct MobileCalendarView: View {
     @StateObject private var store = CalendarStore()
     @State private var started = false
     @State private var chosenDay: String?
-    /// Days whose heading is on screen; the strip marks the first.
-    @State private var visibleDays: Set<String> = []
+    /// Releases on screen ("day|item"); the strip marks the first one's day.
+    @State private var visibleRows: Set<String> = []
     @State private var category: MobileCalendarCategory = .all
 
     /// The store's days, narrowed for Upcoming / Recently Aired.
@@ -22,20 +22,33 @@ struct MobileCalendarView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            List {
-                ForEach(days) { day in
-                    Section {
-                        ForEach(day.items, id: \.calendarKey) { MobileCalendarRow(item: $0) }
-                    } header: {
-                        MobileCalendarDayHeader(day: day)
-                            .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                if visible { visibleDays.insert(day.key) } else { visibleDays.remove(day.key) }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                    ForEach(days) { day in
+                        Section {
+                            ForEach(day.items, id: \.calendarKey) { item in
+                                MobileCalendarRow(item: item)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .onScrollVisibilityChange(threshold: 0.3) { visible in
+                                        let key = "\(day.key)|\(item.calendarKey)"
+                                        if visible { visibleRows.insert(key) } else { visibleRows.remove(key) }
+                                    }
+                                    // A lazy row unloaded off screen reports no visibility change.
+                                    .onDisappear { visibleRows.remove("\(day.key)|\(item.calendarKey)") }
+                                Divider().padding(.leading, 92)
                             }
+                        } header: {
+                            MobileCalendarDayHeader(day: day)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(.background)
+                        }
+                        .id(day.key)
                     }
-                    .id(day.key)
                 }
+                .padding(.bottom, 16)
             }
-            .listStyle(.plain)
             .overlay { status }
             .safeAreaInset(edge: .top, spacing: 0) {
                 MobileCalendarControls(days: days, category: $category, selectedDay: stripDay) { key in
@@ -45,7 +58,7 @@ struct MobileCalendarView: View {
             }
             .onChange(of: days) {
                 chosenDay = nil
-                visibleDays = []
+                visibleRows = []
                 guard let key = selectedDay else { return }
                 // After the list has laid the new days out.
                 DispatchQueue.main.async { proxy.scrollTo(key, anchor: .top) }
@@ -80,9 +93,10 @@ struct MobileCalendarView: View {
         return days.first?.key
     }
 
-    /// The strip follows the agenda: the first day with its heading on screen.
+    /// The strip follows the agenda: the first day with a release on screen.
     private var stripDay: String? {
-        days.first { visibleDays.contains($0.key) }?.key ?? selectedDay
+        let shown = Set(visibleRows.map { String($0.prefix { $0 != "|" }) })
+        return days.first { shown.contains($0.key) }?.key ?? selectedDay
     }
 
     private var subtitle: String {
