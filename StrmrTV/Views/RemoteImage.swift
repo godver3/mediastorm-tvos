@@ -22,6 +22,24 @@ enum ImagePipeline {
 
     @MainActor static var scale: CGFloat { UIScreen.main.scale }
 
+    #if os(iOS)
+    /// The phone's art comes through its own session and HTTP cache: the shared one is the
+    /// system default (10 MB on disk), which a few Home rows of posters and backdrops
+    /// overflow, so art was fetched again after a relaunch or once memory was trimmed.
+    /// Kept apart from the API's caching; the system may purge it under storage pressure.
+    private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.urlCache = URLCache(memoryCapacity: 32 << 20, diskCapacity: 512 << 20,
+                                   directory: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+                                       .first?.appending(path: "Artwork", directoryHint: .isDirectory))
+        config.requestCachePolicy = .returnCacheDataElseLoad
+        config.httpMaximumConnectionsPerHost = 6
+        return URLSession(configuration: config)
+    }()
+    #else
+    private static var session: URLSession { .shared }
+    #endif
+
     private static func key(_ url: URL, _ size: CGSize, _ mode: ContentMode) -> NSString {
         "\(url.absoluteString)|\(Int(size.width))x\(Int(size.height))|\(mode == .fill ? "fill" : "fit")" as NSString
     }
@@ -77,7 +95,7 @@ enum ImagePipeline {
         } else {
             request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
         }
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
+        guard let (data, _) = try? await session.data(for: request),
               let source = UIImage(data: data) else { return nil }
 
         let pixels = source.size.applying(.init(scaleX: source.scale, y: source.scale))
