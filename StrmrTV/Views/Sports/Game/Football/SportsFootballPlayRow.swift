@@ -8,12 +8,12 @@ struct SportsFootballPlayRow: View {
     let play: SportsPlay
 
     var body: some View {
-        HStack(alignment: .center, spacing: 20) {
+        HStack(alignment: .center, spacing: SportsMetric.tv(20, phone: 8)) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(play.periodLabel).font(.caption).foregroundStyle(.secondary)
                 Text(play.clock ?? "").fontWeight(.semibold).monospacedDigit()
             }
-            .frame(width: 90, alignment: .leading)
+            .frame(width: SportsMetric.tv(90, phone: 44), alignment: .leading)
             ZStack {
                 // The timeline runs on through the gaps between rows.
                 Rectangle().fill(Color.white.opacity(0.18)).frame(width: 2).frame(maxHeight: .infinity).padding(.vertical, -16)
@@ -24,9 +24,9 @@ struct SportsFootballPlayRow: View {
             .frame(width: 26)
             .accessibilityHidden(true)
             Group {
-                if let team = page.team(id: play.teamId) { SportsTeamLogo(team: team, size: 48) } else { Color.clear }
+                if let team = page.team(id: play.teamId) { SportsTeamLogo(team: team, size: SportsMetric.tv(48, phone: 26)) } else { Color.clear }
             }
-            .frame(width: 48, height: 48)
+            .frame(width: SportsMetric.tv(48, phone: 26), height: SportsMetric.tv(48, phone: 26))
             VStack(alignment: .leading, spacing: 4) {
                 Text(play.title).fontWeight(.semibold)
                 if let description = play.description?.trimmingCharacters(in: .whitespaces), description != play.title {

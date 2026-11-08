@@ -29,7 +29,7 @@ struct SportsRugbyTimeline: View {
                 Button(expanded ? String(localized: "Show Fewer Events") : String(localized: "Show All \(plays.count) Events")) {
                     expanded.toggle()
                 }
-                .buttonStyle(FilterChipStyle(selected: false))
+                .buttonStyle(SportsChipStyle(selected: false))
                 .font(.callout)
                 .padding(.top, 6)
             }

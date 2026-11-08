@@ -35,7 +35,7 @@ struct SportsF1Insights: View {
             HStack(spacing: 18) {
                 ForEach(Tab.allCases, id: \.self) { option in
                     Button(label(option, qualifying: qualifying != nil)) { tab = option }
-                        .buttonStyle(FilterChipStyle(selected: tab == option))
+                        .buttonStyle(SportsChipStyle(selected: tab == option))
                 }
             }
             .font(.caption)
@@ -62,7 +62,7 @@ struct SportsF1Insights: View {
     @ViewBuilder private var timeline: some View {
         let messages = SportsF1Timing.messages(archive).filter { !flagsOnly || !$0.flag.isEmpty || $0.category == "SafetyCar" }
         Button("Flags & Safety Car Only") { flagsOnly.toggle() }
-            .buttonStyle(FilterChipStyle(selected: flagsOnly))
+            .buttonStyle(SportsChipStyle(selected: flagsOnly))
             .font(.caption)
         if messages.isEmpty {
             Text(flagsOnly ? "No flag messages in this capture." : "No race-control messages in this capture.")

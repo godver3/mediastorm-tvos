@@ -40,6 +40,27 @@ struct SportsPanel<Content: View>: View {
     }
 }
 
+/// The chips inside the sports panels (play filters, pages, sides): the TV's `FilterChipStyle`,
+/// on a phone a small capsule, accent-filled while chosen.
+struct SportsChipStyle: ButtonStyle {
+    let selected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        #if os(iOS)
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .background(Capsule().fill(selected ? Color.accentColor : Color(.tertiarySystemFill)))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+        #else
+        FilterChipStyle(selected: selected).makeBody(configuration: configuration)
+        #endif
+    }
+}
+
 /// A fixed size the TV panels use, with a phone's own where the TV's would crowd a phone screen.
 enum SportsMetric {
     static func tv(_ tv: CGFloat, phone: CGFloat) -> CGFloat {

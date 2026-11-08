@@ -33,7 +33,7 @@ struct SportsCyclingCalendar: View {
                 menu(String(localized: "Category"), Self.categoryChoices, $category)
                 menu(String(localized: "Format"), Self.formatChoices, $format)
                 Button { favorites.toggle() } label: { Label("My Favorites", systemImage: favorites ? "star.fill" : "star") }
-                    .buttonStyle(FilterChipStyle(selected: favorites))
+                    .buttonStyle(SportsChipStyle(selected: favorites))
             }
             .font(.callout)
             .lineLimit(1)
@@ -114,6 +114,6 @@ struct SportsCyclingCalendar: View {
         } label: {
             Label(choices.first { $0.0 == value.wrappedValue }?.1 ?? title, systemImage: "chevron.down")
         }
-        .buttonStyle(FilterChipStyle(selected: value.wrappedValue != "all"))
+        .buttonStyle(SportsChipStyle(selected: value.wrappedValue != "all"))
     }
 }

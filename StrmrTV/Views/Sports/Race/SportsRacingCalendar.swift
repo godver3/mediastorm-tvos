@@ -56,7 +56,7 @@ struct SportsRacingCalendar: View {
         HStack(spacing: 18) {
             ForEach([false, true], id: \.self) { value in
                 Button(value ? "Championship Standings" : "Race Weekends") { championship = value }
-                    .buttonStyle(FilterChipStyle(selected: championship == value))
+                    .buttonStyle(SportsChipStyle(selected: championship == value))
                     .focused($chip, equals: value ? "championship" : "weekends")
             }
             Menu {
@@ -67,11 +67,11 @@ struct SportsRacingCalendar: View {
             } label: {
                 Label("Series: \(series.map(hub.leagueName) ?? String(localized: "All Racing"))", systemImage: "chevron.down")
             }
-            .buttonStyle(FilterChipStyle(selected: series != nil))
+            .buttonStyle(SportsChipStyle(selected: series != nil))
             .accessibilityIdentifier("sports-racing-series")
             if !championship {
                 Button { favorites.toggle() } label: { Label("My Favorites", systemImage: favorites ? "star.fill" : "star") }
-                    .buttonStyle(FilterChipStyle(selected: favorites))
+                    .buttonStyle(SportsChipStyle(selected: favorites))
             }
         }
         .font(.callout)
@@ -86,7 +86,7 @@ struct SportsRacingCalendar: View {
             ForEach([("all", String(localized: "All Weekends")), ("scheduled", String(localized: "Upcoming Races")),
                      ("final", String(localized: "Race Results"))], id: \.0) { id, label in
                 Button(label) { status = id }
-                    .buttonStyle(FilterChipStyle(selected: status == id))
+                    .buttonStyle(SportsChipStyle(selected: status == id))
                     .focused($chip, equals: "status-\(id)")
             }
         }

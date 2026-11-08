@@ -19,7 +19,7 @@ struct SportsLineupLists: View {
             HStack(spacing: 18) {
                 ForEach(choices, id: \.self) { choice in
                     Button(Self.label(choice)) { selection = choice }
-                        .buttonStyle(FilterChipStyle(selected: selection == choice))
+                        .buttonStyle(SportsChipStyle(selected: selection == choice))
                         .focused($chipFocus, equals: choice)
                 }
             }

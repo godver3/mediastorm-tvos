@@ -87,11 +87,11 @@ struct SportsRaceSessionResults: View {
     private var resultFilter: some View {
         HStack(spacing: 18) {
             Button("All Entries") { model.resultFilter = nil }
-                .buttonStyle(FilterChipStyle(selected: model.activeFilter == nil))
+                .buttonStyle(SportsChipStyle(selected: model.activeFilter == nil))
                 .focused($filterFocus, equals: "")
             ForEach(model.resultStatuses, id: \.self) { status in
                 Button(status) { model.resultFilter = status }
-                    .buttonStyle(FilterChipStyle(selected: model.activeFilter == status))
+                    .buttonStyle(SportsChipStyle(selected: model.activeFilter == status))
                     .focused($filterFocus, equals: status)
             }
         }

@@ -38,7 +38,7 @@ struct SportsPlayByPlay: View {
                 }
                 Text(feed.summary).font(.caption).foregroundStyle(.secondary)
             }
-            .buttonStyle(FilterChipStyle(selected: false))
+            .buttonStyle(SportsChipStyle(selected: false))
             .font(.callout)
             .sportsChipRow()
             VStack(alignment: .leading, spacing: 10) {
@@ -63,7 +63,7 @@ struct SportsPlayByPlay: View {
             .focusSection()
             if feed.currentPage < feed.pageCount - 1 {
                 Button("Older Plays") { turn(to: feed.currentPage + 1, feed: feed, focusFirst: true) }
-                    .buttonStyle(FilterChipStyle(selected: false))
+                    .buttonStyle(SportsChipStyle(selected: false))
                     .font(.callout)
                     .focused($focus, equals: .more)
                     .accessibilityIdentifier("sports-plays-older")
@@ -78,7 +78,7 @@ struct SportsPlayByPlay: View {
             HStack(spacing: 18) {
                 ForEach(values, id: \.self) { value in
                     Button(label(value)) { choose(value) }
-                        .buttonStyle(FilterChipStyle(selected: value == selected))
+                        .buttonStyle(SportsChipStyle(selected: value == selected))
                         .focused($focus, equals: target(value))
                 }
             }

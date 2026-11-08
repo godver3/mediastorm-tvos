@@ -81,11 +81,11 @@ struct SportsCyclingResultsView: View {
         let chosen = model.activeFilter ?? ""
         return HStack(spacing: 18) {
             Button(teams ? "All Teams" : "All Riders") { model.filter(nil) }
-                .buttonStyle(FilterChipStyle(selected: model.activeFilter == nil))
+                .buttonStyle(SportsChipStyle(selected: model.activeFilter == nil))
                 .focused($focus, equals: .chip(""))
             ForEach(model.resultStatuses, id: \.self) { status in
                 Button(status) { model.filter(status) }
-                    .buttonStyle(FilterChipStyle(selected: model.activeFilter == status))
+                    .buttonStyle(SportsChipStyle(selected: model.activeFilter == status))
                     .focused($focus, equals: .chip(status))
             }
         }

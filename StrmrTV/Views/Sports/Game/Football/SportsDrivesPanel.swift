@@ -70,7 +70,7 @@ struct SportsDrivesPanel: View {
                         Text("Both Teams")
                     }
                 }
-                .buttonStyle(FilterChipStyle(selected: chosen == id))
+                .buttonStyle(SportsChipStyle(selected: chosen == id))
                 .accessibilityLabel(team?.name ?? String(localized: "Both Teams"))
                 .focused($focus, equals: .side(id))
             }

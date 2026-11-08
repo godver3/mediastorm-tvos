@@ -47,7 +47,7 @@ struct SportsCyclingRoute: View {
                 .sportsReadout()
                 if assets.count > 1 { chips(assets.map(\.label)) }
                 if let asset {
-                    image(asset.url, size: CGSize(width: 1500, height: 420))
+                    image(asset.url, size: CGSize(width: SportsMetric.tv(1500, phone: 340), height: SportsMetric.tv(420, phone: 120)))
                 } else {
                     Text(guide?.reason ?? (race.calendarOnly
                         ? String(localized: "This calendar supplies race dates only. Check the organizer for the published schedule.")
@@ -71,7 +71,7 @@ struct SportsCyclingRoute: View {
             if let asset {
                 SportsMapCover(title: title, subtitle: [asset.label, stage.route].filter { !$0.isEmpty }.joined(separator: " · "),
                                note: String(localized: "Published organizer diagram"), close: { expanded = false }) {
-                    image(asset.url, size: CGSize(width: 1680, height: 780))
+                    image(asset.url, size: CGSize(width: SportsMetric.tv(1680, phone: 340), height: SportsMetric.tv(780, phone: 220)))
                 }
             }
         }
@@ -81,7 +81,7 @@ struct SportsCyclingRoute: View {
         HStack(spacing: 18) {
             ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
                 Button(label) { chosen = index }
-                    .buttonStyle(FilterChipStyle(selected: index == chosen))
+                    .buttonStyle(SportsChipStyle(selected: index == chosen))
                     .focused($chip, equals: index)
             }
         }

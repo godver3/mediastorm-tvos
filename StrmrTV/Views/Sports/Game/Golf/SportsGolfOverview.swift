@@ -40,9 +40,9 @@ struct SportsGolfOverview: View {
                 HStack(spacing: 18) {
                     // Dimmed, not disabled, at either end: a disabled chip would drop the remote's focus.
                     Button("Previous Golfers") { pageIndex = max(0, current - 1) }
-                        .buttonStyle(FilterChipStyle(selected: false)).opacity(current == 0 ? 0.45 : 1)
+                        .buttonStyle(SportsChipStyle(selected: false)).opacity(current == 0 ? 0.45 : 1)
                     Button("Next Golfers") { pageIndex = min(pages - 1, current + 1) }
-                        .buttonStyle(FilterChipStyle(selected: false)).opacity(current == pages - 1 ? 0.45 : 1)
+                        .buttonStyle(SportsChipStyle(selected: false)).opacity(current == pages - 1 ? 0.45 : 1)
                     Text("\(current + 1) / \(pages)").font(.caption).foregroundStyle(.secondary)
                 }
                 .font(.callout)
@@ -106,7 +106,7 @@ struct SportsGolfScorecard: View {
                     HStack(spacing: 14) {
                         ForEach(rounds, id: \.round) { item in
                             Button("R\(item.round) · \(item.strokes ?? "–")") { round = item.round }
-                                .buttonStyle(FilterChipStyle(selected: item.round == shown?.round))
+                                .buttonStyle(SportsChipStyle(selected: item.round == shown?.round))
                         }
                     }
                     .font(.callout)
