@@ -3,10 +3,9 @@ import SwiftUI
 
 /// The signed-in phone app: a system tab bar in the Expo mobile app's order. Which sections
 /// show follows the profile's menu (`MenuTabsStore`), as on the TV. On iPhone the bar's
-/// five items are the first sections, Search and a More tab of our own (`MobileTabSplit`);
-/// More opens a menu of the rest (`MobileMoreMenu`) rather than a page, and the section
-/// chosen there shows in the More tab. (The system More wraps each tab's
-/// NavigationStack in its own navigation bar, which stacked two bars on every page under it.)
+/// five items are the first sections, Search and a More tab of our own (`MobileTabSplit`)
+/// listing the rest (`MobileMoreList`). The system More wraps each tab's NavigationStack in
+/// its own navigation bar, which stacked two bars on every page under it.
 /// On iPad every section is a tab (or a sidebar row).
 struct MobileMainView: View {
     /// Held, not observed: the stores' changes reach the screens through the environment.
@@ -15,10 +14,6 @@ struct MobileMainView: View {
     @StateObject private var stores = MobileMainStores()
     @ObservedObject private var menu = MenuTabsStore.shared
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var selection: MobileTab = .section(.home)
-    /// The section the More tab shows, chosen from its menu.
-    @State private var moreSection: MobileSection?
-    @State private var showsMoreMenu = false
     @State private var homePath = NavigationPath()
     @State private var morePath = NavigationPath()
 
@@ -40,58 +35,25 @@ struct MobileMainView: View {
         MobileTabSplit(sections: sections, compact: sizeClass == .compact)
     }
 
-    /// Choosing More opens its menu instead of switching tabs; the tab switches once a
-    /// section is picked.
-    private var tabSelection: Binding<MobileTab> {
-        Binding {
-            selection
-        } set: { tab in
-            if tab == .more {
-                showsMoreMenu = true
-            } else {
-                selection = tab
-            }
-        }
-    }
-
     var body: some View {
         let split = split
-        let shownMore = moreSection.flatMap { split.more.contains($0) ? $0 : nil } ?? split.more.first
-        TabView(selection: tabSelection) {
+        TabView {
             ForEach(split.tabs) { section in
-                Tab(section.title, systemImage: section.symbol, value: MobileTab.section(section),
-                    role: section == .search ? .search : nil) {
+                Tab(section.title, systemImage: section.symbol, role: section == .search ? .search : nil) {
                     stack(for: section)
                 }
             }
-            if let shownMore {
-                Tab(MobileMoreMenu.title, systemImage: "ellipsis", value: MobileTab.more) {
-                    NavigationStack(path: $morePath) { shownMore.screen.mobileDestinations() }
-                        .id(shownMore)
+            if !split.more.isEmpty {
+                Tab("More", systemImage: "ellipsis") {
+                    NavigationStack(path: $morePath) {
+                        MobileMoreList(sections: split.more)
+                            .navigationDestination(for: MobileSection.self) { $0.screen }
+                            .mobileDestinations()
+                    }
                 }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
-        .mobileMoreMenu(isPresented: $showsMoreMenu, sections: split.more,
-                        current: selection == .more ? shownMore : nil) { section in
-            if section != shownMore || selection != .more { morePath = NavigationPath() }
-            moreSection = section
-            selection = .more
-        }
-        // A section that leaves the More menu (the profile's menu changed, or a regular
-        // width that shows every tab) is shown as its own tab, and the other way round.
-        .onChange(of: split) { _, split in
-            if selection == .more {
-                if split.more.isEmpty { selection = .section(shownMore ?? .home) }
-            } else if case let .section(section) = selection, !split.tabs.contains(section) {
-                if split.more.contains(section) {
-                    moreSection = section
-                    selection = .more
-                } else {
-                    selection = .section(.home)
-                }
-            }
-        }
         .mobileConnectionAccessory()
         .environmentObject(stores.watchlist)
         .environmentObject(stores.customLists)
