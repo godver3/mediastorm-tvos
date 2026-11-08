@@ -144,6 +144,21 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.strmr.app.nx
             CFBundleURLSchemes: [com.strmr.app.nx]
+  # The iOS driver (scripts/ios): a long-running UI test serving taps, swipes and screenshots.
+  StrmrMobileUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: StrmrMobileUITests
+      - path: StrmrTVUITests/DriverServer.swift
+    dependencies:
+      - target: StrmrMobile
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.mobile.uitests
+        TEST_TARGET_NAME: StrmrMobile
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
   StrmrTVUITests:
     type: bundle.ui-testing
     platform: tvOS
@@ -179,3 +194,5 @@ schemes:
     build:
       targets:
         StrmrMobile: all
+    test:
+      targets: [StrmrMobileUITests]
