@@ -36,7 +36,7 @@ struct SportsTeamComparison: View {
                 let values = teams.map { display(page.value(row, for: $0), label: row.label) }
                 VStack(spacing: 8) {
                     // Expo's 1 : 2 : 1 row.
-                    SportsColumns(weights: [1, 2, 1], spacing: 12) {
+                    SportsSplit(weights: [1, 2, 1], spacing: 12) {
                         Text(values[0]).fontWeight(.semibold).frame(maxWidth: .infinity, alignment: .leading)
                         Text(row.label).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)

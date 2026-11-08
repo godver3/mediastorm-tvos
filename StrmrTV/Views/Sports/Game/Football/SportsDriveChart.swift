@@ -35,7 +35,7 @@ struct SportsDriveChart: View {
                 SportsFootballField(left: team, right: opponent, leftColor: page.colorHex(team), rightColor: page.colorHex(opponent)) { context in
                     marks(&context, team: team, lanes: lanes, highlighted: highlighted)
                 }
-                .frame(width: 600, height: 600 * SportsFieldSpace.height / SportsFieldSpace.width)
+                .frame(width: SportsMetric.tv(600, phone: 320), height: SportsMetric.tv(600, phone: 320) * SportsFieldSpace.height / SportsFieldSpace.width)
                 .sportsReadout(fill: false)
                 .accessibilityLabel(spoken(team: team, lanes: lanes))
                 .focused(focus, equals: .field)

@@ -23,7 +23,7 @@ struct SportsPlayRow: View {
                         .fontWeight(play.scoring ? .semibold : .regular).lineLimit(3)
                 }
             } else {
-                Text(time(separator: "\n")).font(.caption).foregroundStyle(.secondary).frame(width: 120, alignment: .leading)
+                Text(time(separator: "\n")).font(.caption).foregroundStyle(.secondary).frame(width: SportsMetric.tv(120, phone: 64), alignment: .leading)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 12) {
                         Text(play.title).fontWeight(play.scoring ? .bold : .semibold)

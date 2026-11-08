@@ -105,7 +105,7 @@ struct SportsCombatStats: View {
             SportsCombatNames(page: page)
             ForEach(Array(page.detail.comparisons.enumerated()), id: \.offset) { _, row in
                 VStack(spacing: 8) {
-                    SportsColumns(weights: [1, 2, 1], spacing: 12) {
+                    SportsSplit(weights: [1, 2, 1], spacing: 12) {
                         Text(row.away.isEmpty ? "—" : row.away).fontWeight(.semibold).frame(maxWidth: .infinity, alignment: .leading)
                         Text(row.label).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)

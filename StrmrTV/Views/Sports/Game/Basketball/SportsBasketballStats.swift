@@ -51,7 +51,7 @@ struct SportsBasketballTeamStats: View {
             }
             .fontWeight(.semibold)
             ForEach(Self.rows(page.detail.comparisons), id: \.label) { row in
-                SportsColumns(weights: [1, 1.4, 1], spacing: 12) {
+                SportsSplit(weights: [1, 1.4, 1], spacing: 12) {
                     figure(row.home, attempts: row.homeAttempts, alignment: .leading)
                     Text(row.label).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                     figure(row.away, attempts: row.awayAttempts, alignment: .trailing)

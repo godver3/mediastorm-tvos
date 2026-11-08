@@ -25,11 +25,36 @@ struct SportsPanel<Content: View>: View {
             content
         }
         .font(.callout)
+        #if os(iOS)
+        // Phones: an inset-grouped card on the page's grouped background.
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        #else
         .padding(.horizontal, 30)
         .padding(.vertical, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white.opacity(0.06)))
+        #endif
     }
+}
+
+/// A fixed size the TV panels use, with a phone's own where the TV's would crowd a phone screen.
+enum SportsMetric {
+    static func tv(_ tv: CGFloat, phone: CGFloat) -> CGFloat {
+        #if os(iOS)
+        phone
+        #else
+        tv
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// Set by the phone's sports pages on a narrow screen: `SportsColumns` stacks its columns
+    /// instead of sharing the width. Never set on tvOS.
+    @Entry var sportsStacksColumns = false
 }
 
 extension View {
@@ -53,7 +78,21 @@ extension View {
     /// Down reach it from anywhere above or below; pair with `.defaultFocus(…, .userInitiated)`
     /// to land on the chosen chip.
     func sportsChipRow(alignment: Alignment = .leading) -> some View {
+        #if os(iOS)
+        fixedSize().sportsSideScroll().frame(maxWidth: .infinity, alignment: alignment)
+        #else
         fixedSize().frame(maxWidth: .infinity, alignment: alignment).focusSection()
+        #endif
+    }
+
+    /// Content of a fixed width (a line score, a chip row): on a phone it scrolls sideways when
+    /// it outgrows the screen instead of widening the page; on tvOS it is left as it is.
+    @ViewBuilder func sportsSideScroll() -> some View {
+        #if os(iOS)
+        ScrollView(.horizontal) { self }.scrollIndicators(.hidden).scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        #else
+        self
+        #endif
     }
 }
 
@@ -118,9 +157,14 @@ struct SportsColumns<Content: View>: View {
     var weights: [CGFloat] = [1, 1]
     var spacing: CGFloat = 36
     @ViewBuilder let content: Content
+    @Environment(\.sportsStacksColumns) private var stacked
 
     var body: some View {
-        SportsSplit(weights: weights, spacing: spacing).callAsFunction { content }
+        if stacked {
+            VStack(alignment: .leading, spacing: 20) { content }
+        } else {
+            SportsSplit(weights: weights, spacing: spacing).callAsFunction { content }
+        }
     }
 }
 

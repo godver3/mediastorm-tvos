@@ -51,7 +51,7 @@ struct SportsGolfOverview: View {
             HStack(spacing: 8) {
                 Text("Player").frame(maxWidth: .infinity, alignment: .leading)
                 ForEach(1...4, id: \.self) { Text("R\($0)").frame(width: 64) }
-                Text("To par").frame(width: 100)
+                Text("To par").frame(width: SportsMetric.tv(100, phone: 56))
             }
             .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16)
             if visible.isEmpty {
@@ -68,7 +68,7 @@ struct SportsGolfOverview: View {
                         ForEach(1...4, id: \.self) { number in
                             Text(golfer.rounds.first { $0.round == number }?.strokes ?? "–").foregroundStyle(.secondary).frame(width: 64)
                         }
-                        Text(golfer.score ?? "–").fontWeight(.bold).frame(width: 100)
+                        Text(golfer.score ?? "–").fontWeight(.bold).frame(width: SportsMetric.tv(100, phone: 56))
                     }
                     .monospacedDigit()
                 }

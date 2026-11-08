@@ -9,12 +9,17 @@ struct SportsPeriodBreakdown: View {
     var body: some View {
         let periods = page.detail.periods
         SportsPanel(title) {
+            #if os(iOS)
+            // A phone: compact cells, scrolling sideways when a long game outgrows the screen.
+            ScrollView(.horizontal) { table(periods, cell: 40) }.scrollIndicators(.hidden)
+            #else
             ViewThatFits(in: .horizontal) {
                 table(periods, cell: 84)
                 table(periods, cell: 64)
                 table(periods, cell: 50)
             }
             .sportsReadout()
+            #endif
         }
     }
 
@@ -32,11 +37,11 @@ struct SportsPeriodBreakdown: View {
     private func table(_ periods: [SportsPeriodScore], cell: CGFloat) -> some View {
         Grid(alignment: .center, horizontalSpacing: 0, verticalSpacing: 12) {
             GridRow {
-                Text("TEAM").gridColumnAlignment(.leading).frame(minWidth: 130, alignment: .leading)
+                Text("TEAM").gridColumnAlignment(.leading).frame(minWidth: SportsMetric.tv(130, phone: 70), alignment: .leading)
                 ForEach(Array(periods.enumerated()), id: \.offset) { _, period in
                     Text(period.label).lineLimit(1).frame(width: cell)
                 }
-                Text("TOTAL").frame(width: 110)
+                Text("TOTAL").frame(width: SportsMetric.tv(110, phone: 56))
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -50,7 +55,7 @@ struct SportsPeriodBreakdown: View {
                     ForEach(Array(periods.enumerated()), id: \.offset) { _, period in
                         Text(score(period, team)).frame(width: cell)
                     }
-                    Text(team.score ?? "–").fontWeight(.bold).frame(width: 110)
+                    Text(team.score ?? "–").fontWeight(.bold).frame(width: SportsMetric.tv(110, phone: 56))
                 }
             }
         }

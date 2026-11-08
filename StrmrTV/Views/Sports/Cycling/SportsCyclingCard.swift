@@ -12,39 +12,8 @@ struct SportsCyclingCard: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        let rows = SportsCyclingFormat.cardRows(listing, spoilers: spoilers)
         NavigationLink(value: SportsCyclingRef(raceID: listing.race.id, stageID: listing.stage?.id)) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(SportsCyclingFormat.cardLabel(listing.race).uppercased())
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer()
-                    SportsTextPill(text: SportsCyclingFormat.cardPill(listing), amber: listing.lifecycle == .canceled)
-                }
-                .padding(.bottom, 2)
-                Text(SportsRaceFormat.cardTitle(listing.race.name)).font(.callout.weight(.semibold)).lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                let subtitle = SportsCyclingFormat.cardSubtitle(listing)
-                if !subtitle.isEmpty { Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
-                Text(SportsCyclingFormat.cardProgress(listing)).font(.caption.weight(.semibold)).lineLimit(1)
-                Spacer(minLength: 0)
-                if rows.isEmpty {
-                    Text(SportsCyclingFormat.cardEmpty(listing, spoilers: spoilers)).font(.caption2).foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                ForEach(rows, id: \.self) { row in
-                    HStack(spacing: 12) {
-                        Text("\(row.rank)").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
-                            .frame(width: 26, alignment: .leading)
-                        Text(row.name).font(.caption).lineLimit(1)
-                        Spacer(minLength: 8)
-                        if let value = row.value {
-                            Text(value).font(.caption2).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
-                        }
-                    }
-                }
-                if listing.stage?.results.stale == true { SportsCardDelayed() }
-            }
+            SportsCyclingCardBody(listing: listing, spoilers: spoilers)
             .padding(22)
             .frame(width: SportsGameCard.width, height: SportsGameCard.height, alignment: .topLeading)
             .background(Color.white.opacity(isFocused ? 0.16 : 0.08))
@@ -72,4 +41,45 @@ struct SportsTextPill: View {
 struct SportsCyclingRef: Hashable {
     let raceID: String
     let stageID: String?
+}
+
+/// What a hub cycling card shows inside its frame (shared by the TV card and the phone's).
+struct SportsCyclingCardBody: View {
+    let listing: SportsCyclingListing
+    let spoilers: Bool
+
+    var body: some View {
+        let rows = SportsCyclingFormat.cardRows(listing, spoilers: spoilers)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(SportsCyclingFormat.cardLabel(listing.race).uppercased())
+                    .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
+                Spacer()
+                SportsTextPill(text: SportsCyclingFormat.cardPill(listing), amber: listing.lifecycle == .canceled)
+            }
+            .padding(.bottom, 2)
+            Text(SportsRaceFormat.cardTitle(listing.race.name)).font(.callout.weight(.semibold)).lineLimit(2)
+                .minimumScaleFactor(0.8)
+            let subtitle = SportsCyclingFormat.cardSubtitle(listing)
+            if !subtitle.isEmpty { Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+            Text(SportsCyclingFormat.cardProgress(listing)).font(.caption.weight(.semibold)).lineLimit(1)
+            Spacer(minLength: 0)
+            if rows.isEmpty {
+                Text(SportsCyclingFormat.cardEmpty(listing, spoilers: spoilers)).font(.caption2).foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            ForEach(rows, id: \.self) { row in
+                HStack(spacing: 12) {
+                    Text("\(row.rank)").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                        .frame(width: 26, alignment: .leading)
+                    Text(row.name).font(.caption).lineLimit(1)
+                    Spacer(minLength: 8)
+                    if let value = row.value {
+                        Text(value).font(.caption2).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+            }
+            if listing.stage?.results.stale == true { SportsCardDelayed() }
+        }
+    }
 }

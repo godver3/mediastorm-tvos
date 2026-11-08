@@ -13,9 +13,15 @@ struct SportsRaceTable: View {
     let expandedID: String?
     let select: (String) -> Void
 
+    #if os(iOS)
+    static let positionWidth: CGFloat = 34
+    static let lapsWidth: CGFloat = 40
+    static let timingWidth: CGFloat = 96
+    #else
     static let positionWidth: CGFloat = 64
     static let lapsWidth: CGFloat = 80
     static let timingWidth: CGFloat = 200
+    #endif
 
     var body: some View {
         let qualifying = SportsRaceFormat.isQualifying(session)

@@ -112,7 +112,7 @@ struct SportsSoccerStats: View {
                 .sportsReadout()
             }
             ForEach(Array(rows.filter { $0 != possession }.enumerated()), id: \.offset) { _, row in
-                SportsColumns(weights: [1, 3, 1], spacing: 12) {
+                SportsSplit(weights: [1, 3, 1], spacing: 12) {
                     Text(Self.display(page.value(row, for: teams[0]), label: row.label)).fontWeight(.bold).frame(maxWidth: .infinity)
                     Text(row.label).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                     Text(Self.display(page.value(row, for: teams[1]), label: row.label)).fontWeight(.bold).frame(maxWidth: .infinity)

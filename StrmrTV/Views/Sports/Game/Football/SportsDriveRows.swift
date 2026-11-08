@@ -124,10 +124,10 @@ struct SportsRecentDrives: View {
                         if let team { SportsTeamLogo(team: team, size: 32) }
                         Text(team?.shortName ?? "—").fontWeight(.semibold).lineLimit(1)
                     }
-                    .frame(width: 104, alignment: .leading)
+                    .frame(width: SportsMetric.tv(104, phone: 60), alignment: .leading)
                     SportsDrivePositionBar(page: page, drive: drive, result: result)
-                    Text(sportsDriveSpan(drive)).lineLimit(1).minimumScaleFactor(0.8).frame(width: 190, alignment: .leading)
-                    SportsDriveResultText(result: result).frame(width: 160, alignment: .leading)
+                    Text(sportsDriveSpan(drive)).lineLimit(1).minimumScaleFactor(0.8).frame(width: SportsMetric.tv(190, phone: 96), alignment: .leading)
+                    SportsDriveResultText(result: result).frame(width: SportsMetric.tv(160, phone: 84), alignment: .leading)
                 }
                 .monospacedDigit()
                 .sportsReadout()

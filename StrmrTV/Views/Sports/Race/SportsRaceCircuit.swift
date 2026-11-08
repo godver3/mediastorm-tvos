@@ -133,7 +133,7 @@ struct SportsMotoGPGuide: View {
                     Text("Updates delayed · Showing the last verified guide.").font(.caption).foregroundStyle(SportsStatusPill.amber)
                 }
                 if let map = circuit?.map {
-                    diagram(map, size: CGSize(width: 640, height: 260))
+                    diagram(map, size: CGSize(width: SportsMetric.tv(640, phone: 320), height: SportsMetric.tv(260, phone: 130)))
                 } else {
                     Text(guide.reason ?? String(localized: "An inline diagram is not available for this selection."))
                         .font(.caption).foregroundStyle(.secondary)

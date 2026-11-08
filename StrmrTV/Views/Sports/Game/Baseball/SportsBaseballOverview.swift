@@ -76,6 +76,10 @@ struct SportsBaseballLineScoreView: View {
     var body: some View {
         let score = SportsBaseballLineScore(page: page)
         SportsPanel(String(localized: "Line Score")) {
+            #if os(iOS)
+            ScrollView(.horizontal) { table(score, cell: 32) }.scrollIndicators(.hidden)
+                .accessibilityLabel(spoken(score))
+            #else
             ViewThatFits(in: .horizontal) {
                 table(score, cell: 58)
                 table(score, cell: 46)
@@ -83,13 +87,14 @@ struct SportsBaseballLineScoreView: View {
             }
             .sportsReadout()
             .accessibilityLabel(spoken(score))
+            #endif
         }
     }
 
     private func table(_ score: SportsBaseballLineScore, cell: CGFloat) -> some View {
         Grid(alignment: .center, horizontalSpacing: 0, verticalSpacing: 12) {
             GridRow {
-                Text("TEAM").gridColumnAlignment(.leading).frame(minWidth: 120, alignment: .leading)
+                Text("TEAM").gridColumnAlignment(.leading).frame(minWidth: SportsMetric.tv(120, phone: 64), alignment: .leading)
                 ForEach(score.innings, id: \.number) { inning in
                     Text("\(inning.number)").frame(width: cell)
                         .foregroundStyle(inning.number == score.current ? Color.accentColor : .secondary)

@@ -13,31 +13,7 @@ struct SportsRaceCard: View {
 
     var body: some View {
         NavigationLink(value: SportsRaceRef(weekendID: listing.weekend.id, sessionID: listing.session.id)) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(leagueName.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                    Spacer()
-                    SportsStatusPill(lifecycle: listing.lifecycle)
-                }
-                .padding(.bottom, 2)
-                Text(SportsRaceFormat.cardTitle(listing.weekend.title))
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(rows.count > 2 ? 1 : 2)
-                    .minimumScaleFactor(0.8)
-                if !subtitle.isEmpty {
-                    Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                }
-                Text(SportsRaceFormat.progress(session, spoilers: spoilers))
-                    .font(.caption.weight(.semibold)).lineLimit(1)
-                Spacer(minLength: 0)
-                if rows.isEmpty {
-                    Text(SportsRaceFormat.cardEmpty(session, spoilers: spoilers)).font(.caption2).foregroundStyle(.secondary)
-                }
-                ForEach(rows) { driver in leaderRow(driver) }
-                if session.stale {
-                    Text("Updates delayed").font(.caption2).foregroundStyle(SportsStatusPill.amber)
-                }
-            }
+            SportsRaceCardBody(listing: listing, leagueName: leagueName, spoilers: spoilers)
             .padding(22)
             .frame(width: SportsGameCard.width, height: SportsGameCard.height, alignment: .topLeading)
             .background(Color.white.opacity(isFocused ? 0.16 : 0.08))
@@ -45,6 +21,47 @@ struct SportsRaceCard: View {
         .buttonStyle(PosterFocusStyle(isFocused: isFocused))
         .focused($isFocused)
         .accessibilityIdentifier("sports-race-\(listing.key)")
+    }
+}
+
+/// Value pushed to open a race weekend's page on one of its sessions.
+struct SportsRaceRef: Hashable {
+    let weekendID: String
+    let sessionID: String?
+}
+
+/// What a hub race card shows inside its frame (shared by the TV card and the phone's).
+struct SportsRaceCardBody: View {
+    let listing: SportsRaceListing
+    let leagueName: String
+    let spoilers: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(leagueName.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                SportsStatusPill(lifecycle: listing.lifecycle)
+            }
+            .padding(.bottom, 2)
+            Text(SportsRaceFormat.cardTitle(listing.weekend.title))
+                .font(.callout.weight(.semibold))
+                .lineLimit(rows.count > 2 ? 1 : 2)
+                .minimumScaleFactor(0.8)
+            if !subtitle.isEmpty {
+                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Text(SportsRaceFormat.progress(session, spoilers: spoilers))
+                .font(.caption.weight(.semibold)).lineLimit(1)
+            Spacer(minLength: 0)
+            if rows.isEmpty {
+                Text(SportsRaceFormat.cardEmpty(session, spoilers: spoilers)).font(.caption2).foregroundStyle(.secondary)
+            }
+            ForEach(rows) { driver in leaderRow(driver) }
+            if session.stale {
+                Text("Updates delayed").font(.caption2).foregroundStyle(SportsStatusPill.amber)
+            }
+        }
     }
 
     private var session: SportsRaceEvent { listing.session }
@@ -68,10 +85,4 @@ struct SportsRaceCard: View {
             }
         }
     }
-}
-
-/// Value pushed to open a race weekend's page on one of its sessions.
-struct SportsRaceRef: Hashable {
-    let weekendID: String
-    let sessionID: String?
 }

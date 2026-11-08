@@ -23,14 +23,7 @@ struct SportsGameCard: View {
 
     var body: some View {
         NavigationLink(value: SportsGameRef(id: game.id, title: game.displayTitle)) {
-            VStack(alignment: .leading, spacing: 0) {
-                switch SportsCardVariant(game: game, kind: kind) {
-                case .tennis: SportsTennisCard(game: game, leagueName: leagueName, spoilers: spoilers, stale: stale)
-                case .combat: SportsCombatCard(game: game, leagueName: leagueName, spoilers: spoilers, stale: stale)
-                case .field: SportsFieldCard(game: game, leagueName: leagueName, kind: kind, spoilers: spoilers, stale: stale)
-                case .matchup: matchup
-                }
-            }
+            SportsGameCardBody(game: game, leagueName: leagueName, kind: kind, spoilers: spoilers, stale: stale)
             .padding(22)
             .frame(width: Self.width, height: Self.height, alignment: .topLeading)
             .background(Color.white.opacity(isFocused ? 0.16 : 0.08))
@@ -48,6 +41,40 @@ struct SportsGameCard: View {
             try? await Task.sleep(for: SportsScoreChange.duration)
             guard !Task.isCancelled else { return }
             flashing = false
+        }
+    }
+
+    /// The score-change cue: an accent outline and bar, fading out (focus never moves).
+    private var flash: some View {
+        RoundedRectangle(cornerRadius: PosterFocusStyle.cornerRadius, style: .continuous)
+            .strokeBorder(SportsStatusPill.accent, lineWidth: 3)
+            .overlay(alignment: .bottom) {
+                Capsule().fill(SportsStatusPill.accent).frame(height: 4).padding(.horizontal, 18).padding(.bottom, 8)
+            }
+            .opacity(flashing ? 1 : 0)
+            .animation(.easeOut(duration: 0.3), value: flashing)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+/// What a hub game card shows inside its frame (shared by the TV card and the phone's): tennis's
+/// set grid, a fight's portraits, a field event's leaders, or the team matchup.
+struct SportsGameCardBody: View {
+    let game: SportsGame
+    let leagueName: String
+    let kind: SportsKind
+    let spoilers: Bool
+    var stale = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            switch SportsCardVariant(game: game, kind: kind) {
+            case .tennis: SportsTennisCard(game: game, leagueName: leagueName, spoilers: spoilers, stale: stale)
+            case .combat: SportsCombatCard(game: game, leagueName: leagueName, spoilers: spoilers, stale: stale)
+            case .field: SportsFieldCard(game: game, leagueName: leagueName, kind: kind, spoilers: spoilers, stale: stale)
+            case .matchup: matchup
+            }
         }
     }
 
@@ -96,19 +123,6 @@ struct SportsGameCard: View {
         return (stale ? line + Text(" · ").foregroundStyle(.secondary)
                 + Text("Updates delayed").foregroundStyle(SportsStatusPill.amber) : line)
             .font(.caption).lineLimit(1).minimumScaleFactor(0.8)
-    }
-
-    /// The score-change cue: an accent outline and bar, fading out (focus never moves).
-    private var flash: some View {
-        RoundedRectangle(cornerRadius: PosterFocusStyle.cornerRadius, style: .continuous)
-            .strokeBorder(SportsStatusPill.accent, lineWidth: 3)
-            .overlay(alignment: .bottom) {
-                Capsule().fill(SportsStatusPill.accent).frame(height: 4).padding(.horizontal, 18).padding(.bottom, 8)
-            }
-            .opacity(flashing ? 1 : 0)
-            .animation(.easeOut(duration: 0.3), value: flashing)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
     }
 
     private func score(_ team: SportsTeam) -> String? {

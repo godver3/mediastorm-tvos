@@ -29,9 +29,9 @@ struct SportsMotoGPStandingsView: View {
             if !riders.isEmpty {
                 SportsPanel(nil) {
                     HStack(spacing: 0) {
-                        SportsColumnHeading(String(localized: "Pos")).frame(width: 80)
+                        SportsColumnHeading(String(localized: "Pos")).frame(width: SportsMetric.tv(80, phone: 34))
                         SportsColumnHeading(String(localized: "Rider / Team"))
-                        SportsColumnHeading(String(localized: "Points"), alignment: .trailing).frame(width: 140)
+                        SportsColumnHeading(String(localized: "Points"), alignment: .trailing).frame(width: SportsMetric.tv(140, phone: 64))
                     }
                     ForEach(riders) { row($0) }
                 }
@@ -47,7 +47,7 @@ struct SportsMotoGPStandingsView: View {
         HStack(spacing: 0) {
             Text(rider.position.map(String.init) ?? "—").font(.title3.weight(.bold))
                 .foregroundStyle(rider.position == 1 ? SportsStatusPill.accent : .primary)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: SportsMetric.tv(80, phone: 34), alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 (Text(rider.name).fontWeight(.semibold) + Text(rider.number.map { "  #\($0)" } ?? "").foregroundStyle(.secondary))
                     .font(.callout).lineLimit(1)
@@ -59,7 +59,7 @@ struct SportsMotoGPStandingsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Text(rider.pointsText).font(.title3.weight(.bold)).monospacedDigit().foregroundStyle(SportsStatusPill.accent)
-                .frame(width: 140, alignment: .trailing)
+                .frame(width: SportsMetric.tv(140, phone: 64), alignment: .trailing)
         }
         .sportsReadout()
     }

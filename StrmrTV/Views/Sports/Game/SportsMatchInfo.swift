@@ -13,7 +13,7 @@ struct SportsMatchInfo: View {
         SportsPanel(title) {
             ForEach(Array(Self.items(page).enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .firstTextBaseline, spacing: 20) {
-                    Text(item.label).font(.caption).foregroundStyle(.secondary).frame(width: 190, alignment: .leading)
+                    Text(item.label).font(.caption).foregroundStyle(.secondary).frame(width: SportsMetric.tv(190, phone: 92), alignment: .leading)
                     Text(item.value)
                 }
                 .sportsReadout()

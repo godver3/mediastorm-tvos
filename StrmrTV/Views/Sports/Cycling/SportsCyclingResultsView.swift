@@ -120,9 +120,9 @@ struct SportsCyclingResultsView: View {
     private func table(teams: Bool) -> some View {
         SportsPanel(nil, note: teams ? String(localized: "\(model.filtered.count) teams") : String(localized: "\(model.filtered.count) riders")) {
             HStack(spacing: 0) {
-                SportsColumnHeading(String(localized: "Pos")).frame(width: 80)
+                SportsColumnHeading(String(localized: "Pos")).frame(width: SportsMetric.tv(80, phone: 34))
                 SportsColumnHeading(teams ? String(localized: "Team") : String(localized: "Rider / Team"))
-                SportsColumnHeading(String(localized: "Time / Gap"), alignment: .trailing).frame(width: 220)
+                SportsColumnHeading(String(localized: "Time / Gap"), alignment: .trailing).frame(width: SportsMetric.tv(220, phone: 96))
             }
             ForEach(model.visible) { row($0) }
         }
@@ -133,7 +133,7 @@ struct SportsCyclingResultsView: View {
         HStack(alignment: .top, spacing: 0) {
             Text(result.rank.map(String.init) ?? "—").font(.title3.weight(.bold))
                 .foregroundStyle(result.rank == 1 ? SportsStatusPill.accent : .secondary)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: SportsMetric.tv(80, phone: 34), alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.name).font(.callout.weight(.semibold)).lineLimit(1)
                 let line = SportsCyclingFormat.riderLine(result)
@@ -148,7 +148,7 @@ struct SportsCyclingResultsView: View {
                 if let gap = result.gap { Text(gap).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
                 if result.time == nil && result.gap == nil { Text("—").font(.caption).foregroundStyle(.secondary) }
             }
-            .frame(width: 220, alignment: .trailing)
+            .frame(width: SportsMetric.tv(220, phone: 96), alignment: .trailing)
         }
         .sportsReadout()
     }

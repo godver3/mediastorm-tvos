@@ -25,6 +25,34 @@ struct SportsWatchTarget {
     }
 }
 
+/// The stream search behind the TV and phone pickers: the server's strong and possible matches
+/// for a target (`/api/sports/game/{id}/streams`), each group's primary and alternatives without
+/// repeats, strong matches first, otherwise in the server's order.
+enum SportsStreamSearch {
+    @MainActor
+    static func find(_ target: SportsWatchTarget, broad: Bool) async throws
+        -> (matches: [SportsStreamMatch], groups: [SportsStreamGroup]) {
+        let groups = try await APIClient.shared.sportsStreams(target.id, broad: broad, kind: target.kind,
+                                                                 parentId: target.parentID)
+            .filter { ($0.confidenceTier == "strong" || $0.confidenceTier == "possible") && !$0.primary.channelUrl.isEmpty }
+        var seen = Set<String>()
+        let feeds: [SportsStreamMatch] = groups.flatMap { [$0.primary] + ($0.alternatives ?? []) }
+            .filter { !$0.channelUrl.isEmpty && seen.insert($0.id).inserted }
+        return (feeds.filter(\.isStrong) + feeds.filter { !$0.isStrong }, groups)
+    }
+
+    static func emptyMessage(_ target: SportsWatchTarget) -> String {
+        String(localized: "No channel looks like it carries this \(target.noun).")
+    }
+
+    /// "Source · Program · Reason · 92%".
+    static func details(_ match: SportsStreamMatch) -> String {
+        let percent = match.confidence.map { "\(Int(($0 * 100).rounded()))%" }
+        return [match.sourceName, match.programTitle, match.matchReason, percent]
+            .compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+    }
+}
+
 /// The live channels that look like they carry a game or race session
 /// (`/api/sports/game/{id}/streams`), strongest match first. Picking one closes the list and
 /// tunes it in the Live TV player; a single strong match of a live event plays at once. A Stremio
@@ -123,27 +151,17 @@ struct SportsStreamPicker: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func details(_ match: SportsStreamMatch) -> String {
-        let percent = match.confidence.map { "\(Int(($0 * 100).rounded()))%" }
-        return [match.sourceName, match.programTitle, match.matchReason, percent]
-            .compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
-    }
+    private func details(_ match: SportsStreamMatch) -> String { SportsStreamSearch.details(match) }
 
     private func search(broad: Bool) async {
         autoPlayWaiting = false
         loading = true
         defer { loading = false }
         do {
-            let groups = try await APIClient.shared.sportsStreams(target.id, broad: broad, kind: target.kind,
-                                                                     parentId: target.parentID)
-                .filter { ($0.confidenceTier == "strong" || $0.confidenceTier == "possible") && !$0.primary.channelUrl.isEmpty }
-            var seen = Set<String>()
-            let feeds: [SportsStreamMatch] = groups.flatMap { [$0.primary] + ($0.alternatives ?? []) }
-                .filter { !$0.channelUrl.isEmpty && seen.insert($0.id).inserted }
-            // Strong matches first, otherwise in the server's order.
-            matches = feeds.filter(\.isStrong) + feeds.filter { !$0.isStrong }
-            error = matches.isEmpty ? String(localized: "No channel looks like it carries this \(target.noun).") : nil
-            self.groups = groups
+            let found = try await SportsStreamSearch.find(target, broad: broad)
+            matches = found.matches
+            error = matches.isEmpty ? SportsStreamSearch.emptyMessage(target) : nil
+            self.groups = found.groups
             // One clear answer for a game in progress: no need to ask (a Stremio channel waits
             // for its streams).
             autoPlayWaiting = !broad
