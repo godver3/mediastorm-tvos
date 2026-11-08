@@ -9,18 +9,28 @@ struct MobileCardLink<Label: View>: View {
     let card: HomeCard
     var onHide: (() -> Void)?
     var onRemoveFromList: (() -> Void)?
+    /// The long press's lifted card, at a fixed size. A card in a horizontal row (or the
+    /// hero carousel) needs one: lifted in place, the row's scroll view clipped the enlarged
+    /// card's top and bottom. A preview is drawn over everything instead.
+    var preview: AnyView?
+    /// The preview's corners, the face's own, so its platter doesn't round them further.
+    var previewCornerRadius: CGFloat = MobileCardMetrics.cornerRadius
     @ViewBuilder let label: Label
 
     var body: some View {
         switch card.link {
         case let .details(target):
-            NavigationLink(value: target) { label }
+            let link = NavigationLink(value: target) { label }
                 .buttonStyle(.plain)
-                .contextMenu {
-                    TitleActionsMenu(target: target, episode: card.episode, onHideFromContinueWatching: onHide,
-                                     onRemoveFromList: onRemoveFromList)
-                }
                 .accessibilityLabel("\(card.title), \(card.subtitle)")
+            if let preview {
+                link
+                    .contentShape(.contextMenuPreview,
+                                  RoundedRectangle(cornerRadius: previewCornerRadius, style: .continuous))
+                    .contextMenu { titleActions(target) } preview: { preview }
+            } else {
+                link.contextMenu { titleActions(target) }
+            }
         case let .list(list):
             NavigationLink(value: list) { label }
                 .buttonStyle(.plain)
@@ -37,6 +47,13 @@ struct MobileCardLink<Label: View>: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(card.title), \(card.subtitle)")
         }
+    }
+}
+
+private extension MobileCardLink {
+    func titleActions(_ target: DetailsTarget) -> some View {
+        TitleActionsMenu(target: target, episode: card.episode, onHideFromContinueWatching: onHide,
+                         onRemoveFromList: onRemoveFromList)
     }
 }
 

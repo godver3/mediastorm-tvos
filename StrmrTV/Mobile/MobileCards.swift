@@ -32,7 +32,8 @@ struct MobileCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            MobileCardLink(card: card, onHide: onHide) {
+            MobileCardLink(card: card, onHide: onHide,
+                           preview: AnyView(MobileCardArt(card: card, landscape: landscape, size: size))) {
                 MobileCardArt(card: card, landscape: landscape, size: size)
             }
             if landscape {
@@ -96,6 +97,8 @@ struct MobileCardArt: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: MobileCardMetrics.cornerRadius, style: .continuous))
+            .contentShape(.contextMenuPreview,
+                          RoundedRectangle(cornerRadius: MobileCardMetrics.cornerRadius, style: .continuous))
     }
 
     @ViewBuilder

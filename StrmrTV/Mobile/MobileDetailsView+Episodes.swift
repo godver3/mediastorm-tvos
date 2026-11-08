@@ -85,18 +85,20 @@ extension MobileDetailsView {
     private func episodeCard(_ ep: Episode) -> some View {
         let watched = model.isWatched(ep)
         let selected = ep.id == model.activeEpisode?.id
+        let card = MobileEpisodeCard(
+            episode: ep, watched: watched, selected: selected, progress: model.progress(ep),
+            inLibrary: !model.libraryVersions(for: ep).isEmpty,
+            hidesThumbnail: spoilers.hides(.thumbnail, of: ep, current: model.primaryEpisode, watched: watched),
+            hidesOverview: spoilers.hides(.overview, of: ep, current: model.primaryEpisode, watched: watched),
+            fallbackImage: model.backdropURL)
         return Button {
             if selected { model.play(ep, from: model.resumePoint(ep)) } else { model.selectedEpisodeID = ep.id }
         } label: {
-            MobileEpisodeCard(
-                episode: ep, watched: watched, selected: selected, progress: model.progress(ep),
-                inLibrary: !model.libraryVersions(for: ep).isEmpty,
-                hidesThumbnail: spoilers.hides(.thumbnail, of: ep, current: model.primaryEpisode, watched: watched),
-                hidesOverview: spoilers.hides(.overview, of: ep, current: model.primaryEpisode, watched: watched),
-                fallbackImage: model.backdropURL)
+            card
         }
         .buttonStyle(.plain)
         .accessibilityHint(selected ? "Plays this episode" : "Selects this episode")
+        .contentShape(.contextMenuPreview, MobileEpisodeCard.shape)
         .contextMenu {
             let resumeAt = model.resumePoint(ep)
             Button { model.play(ep, from: resumeAt) } label: {
@@ -115,6 +117,10 @@ extension MobileDetailsView {
             Button { model.toggleWatched(ep, titles: titles) } label: {
                 Label(watched ? "Mark as Unwatched" : "Mark as Watched", systemImage: watched ? "eye.slash" : "eye")
             }
+        } preview: {
+            // The still alone, drawn over the page: lifted in place, the carousel's scroll
+            // view cut off its top and bottom, and the border's rounded corners with them.
+            card.still
         }
     }
 }
@@ -134,40 +140,13 @@ struct MobileEpisodeCard: View {
     static let width: CGFloat = 280
     private static let imageSize = CGSize(width: width, height: width * 9 / 16)
 
+    static let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+
     private var unreleased: String? { ReleaseBadge.forEpisode(airDate: episode.airedDate) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            RemoteImage(url: Artwork.url(episode.image?.url ?? fallbackImage, size: "w500"), size: Self.imageSize) { _ in
-                Rectangle().fill(.white.opacity(0.08))
-                    .overlay(Image(systemName: "film").font(.title2).foregroundStyle(.tertiary))
-            }
-            .frame(width: Self.imageSize.width, height: Self.imageSize.height)
-            .blur(radius: hidesThumbnail ? 24 : 0, opaque: true)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(alignment: .topLeading) {
-                Text("\(episode.episodeNumber)")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .padding(8)
-            }
-            .overlay(alignment: .topTrailing) { statusBadge.padding(8) }
-            .overlay(alignment: .bottomTrailing) {
-                if inLibrary {
-                    Image(systemName: "externaldrive.fill").font(.caption2.weight(.bold))
-                        .padding(5).background(.black.opacity(0.7), in: Circle())
-                        .padding(.trailing, 8).padding(.bottom, progress > 0 ? 16 : 8)
-                        .accessibilityLabel("In your library")
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if progress > 0 { MobileProgressBar(value: progress).padding(.horizontal, 8).padding(.bottom, 6) }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(selected ? Color.white : .clear, lineWidth: 2)
-            }
+            still
 
             Text(episode.name.isEmpty ? String(localized: "Episode \(episode.episodeNumber)") : episode.name)
                 .font(.subheadline.weight(.semibold))
@@ -186,6 +165,40 @@ struct MobileEpisodeCard: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// The still with its badges, progress and (selected) white border, which follows its
+    /// rounded corners; also the long press's lifted preview.
+    var still: some View {
+        RemoteImage(url: Artwork.url(episode.image?.url ?? fallbackImage, size: "w500"), size: Self.imageSize) { _ in
+            Rectangle().fill(.white.opacity(0.08))
+                .overlay(Image(systemName: "film").font(.title2).foregroundStyle(.tertiary))
+        }
+        .frame(width: Self.imageSize.width, height: Self.imageSize.height)
+        .blur(radius: hidesThumbnail ? 24 : 0, opaque: true)
+        .clipShape(Self.shape)
+        .overlay(alignment: .topLeading) {
+            Text("\(episode.episodeNumber)")
+                .font(.caption.weight(.bold))
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .padding(8)
+        }
+        .overlay(alignment: .topTrailing) { statusBadge.padding(8) }
+        .overlay(alignment: .bottomTrailing) {
+            if inLibrary {
+                Image(systemName: "externaldrive.fill").font(.caption2.weight(.bold))
+                    .padding(5).background(.black.opacity(0.7), in: Circle())
+                    .padding(.trailing, 8).padding(.bottom, progress > 0 ? 16 : 8)
+                    .accessibilityLabel("In your library")
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if progress > 0 { MobileProgressBar(value: progress).padding(.horizontal, 8).padding(.bottom, 6) }
+        }
+        .overlay {
+            Self.shape.strokeBorder(selected ? Color.white : .clear, lineWidth: 2)
+        }
     }
 
     @ViewBuilder
