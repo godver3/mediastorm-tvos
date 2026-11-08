@@ -69,16 +69,68 @@ extension PlayerViewController: @MainActor AVPlayerViewControllerDelegate {
 
 // MARK: Orientation
 
+/// How the phone's player is oriented (Settings › Playback › Player Orientation, and the player's
+/// Settings menu): held in landscape, held in portrait, or turning with the device.
+enum PhonePlayerOrientation: String, CaseIterable, Identifiable {
+    case landscape
+    case portrait
+    case device
+
+    static let defaultsKey = "StrmrPlayerOrientation"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .landscape: String(localized: "Landscape")
+        case .portrait: String(localized: "Portrait")
+        case .device: String(localized: "Follow Device Rotation")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .landscape: "rectangle"
+        case .portrait: "rectangle.portrait"
+        case .device: "rectangle.landscape.rotate"
+        }
+    }
+
+    var mask: UIInterfaceOrientationMask {
+        switch self {
+        case .landscape: .landscape
+        case .portrait: .portrait
+        case .device: .allButUpsideDown
+        }
+    }
+}
+
 extension EnginePlayerViewController {
     /// The phone's player orientation, kept across sessions (the Expo player's rotate button).
-    /// Landscape until the viewer picks portrait. An iPad follows the device.
-    static var phoneOrientation: UIInterfaceOrientationMask {
-        get { UserDefaults.standard.string(forKey: "StrmrPlayerOrientation") == "portrait" ? .portrait : .landscape }
-        set { UserDefaults.standard.set(newValue == .portrait ? "portrait" : "landscape", forKey: "StrmrPlayerOrientation") }
+    /// Landscape until the viewer picks another. An iPad follows the device.
+    static var phoneOrientationChoice: PhonePlayerOrientation {
+        get { UserDefaults.standard.string(forKey: PhonePlayerOrientation.defaultsKey).flatMap(PhonePlayerOrientation.init) ?? .landscape }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: PhonePlayerOrientation.defaultsKey) }
     }
+
+    static var phoneOrientation: UIInterfaceOrientationMask { phoneOrientationChoice.mask }
 
     static var playerOrientations: UIInterfaceOrientationMask {
         UIDevice.current.userInterfaceIdiom == .pad ? .all : phoneOrientation
+    }
+
+    /// What `enterPreferredOrientation` asks the scene for: the locked orientation, or (following
+    /// the device) the way the phone is held now, so the player opens in it. Nil when the phone
+    /// lies flat or its orientation is unknown: the scene then turns once the phone is tilted.
+    static var phoneGeometryRequest: UIInterfaceOrientationMask? {
+        guard phoneOrientationChoice == .device else { return phoneOrientation }
+        // A device turned left shows its interface turned right.
+        switch UIDevice.current.orientation {
+        case .portrait: return .portrait
+        case .landscapeLeft: return .landscapeRight
+        case .landscapeRight: return .landscapeLeft
+        default: return nil
+        }
     }
 }
 #endif

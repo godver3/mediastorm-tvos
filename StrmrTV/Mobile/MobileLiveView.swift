@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The phone's Live tab (Expo's `NewLiveScreen` on a phone): a channel list with what is on now,
 /// or (when the server has guide data) a scrolling time grid, switched with a segmented control.
-/// The toolbar holds the filter (All, Favorites, categories), the source and a menu with hidden
-/// channels, refresh and Recordings; search filters on the server. Tapping a channel tunes it
+/// The toolbar holds the filter (All, Favorites, categories), the playlist source and a menu with
+/// hidden channels, refresh and Recordings; search filters on the server. Tapping a channel tunes it
 /// in the shared live player (`LivePlayback`, as the TV's Live tab); swipe or long-press for
 /// favorite / hide, recording and programme info.
 struct MobileLiveView: View {
@@ -19,6 +19,8 @@ struct MobileLiveView: View {
     /// The channel with the stream picked under Choose Source, tuned once the list has closed.
     @State private var chosenSource: LiveChannel?
     @State private var showsRecordings = false
+    /// A channel's long-press menu is up (its preview is on screen): the rows' logos fade out.
+    @State private var menuOpen = false
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     private var showsGuide: Bool { mode == .guide && store.epgEnabled == true }
@@ -33,7 +35,8 @@ struct MobileLiveView: View {
                         placement: .navigationBarDrawer(displayMode: verticalSizeClass == .compact ? .automatic : .always), prompt: "Search Channels")
             .safeAreaInset(edge: .bottom) { noticeBar }
             .environmentObject(store)
-            .environment(\.mobileLiveActions, MobileLiveActions(showInfo: { info = $0 }))
+            .environment(\.mobileLiveActions, MobileLiveActions(showInfo: { info = $0 }, menuOpened: { menuOpen = $0 }))
+            .environment(\.mobileLiveMenuOpen, menuOpen)
             .navigationDestination(isPresented: $showsRecordings) { MobileRecordingsView() }
             .sheet(item: $info, onDismiss: runAfterDismiss) { target in
                 MobileLiveProgramSheet(target: target) { action in
@@ -109,7 +112,30 @@ struct MobileLiveView: View {
             }
         }
         ToolbarItem(placement: .topBarLeading) { filterMenu }
+        if store.sources.count > 1 {
+            ToolbarItem(placement: .topBarTrailing) { sourceMenu }
+        }
         ToolbarItem(placement: .topBarTrailing) { moreMenu }
+    }
+
+    /// The playlist source (Expo's Live source button, the TV's Source row): All Sources or one
+    /// provider, filtered on the server.
+    private var sourceMenu: some View {
+        Menu {
+            Picker("Source", selection: $store.sourceID) {
+                Text("All Sources").tag(String?.none)
+                ForEach(store.sources) { Text($0.name).tag(Optional($0.id)) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label(sourceName, systemImage: store.sourceID != nil
+                  ? "antenna.radiowaves.left.and.right.circle.fill" : "antenna.radiowaves.left.and.right.circle")
+        }
+        .accessibilityIdentifier("live.sourceMenu")
+    }
+
+    private var sourceName: String {
+        store.sources.first { $0.id == store.sourceID }?.name ?? String(localized: "All Sources")
     }
 
     /// All Channels and Favorites pick and close; categories toggle with the menu left open.
@@ -137,15 +163,6 @@ struct MobileLiveView: View {
                     }
                 }
             }
-            if store.sources.count > 1 {
-                Picker(selection: $store.sourceID) {
-                    Text("All Sources").tag(String?.none)
-                    ForEach(store.sources) { Text($0.name).tag(Optional($0.id)) }
-                } label: {
-                    Label("Source", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                .pickerStyle(.menu)
-            }
         } label: {
             Label(store.filter.label, systemImage: filterActive
                   ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
@@ -153,7 +170,7 @@ struct MobileLiveView: View {
         .accessibilityIdentifier("live.filterMenu")
     }
 
-    private var filterActive: Bool { store.filter != .all || store.sourceID != nil }
+    private var filterActive: Bool { store.filter != .all }
 
     private var moreMenu: some View {
         Menu {
@@ -220,10 +237,22 @@ struct MobileLiveInfoTarget: Identifiable {
 /// Actions the list and guide rows hand back to the Live screen.
 struct MobileLiveActions {
     var showInfo: (MobileLiveInfoTarget) -> Void = { _ in }
+    /// A long-press menu's preview appeared (true) or went (false).
+    var menuOpened: (Bool) -> Void = { _ in }
 }
 
 extension EnvironmentValues {
     @Entry var mobileLiveActions = MobileLiveActions()
+    @Entry var mobileLiveMenuOpen = false
+}
+
+extension View {
+    /// A row's channel logo while a long-press menu is up: hidden under the dimmed list. The
+    /// menu's glass lenses what lies beneath its edges, and a bright logo there showed through as
+    /// a coloured spot below the lifted preview.
+    func hiddenUnderLiveMenu(_ open: Bool) -> some View {
+        opacity(open ? 0 : 1).animation(.easeOut(duration: 0.15), value: open)
+    }
 }
 
 /// Plays `program` from the provider's archive when it has ended, else tunes the channel live.

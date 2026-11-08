@@ -3,12 +3,13 @@ import AetherEngine
 import SwiftUI
 
 /// Settings › Playback on the phone: the TV's Playback rows (track overrides, audio format,
-/// Atmos heights, Auto Switch Sources) over the same stores, so a choice made here is the
-/// one the shared player reads. Expo's phone "Prefer TrueHD" is Audio Format › Lossless.
+/// Atmos heights, Auto Switch Sources) over the same stores, so a choice made here is the one
+/// the shared player reads, and the phone's player orientation. Expo's phone "Prefer TrueHD" is Audio Format › Lossless.
 struct MobilePlaybackSettingsView: View {
     @ObservedObject private var tracks = TrackSettingsStore.shared
     @ObservedObject private var atmos = AtmosSettingsStore.shared
     @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
+    @AppStorage(PhonePlayerOrientation.defaultsKey) private var orientation: PhonePlayerOrientation = .landscape
 
     private static let languages: [ChoiceRow<String>.Choice] = SubtitleSearchModel.options.map {
         .init(value: $0.settingCode, name: Locale.current.localizedString(forLanguageCode: $0.code) ?? $0.name)
@@ -75,6 +76,15 @@ struct MobilePlaybackSettingsView: View {
                 Text("Audio")
             } footer: {
                 Text(audioFooter)
+            }
+
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                Section {
+                    MobileOverridePicker("Player Orientation", selection: $orientation,
+                                         choices: PhonePlayerOrientation.allCases.map { .init(value: $0, name: $0.title) })
+                } footer: {
+                    Text("Follow Device Rotation starts the player the way the phone is held and turns with it.")
+                }
             }
 
             Section {
