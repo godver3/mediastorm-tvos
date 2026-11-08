@@ -19,33 +19,34 @@ final class AppSession: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .starting
-    @Published private(set) var serverURL: URL?
+    /// Set here and by the iOS network routes (`+Routes`).
+    @Published internal(set) var serverURL: URL?
     @Published private(set) var profiles: [Profile] = []
     @Published private(set) var profile: Profile?
     @Published private(set) var serverVersion: ServerVersion?
     /// Connected over iroh remote access (`serverURL` is then the loopback proxy).
-    @Published private(set) var isRemote = false
+    @Published internal(set) var isRemote = false
     /// Paired over iroh, but talking to the server's verified home address directly (iOS
     /// picks it on the home network; always false on tvOS).
-    @Published private(set) var isHomeDirect = false
+    @Published internal(set) var isHomeDirect = false
     /// The server's custom logo (admin UI → Appearance & Branding), when one is uploaded.
     @Published private(set) var brandLogoURL: URL?
     /// Shown on the login screen after an involuntary sign-out.
     @Published var loginNotice: String?
-    /// A request hit a locked profile; `RootView` asks for its PIN.
-    @Published private(set) var pinChallenge: PinChallenge?
+    /// A request hit a locked profile; `RootView` asks for its PIN. Set by `+PINChallenge`.
+    @Published internal(set) var pinChallenge: PinChallenge?
 
     struct PinChallenge: Identifiable, Equatable {
         let id = UUID()
         let profile: Profile
     }
 
-    private var challengeContinuation: CheckedContinuation<Bool, Never>?
-    private var challengeTask: (profileID: String, task: Task<Bool, Never>)?
+    var challengeContinuation: CheckedContinuation<Bool, Never>?
+    var challengeTask: (profileID: String, task: Task<Bool, Never>)?
 
-    private let api = APIClient.shared
-    private let defaults = UserDefaults.standard
-    private enum Key {
+    let api = APIClient.shared
+    let defaults = UserDefaults.standard
+    enum Key {
         static let serverURL = "strmrtv.serverURL"
         static let lastProfileID = "strmrtv.lastProfileID"
         static let autoProfileID = "strmrtv.autoProfileID"
@@ -254,49 +255,6 @@ final class AppSession: ObservableObject {
         phase = profile != nil ? .ready : api.session != nil ? .profiles : .login
     }
 
-    #if os(iOS)
-    // MARK: Network routes (iOS)
-
-    /// The address saved by Change Server; network switching never overwrites it.
-    var savedServerURL: URL? { defaults.url(forKey: Key.serverURL) }
-
-    /// Paired, on the home network: requests go straight to the verified LAN address.
-    func routeHomeDirect(_ url: URL) {
-        isRemote = false
-        isHomeDirect = true
-        api.remoteCredential = nil
-        serverURL = url
-        api.baseURL = url
-    }
-
-    /// Back onto the iroh tunnel. The bridge is sticky: if it can't start, requests go to an
-    /// unreachable loopback address rather than silently to the LAN.
-    func routeRemoteTunnel() async throws {
-        isHomeDirect = false
-        isRemote = true
-        api.remoteCredential = RemoteAccess.shared.pairing?.credential
-        do {
-            try await reconnectRemoteOrThrow()
-        } catch {
-            if serverURL?.host() != "127.0.0.1" {
-                serverURL = Self.unreachableLoopback
-                api.baseURL = Self.unreachableLoopback
-            }
-            throw error
-        }
-    }
-
-    /// Direct (unpaired) server: the home or away address from the server's network settings,
-    /// used until the network changes; not saved.
-    func routeNetworkURL(_ url: URL) {
-        guard !isRemote, !isHomeDirect else { return }
-        serverURL = url
-        api.baseURL = url
-    }
-
-    private static let unreachableLoopback = URL(string: "http://127.0.0.1:9")!
-    #endif
-
     private func useServer(_ url: URL) {
         serverURL = url
         api.baseURL = url
@@ -407,55 +365,5 @@ final class AppSession: ObservableObject {
         defaults.removeObject(forKey: Key.autoProfileID)
         api.forgetSession()
         TopShelfSync.clear()
-    }
-
-    // MARK: Locked profile mid-flow
-
-    /// `403 profile_locked` (server-enforced PINs; the unlock expired or was revoked):
-    /// ask for the PIN over the current screen. Concurrent requests share one prompt.
-    /// Returns true once unlocked; on cancel, goes back to the profile picker.
-    private func unlockLockedProfile(_ id: String) async -> Bool {
-        if let challengeTask {
-            return challengeTask.profileID == id ? await challengeTask.task.value : false
-        }
-        // No prompt over the player (or before a profile is in use): the call fails.
-        guard phase == .ready, !PlaybackCoordinator.shared.isPresentingPlayer,
-              let locked = profiles.first(where: { $0.id == id }) ?? (profile?.id == id ? profile : nil)
-        else { return false }
-        let task = Task<Bool, Never> { @MainActor in
-            await withCheckedContinuation { continuation in
-                challengeContinuation = continuation
-                pinChallenge = PinChallenge(profile: locked)
-            }
-        }
-        challengeTask = (id, task)
-        let unlocked = await task.value
-        challengeTask = nil
-        if !unlocked, id == profile?.id, phase == .ready { await switchProfile() }
-        return unlocked
-    }
-
-    /// Checks a PIN entered for the current challenge; on success the prompt closes and
-    /// the waiting requests retry.
-    func verifyChallenge(pin: String) async -> PINVerification {
-        guard let challenge = pinChallenge else { return .wrong }
-        do {
-            guard try await api.verifyPIN(pin, profileID: challenge.profile.id) else { return .wrong }
-        } catch {
-            return .failed(error.localizedDescription)
-        }
-        pinChallenge = nil
-        finishChallenge(true)
-        return .unlocked
-    }
-
-    func cancelChallenge() {
-        pinChallenge = nil
-        finishChallenge(false)
-    }
-
-    private func finishChallenge(_ unlocked: Bool) {
-        challengeContinuation?.resume(returning: unlocked)
-        challengeContinuation = nil
     }
 }
