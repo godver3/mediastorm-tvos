@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Follow competitions, grouped by sport, then teams (`SportsTeamsSection`). Followed
+/// Follow teams (`SportsTeamsSection`), then competitions grouped by sport. Followed
 /// competitions sort first on the hub and fill its Following filter; followed teams fill My
 /// Teams. Each change saves at once to the profile's sports preferences, shared with the Expo
 /// app; ids this screen doesn't know (schools, cycling races) are kept as they are.
@@ -23,13 +23,14 @@ struct SportsPreferencesView: View {
 
     var body: some View {
         Form {
-            SettingsPageTitle("Follow Competitions")
+            SettingsPageTitle("Follow Teams and Competitions")
             if let message = editor.message { Text(message).foregroundStyle(.secondary) }
             if editor.loading {
                 ProgressView()
             } else if editor.envelope == nil {
                 Text("This server doesn't save sports preferences.").foregroundStyle(.secondary)
             } else {
+                SportsTeamsSection(hub: hub, editor: editor)
                 ForEach(bySport, id: \.sport) { group in
                     Section(Self.sportName(group.sport)) {
                         ForEach(group.leagues) { league in
@@ -39,7 +40,6 @@ struct SportsPreferencesView: View {
                         }
                     }
                 }
-                SportsTeamsSection(hub: hub, editor: editor)
             }
         }
         .settingsListMargins(50)
