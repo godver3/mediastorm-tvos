@@ -10,14 +10,20 @@ struct MobileProfilePicker: View {
     @State private var loadError: String?
     @State private var actionError: String?
     @State private var automatic = AppSession.shared.autoProfileID != nil
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var height: CGFloat = 0
 
-    private let columns = [GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 24)]
+    /// Up to three avatars a row on a phone (three of 96 pt fit the narrowest, 375 pt), five
+    /// on an iPad, the rows centred under a logo that leads the screen.
+    private var columns: [GridItem] {
+        let perRow = min(max(session.profiles.count, 1), sizeClass == .compact ? 3 : 5)
+        return Array(repeating: GridItem(.fixed(96), spacing: 16, alignment: .top), count: perRow)
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                BrandMark(height: 72)
-                    .padding(.top, 40)
+                BrandMark(height: 150)
                 Text("Who's Watching?").font(.title2.weight(.semibold))
 
                 if session.profiles.isEmpty {
@@ -28,11 +34,11 @@ struct MobileProfilePicker: View {
                         ProgressView()
                     }
                 } else {
-                    LazyVGrid(columns: columns, spacing: 28) {
+                    LazyVGrid(columns: columns, spacing: 24) {
                         ForEach(session.profiles) { profile in
                             Button { choose(profile) } label: {
-                                VStack(spacing: 10) {
-                                    ProfileAvatar(profile: profile, size: 96)
+                                VStack(spacing: 8) {
+                                    ProfileAvatar(profile: profile, size: 72)
                                         .overlay { if busyID == profile.id { ProgressView() } }
                                     HStack(spacing: 4) {
                                         Text(profile.name).lineLimit(1)
@@ -63,7 +69,12 @@ struct MobileProfilePicker: View {
             }
             .frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
+            .padding(.bottom, 24)
+            // Centred on the screen while it fits, scrolling once it doesn't.
+            .frame(minHeight: height)
         }
+        .scrollBounceBehavior(.basedOnSize)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .task { if session.profiles.isEmpty { await reload() } }
         .fullScreenCover(item: $pinTarget) { profile in
             MobilePINEntryView(
@@ -78,9 +89,9 @@ struct MobileProfilePicker: View {
         loadError = nil
         do {
             try await session.loadProfiles()
-        } catch {
+        } catch where !error.isCancellation {
             loadError = error.localizedDescription
-        }
+        } catch {}
     }
 
     private func choose(_ profile: Profile) {
