@@ -26,6 +26,7 @@ extension MobileDetailsView {
                 }
                 .disabled(!target.isMovie && model.activeEpisode == nil)
             }
+            downloadItems
             titleStateItems
             orderingMenu
         } label: {

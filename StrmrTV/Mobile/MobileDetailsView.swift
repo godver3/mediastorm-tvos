@@ -62,6 +62,7 @@ struct MobileDetailsView: View {
             Task { await model.load() }
         }
         .modifier(MobileDetailsPresentations(model: model))
+        .modifier(MobileDetailsDownloads(model: model))
         .overlay(alignment: .bottom) { toastView }
     }
 

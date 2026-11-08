@@ -103,6 +103,10 @@ final class PlayerViewController: EnginePlayerViewController {
     lazy var mobileControls = MobilePlayerControls(title: request.displayTitle, subtitle: request.displaySubtitle)
     lazy var mobileChromeTracker = MobileChromeVisibility(root: view, controls: mobileControls)
     override var hasTouchTransport: Bool { true }
+    /// An offline download (`DownloadPlayback`): the file is on the device.
+    var playsDownload: Bool { url.isFileURL }
+    #else
+    var playsDownload: Bool { false }
     #endif
 
     init(engine: AetherEngine, request: PlaybackRequest, url: URL, streamPath: String,

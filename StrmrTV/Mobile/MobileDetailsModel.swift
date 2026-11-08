@@ -50,6 +50,8 @@ final class MobileDetailsModel: ObservableObject {
     @Published var versionsPicker: VersionsTarget?
     @Published var pendingVersion: PendingVersion?
     @Published var showsPrequeueTracks = false
+    /// Download / Download Season's release picker (`+Downloads`).
+    @Published var downloadRequest: DownloadRequest?
 
     let trailer = TrailerController()
     private let playback = PlaybackCoordinator.shared

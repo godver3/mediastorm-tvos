@@ -17,5 +17,13 @@ final class MobileAppDelegate: NSObject, UIApplicationDelegate {
         }
         return .portrait
     }
+
+    /// The system relaunched the app for the downloads' background session: re-create it so
+    /// the finished transfers are delivered, and tell the system once they have been.
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        guard identifier == DownloadSession.identifier else { return completionHandler() }
+        DownloadManager.shared.session.setBackgroundCompletion(completionHandler)
+    }
 }
 #endif

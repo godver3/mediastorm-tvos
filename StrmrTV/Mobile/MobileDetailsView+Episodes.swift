@@ -111,6 +111,7 @@ extension MobileDetailsView {
                 }
             }
             Button { model.chooseSource(for: ep) } label: { Label("Choose Source", systemImage: "magnifyingglass") }
+            episodeDownloadItem(ep)
             Button { model.toggleWatched(ep, titles: titles) } label: {
                 Label(watched ? "Mark as Unwatched" : "Mark as Watched", systemImage: watched ? "eye.slash" : "eye")
             }

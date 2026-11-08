@@ -166,7 +166,8 @@ extension PlayerViewController {
     /// The Settings menu's rows after the speeds: Switch Source… (and the phone's own rows).
     private func settingsMenuExtras() -> [UIMenuElement] {
         #if os(iOS)
-        return [switchSourceAction()] + mobileSettingsExtras()
+        // A downloaded file is the one copy on the device: nothing to switch to.
+        return (playsDownload ? [] : [switchSourceAction()]) + mobileSettingsExtras()
         #else
         return [switchSourceAction()]
         #endif
