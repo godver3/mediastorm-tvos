@@ -141,7 +141,7 @@ struct MobilePersonView: View {
                                     filmography: loaded.filmography?.filter { seen.insert($0.id).inserted })
             loadError = nil
         } catch {
-            if details == nil { loadError = error.localizedDescription }
+            if details == nil, !error.isCancellation { loadError = error.localizedDescription }
         }
     }
 }

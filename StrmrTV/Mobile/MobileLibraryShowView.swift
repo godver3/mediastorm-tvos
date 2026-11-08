@@ -188,7 +188,7 @@ struct MobileLibraryShowView: View {
             group = loaded
             versions = LibraryVersions(group: loaded, libraryName: entry.library.name)
         } catch {
-            loadError = error.localizedDescription
+            if !error.isCancellation { loadError = error.localizedDescription }
         }
     }
 }

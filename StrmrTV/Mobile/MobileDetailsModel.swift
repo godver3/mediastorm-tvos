@@ -203,7 +203,7 @@ final class MobileDetailsModel: ObservableObject {
             loadError = nil
             await loadCollection()
         } catch {
-            if title == nil { loadError = error.localizedDescription }
+            if title == nil, !error.isCancellation { loadError = error.localizedDescription }
         }
     }
 
