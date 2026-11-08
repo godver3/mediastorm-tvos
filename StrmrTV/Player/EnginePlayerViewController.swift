@@ -160,9 +160,14 @@ class EnginePlayerViewController: AVPlayerViewController {
     }
 }
 
+#if os(tvOS)
+// tvOS only: AVPlayerViewController is the delegate of AVKit's own gesture recognizers, and on iOS
+// a subclass `gestureRecognizerShouldBegin` overrides AVKit's, so every tap on the video failed to
+// begin and AVKit's controls never came back once hidden. iOS has no Menu recognizer to serve.
 extension EnginePlayerViewController: UIGestureRecognizerDelegate {
     /// The Menu recognizer only takes presses that close part of the app's HUD.
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         softwareHUDHasOpenLayer
     }
 }
+#endif

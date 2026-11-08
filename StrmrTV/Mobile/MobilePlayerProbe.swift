@@ -11,6 +11,8 @@ extension ProbePlayerViewController {
 
     func installMobileProbeControls(_ menus: [UIMenu]) {
         allowsPictureInPicturePlayback = true
+        // `-StrmrProbeBare 1`: stock AVKit only, to tell AVKit's own behaviour from the overlay's.
+        guard !UserDefaults.standard.bool(forKey: "StrmrProbeBare") else { return }
         speeds = []
         let controls = MobilePlayerControls(title: "Probe", subtitle: nil)
         EnginePlayerViewController.fill(controls, in: view)

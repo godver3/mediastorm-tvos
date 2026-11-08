@@ -12,7 +12,9 @@ enum ChromeProbe {
 
     static func present() {
         let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
-        let vc = ProbePlayerViewController()
+        // `-StrmrProbeDelegate 1`: the probe with the engine player's gesture-delegate method.
+        let vc = UserDefaults.standard.bool(forKey: "StrmrProbeDelegate")
+            ? ProbeDelegatePlayerViewController() : ProbePlayerViewController()
         vc.player = AVPlayer(url: url)
         vc.modalPresentationStyle = .fullScreen
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -21,13 +23,21 @@ enum ChromeProbe {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { present() }
             return
         }
+        // `-StrmrProbeLatePlayer 1`: attach the player after presenting, as the engine does.
+        let late = UserDefaults.standard.bool(forKey: "StrmrProbeLatePlayer")
+        let player = vc.player
+        if late { vc.player = nil }
         root.present(vc, animated: false) {
-            vc.player?.play()
+            guard late else { vc.player?.play(); return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                vc.player = player
+                player?.play()
+            }
         }
     }
 }
 
-final class ProbePlayerViewController: AVPlayerViewController {
+class ProbePlayerViewController: AVPlayerViewController {
     static var hideNative: Bool { UserDefaults.standard.bool(forKey: "StrmrProbeHideNative") }
 
     override func viewDidLoad() {
@@ -156,5 +166,10 @@ final class ProbePlayerViewController: AVPlayerViewController {
         let dir = ProcessInfo.processInfo.environment["STRMR_SHOT_DIR"] ?? NSTemporaryDirectory()
         try? lines.joined(separator: "\n").write(toFile: dir + "/viewtree.txt", atomically: true, encoding: .utf8)
     }
+}
+/// Debug-only: the probe answering `gestureRecognizerShouldBegin` as `EnginePlayerViewController`
+/// does, to check whether that override reaches AVKit's own recognizers.
+final class ProbeDelegatePlayerViewController: ProbePlayerViewController, UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool { false }
 }
 #endif
