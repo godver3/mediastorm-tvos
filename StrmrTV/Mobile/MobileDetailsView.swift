@@ -72,7 +72,7 @@ struct MobileDetailsView: View {
     /// Taller than wide on a phone held upright, shorter in landscape so the actions show.
     func heroHeight(_ size: CGSize) -> CGFloat {
         let landscape = size.width > size.height
-        return landscape ? max(220, size.height * 0.62) : min(size.width * 1.05, size.height * 0.58)
+        return landscape ? max(180, size.height * 0.48) : min(size.width * 1.05, size.height * 0.58)
     }
 
     private func hero(size: CGSize) -> some View {
