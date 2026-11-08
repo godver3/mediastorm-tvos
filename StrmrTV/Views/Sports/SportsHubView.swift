@@ -62,14 +62,14 @@ struct SportsHubView: View {
             if store.cyclingEnabled { await store.pollCycling() }
         }
         .task(id: store.recordLeagues) { await store.loadRecords() }
-        .navigationDestination(for: SportsGameRef.self) { SportsGameView(ref: $0, leagues: store.leagues).sportsPage() }
+        .navigationDestination(for: SportsGameRef.self) { SportsGameView(ref: $0, hub: store).sportsPage() }
         .navigationDestination(for: SportsRaceRef.self) { ref in
             SportsRaceView(ref: ref, board: store.raceBoard, leagueName: store.leagueName).sportsPage()
         }
         .navigationDestination(for: SportsCyclingRef.self) { SportsCyclingView(ref: $0, hub: store).sportsPage() }
         .navigationDestination(for: SportsCompetitionRoute.self) { SportsCompetitionView(route: $0, hub: store).sportsPage() }
         .navigationDestination(for: SportsPreferencesRoute.self) { _ in
-            SportsPreferencesView(leagues: store.usableLeagues) { store.preferences = $0 }.sportsPage()
+            SportsPreferencesView(hub: store).sportsPage()
         }
     }
 
@@ -94,9 +94,14 @@ struct SportsHubView: View {
             notice(error, action: String(localized: "Try Again")) { Task { await store.retry() } }
         } else if sections.isEmpty {
             let action = store.filtered ? String(localized: "Clear Filters")
-                : store.followingOnly ? String(localized: "Show All Events") : nil
+                : store.followingOnly || store.myTeamsOnly ? String(localized: "Show All Events") : nil
             notice(emptyText, action: action) {
-                if store.filtered { store.clearFilters() } else { store.followingOnly = false }
+                if store.filtered {
+                    store.clearFilters()
+                } else {
+                    store.followingOnly = false
+                    store.myTeamsOnly = false
+                }
             }
         } else {
             if let error = store.error {
@@ -114,6 +119,9 @@ struct SportsHubView: View {
     }
 
     private var emptyText: String {
+        if store.myTeamsOnly, store.followedTeams.isEmpty {
+            return String(localized: "Follow a team from its game page or Customize to see only its games.")
+        }
         if store.filtered { return String(localized: "Nothing in this selection \(store.day.label.lowercased()).") }
         if store.followingOnly { return String(localized: "Nothing from the competitions you follow \(store.day.label.lowercased()).") }
         return switch store.filter {

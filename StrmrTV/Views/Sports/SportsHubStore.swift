@@ -27,7 +27,16 @@ final class SportsHubStore: ObservableObject {
         }
     }
     @Published var filter: SportsFilter = .all
-    @Published var followingOnly = false
+    /// Following and My Teams are exclusive: turning one on turns the other off.
+    @Published var followingOnly = false {
+        didSet { if followingOnly, myTeamsOnly { myTeamsOnly = false } }
+    }
+    /// Only games a followed team plays in (`SportsHubStore+Teams`).
+    @Published var myTeamsOnly = false {
+        didSet { if myTeamsOnly, followingOnly { followingOnly = false } }
+    }
+    /// A team follow from a game page is being saved.
+    @Published var savingTeams = false
     /// The Sport filter: a `SportsHubFilters.sports` id, or `SportsHubFilters.all`.
     @Published private(set) var sport = SportsHubFilters.all
     /// The League filter: a catalog league id, a cycling race's follow id, or `SportsHubFilters.all`.
@@ -224,6 +233,16 @@ final class SportsHubStore: ObservableObject {
             }
         }
     }
+
+    #if DEBUG
+    /// Unit tests: the hub showing `games` from `catalog`, without the server.
+    func seed(games: [SportsGame], catalog: [SportsLeague]) {
+        self.catalog = catalog
+        leagues = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        self.games = games
+        loading = false
+    }
+    #endif
 
     func loadPreferences() async {
         preferences = try? await api.sportsPreferences()

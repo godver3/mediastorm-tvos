@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// Follow competitions, grouped by sport. Followed competitions sort first on the hub and
-/// fill its Following filter. Each change saves at once to the profile's sports preferences,
-/// shared with the Expo app; ids this screen doesn't know (teams, schools, cycling races)
-/// are kept as they are.
+/// Follow competitions, grouped by sport, then teams (`SportsTeamsSection`). Followed
+/// competitions sort first on the hub and fill its Following filter; followed teams fill My
+/// Teams. Each change saves at once to the profile's sports preferences, shared with the Expo
+/// app; ids this screen doesn't know (schools, cycling races) are kept as they are.
 struct SportsPreferencesView: View {
-    let leagues: [SportsLeague]
-    let onSaved: (SportsPreferencesEnvelope) -> Void
+    @ObservedObject var hub: SportsHubStore
+    @StateObject private var editor: SportsPreferencesEditor
 
-    @State private var envelope: SportsPreferencesEnvelope?
-    @State private var loading = true
-    @State private var saving = false
-    @State private var message: String?
+    init(hub: SportsHubStore) {
+        self.hub = hub
+        _editor = StateObject(wrappedValue: SportsPreferencesEditor { [weak hub] in hub?.preferences = $0 })
+    }
+
+    private var leagues: [SportsLeague] { hub.usableLeagues }
 
     private var bySport: [(sport: String, leagues: [SportsLeague])] {
         Dictionary(grouping: leagues) { $0.sport ?? "other" }
@@ -22,27 +24,28 @@ struct SportsPreferencesView: View {
     var body: some View {
         Form {
             SettingsPageTitle("Follow Competitions")
-            if let message { Text(message).foregroundStyle(.secondary) }
-            if loading {
+            if let message = editor.message { Text(message).foregroundStyle(.secondary) }
+            if editor.loading {
                 ProgressView()
-            } else if envelope == nil {
+            } else if editor.envelope == nil {
                 Text("This server doesn't save sports preferences.").foregroundStyle(.secondary)
             } else {
                 ForEach(bySport, id: \.sport) { group in
                     Section(Self.sportName(group.sport)) {
                         ForEach(group.leagues) { league in
                             Toggle(league.label, isOn: binding(league))
-                                .disabled(saving)
+                                .disabled(editor.saving)
                                 .accessibilityIdentifier("sports-follow-\(league.id)")
                         }
                     }
                 }
+                SportsTeamsSection(hub: hub, editor: editor)
             }
         }
         .settingsListMargins(50)
         .padding(.horizontal, 30)
         .settingsSubpage()
-        .task { await reload() }
+        .task { await editor.reload() }
     }
 
     /// "mma" → "MMA", "rugby-league" → "Rugby League".
@@ -52,34 +55,15 @@ struct SportsPreferencesView: View {
 
     private func binding(_ league: SportsLeague) -> Binding<Bool> {
         Binding {
-            envelope?.preferences.competitionIds.contains(league.followID) ?? false
+            editor.envelope?.preferences.competitionIds.contains(league.followID) ?? false
         } set: { on in
-            Task { await save(league.followID, on: on) }
-        }
-    }
-
-    private func reload() async {
-        envelope = try? await APIClient.shared.sportsPreferences()
-        loading = false
-    }
-
-    private func save(_ id: String, on: Bool) async {
-        guard var next = envelope else { return }
-        var ids = next.preferences.competitionIds.filter { $0 != id }
-        if on { ids.append(id) }
-        next.preferences.competitionIds = ids
-        saving = true
-        defer { saving = false }
-        do {
-            let saved = try await APIClient.shared.saveSportsPreferences(next)
-            envelope = saved
-            message = nil
-            onSaved(saved)
-        } catch let APIError.http(failure) where failure.status == 409 {
-            message = String(localized: "Another device changed these. Reloaded the saved list.")
-            await reload()
-        } catch {
-            message = error.localizedDescription
+            Task {
+                await editor.change { preferences in
+                    var ids = preferences.competitionIds.filter { $0 != league.followID }
+                    if on { ids.append(league.followID) }
+                    preferences.competitionIds = ids
+                }
+            }
         }
     }
 }

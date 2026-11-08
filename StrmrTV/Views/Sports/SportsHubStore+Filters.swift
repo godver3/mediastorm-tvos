@@ -1,6 +1,6 @@
 import Foundation
 
-/// The hub's rows and filters: Following, the Sport and League choices (pinned sports and followed
+/// The hub's rows and filters: Following, My Teams, the Sport and League choices (pinned sports and followed
 /// competitions first), follow order within each row, and Competition Details (Expo `SportsHubTV`'s
 /// filters and `prioritizeSportsHub`).
 extension SportsHubStore {
@@ -26,8 +26,7 @@ extension SportsHubStore {
     func isFollowed(_ game: SportsGame) -> Bool {
         if followed.contains(followID(game.league)) { return true }
         if let family = family(game.league), pinned.contains(family) { return true }
-        let teams = preferences?.preferences.teamIds ?? []
-        return teams.contains("\(game.league):\(game.homeTeam.id)") || teams.contains("\(game.league):\(game.awayTeam.id)")
+        return [game.homeTeam, game.awayTeam].contains { isFollowed($0, in: game) }
     }
 
     /// Followed competitions first, in follow order; then pinned sports in pin order (Expo
@@ -82,6 +81,7 @@ extension SportsHubStore {
         let sport = sport == SportsHubFilters.all || sportOptions.contains { $0.id == sport } ? sport : SportsHubFilters.all
         var pool = items.filter { SportsHubFilters.matches(subject($0), sport: sport, league: league) }
         if followingOnly { pool = pool.filter(isFollowed) }
+        if myTeamsOnly { pool = pool.filter(playsFollowedTeam) }
         let all = [SportsSection.Kind.live, .upcoming, .results, .changes].map { kind in
             SportsSection(kind: kind, items: ordering.ordered(pool.filter { kind.contains($0.lifecycle) }, in: kind, rank: rank))
         }

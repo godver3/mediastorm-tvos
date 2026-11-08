@@ -1,17 +1,19 @@
 import SwiftUI
 
 /// A game's page (Expo `app/sports/[eventId].tsx` with `SportsGameDetailTV`): the scoreboard,
-/// Watch Live / Find Streams and Hide Scores, then the tabs the feed can fill (Overview, the
+/// Watch Live / Find Streams, Follow for each team and Hide Scores, then the tabs the feed can fill (Overview, the
 /// sport's own, Box Score, Play-by-Play, Standings) and the shown tab's panels. The tab picked
 /// is kept while the page is open. With scores hidden there are no tabs: only what was known
 /// before the start shows. Refreshed every 30 s while live, 60 s otherwise.
 struct SportsGameView: View {
     let ref: SportsGameRef
-    let leagues: [String: SportsLeague]
+    @ObservedObject var hub: SportsHubStore
 
     @ObservedObject private var spoilers = SportsSpoilers.shared
     @State private var game: SportsGame?
     @State private var error: String?
+    /// Why a Follow didn't save, shown for a few seconds.
+    @State private var followFailure: String?
     @State private var picking = false
     /// The stream picked, tuned once the picker has gone (the player can't present over it).
     @State private var chosen: SportsStreamMatch?
@@ -27,7 +29,7 @@ struct SportsGameView: View {
             ScrollView(.vertical) {
                 VStack(spacing: 40) {
                     if let game {
-                        content(SportsGamePage(game: game, league: leagues[game.league]))
+                        content(SportsGamePage(game: game, league: hub.leagues[game.league]))
                     } else if let error {
                         // Focusable, so the page has a focused element and Menu goes back to the hub
                         // instead of leaving the app (a fight card's bout the server doesn't list answers 404).
@@ -75,6 +77,13 @@ struct SportsGameView: View {
         SportsGameHeader(page: page, spoilers: spoilers.hidden).id(Self.top)
         VStack(spacing: 28) {
             actions(page.game)
+            if let followFailure {
+                Text(followFailure).font(.caption).foregroundStyle(.secondary)
+                    .task(id: followFailure) {
+                        try? await Task.sleep(for: .seconds(4))
+                        if !Task.isCancelled { self.followFailure = nil }
+                    }
+            }
             if !tabs.isEmpty {
                 SportsGameTabRow(tabs: tabs, kind: page.kind, shown: shown, focus: $focus) { selectedTab = $0 }
             }
@@ -116,6 +125,7 @@ struct SportsGameView: View {
                 .focused($focus, equals: .watch)
                 .accessibilityIdentifier("sports-watch")
             }
+            SportsFollowTeamButtons(game: game, hub: hub) { followFailure = $0 }
             Button { spoilers.hidden.toggle() } label: {
                 Label(spoilers.hidden ? "Show Scores" : "Hide Scores", systemImage: spoilers.hidden ? "eye" : "eye.slash")
             }

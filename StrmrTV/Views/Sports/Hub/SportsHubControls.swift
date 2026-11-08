@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The hub's controls (Expo `SportsHubTV`'s TV rail and Filters panel, as native chips): All /
 /// Live / Upcoming / Results, the day, the Sport and League menus (pinned sports and followed
-/// competitions first), Following, Hide Scores and Customize. The row scrolls sideways when it
+/// competitions first), Following, My Teams, Hide Scores and Customize. The row scrolls sideways when it
 /// outgrows the screen.
 struct SportsHubControls: View {
     @ObservedObject var store: SportsHubStore
@@ -37,6 +37,12 @@ struct SportsHubControls: View {
                 }
                 .buttonStyle(FilterChipStyle(selected: store.followingOnly))
                 .focused(focus, equals: "control-following")
+                Button { store.myTeamsOnly.toggle() } label: {
+                    Label("My Teams", systemImage: store.myTeamsOnly ? "person.2.fill" : "person.2")
+                }
+                .buttonStyle(FilterChipStyle(selected: store.myTeamsOnly))
+                .focused(focus, equals: "control-my-teams")
+                .accessibilityIdentifier("sports-my-teams")
                 Button { spoilers.hidden.toggle() } label: {
                     Label("Hide Scores", systemImage: spoilers.hidden ? "eye.slash.fill" : "eye")
                 }
@@ -123,6 +129,7 @@ struct SportsFilterSummary: View {
         [store.sport == SportsHubFilters.all ? nil : SportsHubFilters.sportLabel(store.sport),
          store.league == SportsHubFilters.all ? nil : store.leagueLabel,
          store.followingOnly ? String(localized: "Following only") : nil,
+         store.myTeamsOnly ? String(localized: "My Teams only") : nil,
          spoilers ? String(localized: "Scores hidden") : nil].compactMap { $0 }.joined(separator: " · ")
     }
 }
