@@ -1,10 +1,13 @@
 #if os(iOS)
 import SwiftUI
 
-/// Placeholder until the Watchlist screen is ported.
+/// The Watchlist tab: the profile's watchlist as a list page (the Expo watchlist screen),
+/// paged from the server with its sorts, Movies / Shows, watch-status and genre filters, the
+/// A–Z index under a Name sort, a title filter and a random pick. Long press a poster for
+/// the title actions, Remove from Watchlist among them.
 struct MobileWatchlistView: View {
     var body: some View {
-        MobilePendingScreen(title: "Watchlist", systemImage: "bookmark")
+        MobileBrowseGrid(list: .watchlist)
     }
 }
 #endif

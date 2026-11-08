@@ -220,7 +220,7 @@ struct NewListTile: View {
 /// The first few titles of each list, for its tile, kept per profile for the app's lifetime so
 /// scrolling back and forth or switching Movies / Shows doesn't refetch.
 @MainActor
-private enum BrowsePreviews {
+enum BrowsePreviews {
     private static var cache: [String: TileArt] = [:]
 
     static func art(for list: BrowseList, version: Int?) async -> TileArt {
