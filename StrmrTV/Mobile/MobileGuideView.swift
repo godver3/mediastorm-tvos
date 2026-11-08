@@ -193,6 +193,7 @@ private struct MobileGuideRow: View {
     let compact: Bool
     @EnvironmentObject private var store: LiveStore
     @Environment(\.mobileLiveActions) private var actions
+    @Environment(\.mobileLiveMenuOpen) private var menuOpen
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -221,6 +222,7 @@ private struct MobileGuideRow: View {
             HStack(spacing: 8) {
                 ChannelLogo(channel: channel, size: CGSize(width: 64, height: 36), font: .caption2.weight(.semibold))
                     .frame(width: 64, height: 36)
+                    .hiddenUnderLiveMenu(menuOpen)
                 if !compact {
                     Text(channel.name).font(.footnote.weight(.semibold)).lineLimit(2)
                     Spacer(minLength: 0)
@@ -244,7 +246,7 @@ private struct MobileGuideRow: View {
         .contextMenu {
             MobileLiveChannelMenu(channel: channel, program: nil)
         } preview: {
-            MobileLivePreview(channel: channel, program: store.current(channel, at: now), now: now)
+            MobileLivePreview(channel: channel, program: store.current(channel, at: now), now: now, onPresented: actions.menuOpened)
         }
     }
 }
@@ -301,7 +303,7 @@ private struct MobileGuideCell: View {
                 MobileLiveChannelMenu(channel: channel, program: nil)
             }
         } preview: {
-            MobileLivePreview(channel: channel, program: cell.program, now: now)
+            MobileLivePreview(channel: channel, program: cell.program, now: now, onPresented: actions.menuOpened)
         }
     }
 }

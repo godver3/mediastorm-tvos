@@ -46,6 +46,8 @@ struct MobileChannelRow: View {
     let channel: LiveChannel
     let now: Date
     @EnvironmentObject private var store: LiveStore
+    @Environment(\.mobileLiveActions) private var actions
+    @Environment(\.mobileLiveMenuOpen) private var menuOpen
     @ScaledMetric(relativeTo: .body) private var logoWidth: CGFloat = 76
 
     var body: some View {
@@ -60,6 +62,7 @@ struct MobileChannelRow: View {
                     .frame(width: logoWidth, height: logoWidth * 9 / 16)
                     .padding(4)
                     .background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .hiddenUnderLiveMenu(menuOpen)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(channel.name).font(.headline).lineLimit(1)
@@ -123,7 +126,7 @@ struct MobileChannelRow: View {
         .contextMenu {
             MobileLiveChannelMenu(channel: channel, program: nil)
         } preview: {
-            MobileLivePreview(channel: channel, program: current, now: now)
+            MobileLivePreview(channel: channel, program: current, now: now, onPresented: actions.menuOpened)
         }
     }
 }
@@ -168,6 +171,9 @@ struct MobileLivePreview: View {
     let channel: LiveChannel
     let program: EPGProgram?
     let now: Date
+    /// The preview came up (true) or went (false). Passed in: the preview is hosted apart from
+    /// the list and doesn't see its environment.
+    var onPresented: (Bool) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -187,6 +193,8 @@ struct MobileLivePreview: View {
         }
         .padding()
         .frame(width: 320, alignment: .leading)
+        .onAppear { onPresented(true) }
+        .onDisappear { onPresented(false) }
     }
 }
 #endif
