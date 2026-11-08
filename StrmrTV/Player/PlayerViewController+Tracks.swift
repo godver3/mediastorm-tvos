@@ -84,8 +84,11 @@ extension PlayerViewController {
     /// the next run-loop pass, and a rebuild that would change nothing is skipped.
     func rebuildTrackMenus() {
         guard trackMenusReady else {
-            // AVKit's own buttons stay hidden too, so the row fills in once, complete.
+            // AVKit's own buttons stay hidden too, so the row fills in once, complete. (A phone's
+            // AVKit chrome has no such row; its menus are the phone's own buttons.)
+            #if !os(iOS)
             settingsHider.start(on: view, hiding: [TransportSettingsHider.legible, TransportSettingsHider.audible])
+            #endif
             return
         }
         guard !trackMenuRebuildQueued else { return }
@@ -134,16 +137,39 @@ extension PlayerViewController {
         }
         if let speeds = state.speeds {
             menus.append(NativeChrome.settingsMenu(speeds: speeds, current: state.speed,
-                                                   extra: [switchSourceAction()]) { [weak self] speed in
+                                                   extra: settingsMenuExtras(), speedSubmenu: Self.speedSubmenu) { [weak self] speed in
                 self?.selectSpeed(speed)
             })
         }
         transportBarCustomMenuItems = menus
         softwareHUD.setMenus(menus)
+        #if os(iOS)
+        setMobileMenus(menus)
+        #endif
+        #if !os(iOS)
         // AVKit's Subtitles button would offer the legible group, which these sessions don't use.
         var hidden: Set<String> = [TransportSettingsHider.legible]
         if state.audio.count > 1 { hidden.insert(TransportSettingsHider.audible) }
         settingsHider.start(on: view, hiding: hidden)
+        #endif
+    }
+
+    /// A phone's Settings menu has the speeds as a submenu (`NativeChrome.settingsMenu`).
+    private static var speedSubmenu: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    /// The Settings menu's rows after the speeds: Switch Source… (and the phone's own rows).
+    private func settingsMenuExtras() -> [UIMenuElement] {
+        #if os(iOS)
+        return [switchSourceAction()] + mobileSettingsExtras()
+        #else
+        return [switchSourceAction()]
+        #endif
     }
 
     /// The subtitle menu's tracks: the source's, then the online one when there is one.

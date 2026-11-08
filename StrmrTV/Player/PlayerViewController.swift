@@ -98,6 +98,13 @@ final class PlayerViewController: EnginePlayerViewController {
     var trackMenuRebuildQueued = false
     var trackMenuState: TrackMenuState?
 
+    #if os(iOS)
+    /// The phone's touch controls (`MobilePlayer+Controls`) and what keeps them in step with AVKit's.
+    lazy var mobileControls = MobilePlayerControls(title: request.displayTitle, subtitle: request.displaySubtitle)
+    lazy var mobileChromeTracker = MobileChromeVisibility(root: view, controls: mobileControls)
+    override var hasTouchTransport: Bool { true }
+    #endif
+
     init(engine: AetherEngine, request: PlaybackRequest, url: URL, streamPath: String,
          tracks: TrackPreferences, previewsEnabled: Bool) {
         self.request = request
@@ -117,7 +124,17 @@ final class PlayerViewController: EnginePlayerViewController {
         setInfoPanel(title: request.displayTitle, subtitle: request.displaySubtitle,
                      description: request.infoDescription, artworkURL: request.infoArtworkURL)
         installStreamInfo(file: currentSource.releaseName, source: currentSource.origin)
+        #if os(iOS)
+        installMobileControls()
+        #endif
     }
+
+    #if os(iOS)
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        keepMobileControlsOnTop()
+    }
+    #endif
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
@@ -207,6 +224,9 @@ final class PlayerViewController: EnginePlayerViewController {
 
     override func streamInfoDidChange(_ info: StreamInfo) {
         softwareHUD.setDetails(info.summary)
+        #if os(iOS)
+        mobileControls.setDetails(info.summary)
+        #endif
     }
 
     // MARK: Lifecycle
@@ -279,6 +299,9 @@ final class PlayerViewController: EnginePlayerViewController {
         onlineSubtitles.cancel()
         sourceList?.cancel()
         subtitleStatus.hide()
+        #if os(iOS)
+        stopMobileControls()
+        #endif
         reportProgress(ended: true, paused: isExitingToDetails)
         cancellables.removeAll()
         lifecycleObservers.forEach(NotificationCenter.default.removeObserver)

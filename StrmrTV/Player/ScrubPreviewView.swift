@@ -7,27 +7,32 @@ final class ScrubPreviewView: UIView {
     private let imageView = UIImageView()
     private let timeLabel = UILabel()
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    override convenience init(frame: CGRect) {
+        self.init(imageSize: Self.imageSize, compact: false)
+    }
+
+    /// `compact`: the phone's smaller card (smaller corners, time and shadow).
+    init(imageSize: CGSize, compact: Bool) {
+        super.init(frame: .zero)
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = 12
+        imageView.layer.cornerRadius = compact ? 8 : 12
         imageView.layer.cornerCurve = .continuous
         imageView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
         imageView.layer.borderColor = UIColor.white.withAlphaComponent(0.25).cgColor
         imageView.layer.borderWidth = 1
-        timeLabel.font = .monospacedDigitSystemFont(ofSize: 28, weight: .semibold)
+        timeLabel.font = .monospacedDigitSystemFont(ofSize: compact ? 15 : 28, weight: .semibold)
         timeLabel.textColor = .white
         timeLabel.textAlignment = .center
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOpacity = 0.5
-        layer.shadowRadius = 16
-        layer.shadowOffset = CGSize(width: 0, height: 6)
+        layer.shadowRadius = compact ? 8 : 16
+        layer.shadowOffset = CGSize(width: 0, height: compact ? 3 : 6)
 
         let stack = UIStackView(arrangedSubviews: [imageView, timeLabel])
         stack.axis = .vertical
         stack.alignment = .center
-        stack.spacing = 10
+        stack.spacing = compact ? 6 : 10
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
@@ -35,8 +40,8 @@ final class ScrubPreviewView: UIView {
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            imageView.widthAnchor.constraint(equalToConstant: Self.imageSize.width),
-            imageView.heightAnchor.constraint(equalToConstant: Self.imageSize.height),
+            imageView.widthAnchor.constraint(equalToConstant: imageSize.width),
+            imageView.heightAnchor.constraint(equalToConstant: imageSize.height),
         ])
     }
 

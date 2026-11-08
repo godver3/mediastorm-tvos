@@ -20,6 +20,9 @@ extension NativeChrome {
     static func sourcePage(heading: String, rows: [SourceSwitchView.Row],
                            onPick: @escaping @MainActor (SourceSwitch.Option) -> Void,
                            onCancel: @escaping @MainActor () -> Void) -> UIViewController {
+        #if os(iOS)
+        return mobileSourcePage(heading: heading, rows: rows, onPick: onPick, onCancel: onCancel)
+        #else
         weak var page: UIViewController?
         let host = UIHostingController(rootView: SourceSwitchView(
             heading: heading, rows: rows,
@@ -29,5 +32,6 @@ extension NativeChrome {
         host.modalPresentationStyle = .overFullScreen
         host.view.backgroundColor = .clear
         return host
+        #endif
     }
 }

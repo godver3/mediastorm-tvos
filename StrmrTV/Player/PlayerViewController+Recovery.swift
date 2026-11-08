@@ -27,6 +27,15 @@ extension PlayerViewController {
     private func appDidEnterBackground() {
         guard !didFinish else { return }
         log.notice("app backgrounded at \(self.lastKnownPosition)s; saving progress")
+        #if os(iOS)
+        // A phone keeps playing in the background (audio, or a PiP window), as the Expo player;
+        // the return to the foreground checks the engine kept the session.
+        wasBackgrounded = true
+        if keepsPlayingInBackground {
+            reportProgress(ended: false)
+            return
+        }
+        #endif
         isInBackground = true
         wasBackgrounded = true
         disarmResumeWatch()
@@ -36,6 +45,13 @@ extension PlayerViewController {
     private func appWillEnterForeground() {
         isInBackground = false
         guard wasBackgrounded, !didFinish else { return }
+        #if os(iOS)
+        // The engine may have kept a paused session through a quick app switch.
+        if mobileReturnedToForeground() {
+            wasBackgrounded = false
+            return
+        }
+        #endif
         exitToDetails(reason: "returned from background")
     }
 

@@ -17,8 +17,12 @@ extension PlayerViewController {
                 updateSkipAction(at: time)
                 prefetchNextIfNear(time)
                 guard softwareSurfaceMounted else { return }
+                #if os(iOS)
+                updateMobileTransport(position: time)
+                #else
                 softwareHUD.update(position: scrubTarget ?? time, duration: engine.duration,
                                    paused: engine.state == .paused)
+                #endif
             }
             .store(in: &cancellables)
 
@@ -87,6 +91,17 @@ extension PlayerViewController {
     /// above its surface; the native route's overlay goes back in AVKit's content overlay.
     func setSoftwareSurface(mounted: Bool) {
         guard mountSoftwareSurface(mounted) else { return }
+        #if os(iOS)
+        // The phone's touch controls are the transport there (`MobilePlayer+Controls`).
+        if mounted {
+            Self.fill(subtitleOverlay, in: overlayHost)
+            overlayHost.insertSubview(subtitleOverlay, aboveSubview: softwareSurface)
+        } else {
+            subtitleOverlay.removeFromSuperview()
+            if !didFinish { mountSubtitleOverlay() }
+        }
+        mobileSoftwareSurfaceChanged(mounted: mounted)
+        #else
         if mounted {
             softwareHUD.onFocusChange = { [weak self] in
                 self?.setNeedsFocusUpdate()
@@ -103,6 +118,7 @@ extension PlayerViewController {
             softwareHUD.removeFromSuperview()
             if !didFinish { mountSubtitleOverlay() }
         }
+        #endif
     }
 
     /// The engine loaded the server's audio pick by container stream index; confirm it against

@@ -59,12 +59,16 @@ extension PlayerViewController {
             let model = SubtitleSearchModel(
                 preferredLanguage: tracks.subtitleLanguage, releaseName: subtitleQuery.releaseName,
                 search: { [weak self] language in try await self?.onlineSubtitles.search(language: language) ?? [] })
+            #if os(iOS)
+            return mobileSubtitleSearchPage(model)
+            #else
             return UIHostingController(rootView: SubtitleSearchView(
                 model: model, heading: request.displayTitle,
                 onPick: { [weak self] result, language in
                     self?.closeSubtitlePage { $0.onlineSubtitles.use(result, language: language) }
                 },
                 onClose: { [weak self] in self?.closeSubtitlePage() }))
+            #endif
         }
     }
 
@@ -76,6 +80,9 @@ extension PlayerViewController {
             let sources = translatable.map {
                 SubtitleTranslateView.Source(id: $0.id, title: $0.subtitleMenuTitle, detail: $0.subtitleMenuDetail)
             }
+            #if os(iOS)
+            return mobileSubtitleTranslatePage(sources, translatable: translatable)
+            #else
             return UIHostingController(rootView: SubtitleTranslateView(
                 heading: request.displayTitle, sources: sources,
                 onPick: { [weak self] id, language in
@@ -87,6 +94,7 @@ extension PlayerViewController {
                     }
                 },
                 onClose: { [weak self] in self?.closeSubtitlePage() }))
+            #endif
         }
     }
 
@@ -96,8 +104,11 @@ extension PlayerViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self, !didFinish, subtitleSearch == nil, presentedViewController == nil,
                   let page = make() else { return }
+            #if !os(iOS)
+            // A phone's pages are sheets (`MobilePlayer+Sheets`).
             page.modalPresentationStyle = .overFullScreen
             page.view.backgroundColor = .clear
+            #endif
             let resume = engine.state == .playing
             if resume { engine.pause() }
             log.notice("[auto-sub] event=\(event) resume=\(resume)")
@@ -107,7 +118,7 @@ extension PlayerViewController {
     }
 
     /// Closes the page, runs the pick (if any), and resumes when it was playing.
-    private func closeSubtitlePage(then pick: ((PlayerViewController) -> Void)? = nil) {
+    func closeSubtitlePage(then pick: ((PlayerViewController) -> Void)? = nil) {
         guard let page = subtitleSearch else { return }
         subtitleSearch = nil
         page.page.dismiss(animated: true)

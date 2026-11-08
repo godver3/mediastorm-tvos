@@ -76,6 +76,9 @@ final class ProbePlayerViewController: AVPlayerViewController {
         // `-StrmrProbeSources 1`: the Settings menu with Switch Source… (a list of fake sources).
         if UserDefaults.standard.bool(forKey: "StrmrProbeSources") { menus.append(probeSettingsMenu()) }
         transportBarCustomMenuItems = menus
+        #if os(iOS)
+        installMobileProbeControls(menus)
+        #endif
     }
 
     private let hider = TransportSettingsHider()

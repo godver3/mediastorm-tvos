@@ -41,6 +41,9 @@ extension PlayerViewController {
         } ?? []
         // The software route has no AVKit chrome to show it; its HUD draws the same action.
         softwareHUD.setAction(contextualActions.first)
+        #if os(iOS)
+        mobileControls.setAction(contextualActions.first)
+        #endif
     }
 
     /// Menu over the skip button hides AVKit's contextual-action presentation but leaves the

@@ -9,6 +9,10 @@ final class SubtitleOverlayView: UIView {
     private let textView = SubtitleTextView()
     private let imageView = UIImageView()
     private var bottomConstraint: NSLayoutConstraint!
+    private var sideConstraints: [NSLayoutConstraint] = []
+    /// The style is in 1080p points (the TV's screen). A phone or tablet draws it in proportion to
+    /// the video's height, so a size reads the same share of the picture on every screen.
+    private var layoutScale: CGFloat = 1
     private var cues: [SubtitleCue] = []
     private var shownID: Int?
     private var shownImage: SubtitleImage?
@@ -17,8 +21,7 @@ final class SubtitleOverlayView: UIView {
     var style: SubtitleStyle = .default {
         didSet {
             guard style != oldValue else { return }
-            textView.style = style
-            bottomConstraint.constant = -style.bottomMargin
+            applyStyle()
             if let shownImage { imageView.frame = frame(for: shownImage) }
         }
     }
@@ -34,12 +37,23 @@ final class SubtitleOverlayView: UIView {
         addSubview(imageView)
 
         bottomConstraint = textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -style.bottomMargin)
-        NSLayoutConstraint.activate([
+        sideConstraints = [
             textView.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 160),
             textView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -160),
+        ]
+        NSLayoutConstraint.activate(sideConstraints + [
             textView.centerXAnchor.constraint(equalTo: centerXAnchor),
             bottomConstraint,
         ])
+    }
+
+    private func applyStyle() {
+        var scaled = style
+        scaled.size *= Double(layoutScale)
+        textView.style = scaled
+        bottomConstraint.constant = -style.bottomMargin * Double(layoutScale)
+        sideConstraints.first?.constant = 160 * layoutScale
+        sideConstraints.last?.constant = -160 * layoutScale
     }
 
     @available(*, unavailable)
@@ -47,6 +61,13 @@ final class SubtitleOverlayView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        #if os(iOS)
+        let scale = bounds.height > 0 ? min(1, max(0.3, bounds.height / 1080)) : 1
+        if abs(scale - layoutScale) > 0.001 {
+            layoutScale = scale
+            applyStyle()
+        }
+        #endif
         if let shownImage { imageView.frame = frame(for: shownImage) }
     }
 

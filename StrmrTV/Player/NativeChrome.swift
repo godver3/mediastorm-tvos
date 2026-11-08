@@ -284,8 +284,9 @@ extension NativeChrome {
 
     /// A gear button for playback settings, beside Audio and Subtitles. Its popover has an
     /// inline "Playback Speed" section with a checkmark on the current speed, then `extra`
-    /// (Switch Source).
-    static func settingsMenu(speeds: [Float], current: Float, extra: [UIMenuElement] = [],
+    /// (Switch Source). `speedSubmenu` (the phone) folds the speeds into a submenu row showing the
+    /// current one, so the rows after it fit a small screen.
+    static func settingsMenu(speeds: [Float], current: Float, extra: [UIMenuElement] = [], speedSubmenu: Bool = false,
                              onSelectSpeed: @escaping @MainActor (Float) -> Void) -> UIMenu {
         let actions = speeds.map { speed in
             UIAction(title: speedTitle(speed), state: speed == current ? .on : .off) { _ in
@@ -293,7 +294,10 @@ extension NativeChrome {
             }
         }
         let speedSection = UIMenu(title: String(localized: "Playback Speed"),
-                                  options: [.displayInline, .singleSelection], children: actions)
+                                  image: speedSubmenu ? UIImage(systemName: "gauge.with.dots.needle.67percent") : nil,
+                                  options: speedSubmenu ? [.singleSelection] : [.displayInline, .singleSelection],
+                                  children: actions)
+        if speedSubmenu { speedSection.subtitle = speedTitle(current) }
         return UIMenu(title: String(localized: "Settings"), image: UIImage(systemName: "gearshape"),
                       children: [speedSection] + (extra.isEmpty ? [] : [UIMenu(title: "", options: .displayInline, children: extra)]))
     }

@@ -61,11 +61,15 @@ class EnginePlayerViewController: AVPlayerViewController {
     }
 
     #if os(iOS)
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { Self.playerOrientations }
+
+    /// The player draws its own touch transport on the software route (the VOD player's
+    /// `MobilePlayerControls`), so the base class's close button stays hidden.
+    var hasTouchTransport: Bool { false }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        enterLandscape()
+        enterPreferredOrientation()
     }
     #endif
 
