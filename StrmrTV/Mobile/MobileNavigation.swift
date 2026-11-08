@@ -12,6 +12,21 @@ extension View {
     }
 }
 
+/// An empty, failed or loading state inside a scroll view, rather than in an overlay on
+/// it: pull to refresh still works on it, and it is given the scroll view's full width
+/// (in an overlay a `ContentUnavailableView` could be laid out a letter or two wide).
+struct MobileScrollStatus<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .containerRelativeFrame([.horizontal, .vertical]) { length, axis in
+                axis == .vertical ? length * 0.8 : length
+            }
+    }
+}
+
 /// A screen not ported to the phone yet.
 struct MobilePendingScreen: View {
     let title: String

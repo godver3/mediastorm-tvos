@@ -60,11 +60,12 @@ struct MobileBrowseGrid: View {
                         MobileGridCard(card: HomeCard(entry), onRemoveFromList: removeAction(entry))
                     }
                     if model.isLoadingPage { ProgressView().frame(maxWidth: .infinity).padding() }
+                } else {
+                    MobileScrollStatus { status }
                 }
             }
             .padding(.vertical, 8)
         }
-        .overlay { status }
         .refreshable { await model.refreshInPlace() }
         .navigationTitle(title)
         // A long name (an Ask AI prompt) would be cut off as a large title.
@@ -100,6 +101,7 @@ struct MobileBrowseGrid: View {
         .navigationDestination(item: $pickedShow) { MobileLibraryShowView(target: $0) }
     }
 
+    /// What an empty grid shows: why it failed, that it is empty, or that it is loading.
     @ViewBuilder
     private var status: some View {
         if model.entries.isEmpty {

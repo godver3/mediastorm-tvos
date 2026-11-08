@@ -76,6 +76,9 @@ final class MobileBrowseModel: ObservableObject {
             if list.quickPageQuery != nil { Task { await fillArtwork(offset: offset, generation: request) } }
             apply(page, replacing: false)
         } catch {
+            // A cancelled load (the page's `.task` ending on a tab switch) is retried when
+            // the page shows again; only a real failure shows, and only over an empty grid.
+            guard !error.isCancellation else { return }
             if request == generation, entries.isEmpty { loadError = error.localizedDescription }
         }
     }
