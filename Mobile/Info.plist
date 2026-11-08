@@ -46,6 +46,8 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Strmr finds and connects to your media server on the local network.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MediaStorm uses your location only to read your Wi-Fi network's name, so it can switch between your home and remote server addresses automatically.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

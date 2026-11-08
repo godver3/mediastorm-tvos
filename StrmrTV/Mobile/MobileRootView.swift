@@ -7,12 +7,19 @@ import SwiftUI
 struct MobileRootView: View {
     @StateObject private var session = AppSession.shared
     @StateObject private var playback = PlaybackCoordinator.shared
+    @StateObject private var connection = MobileConnection.shared
+    @ObservedObject private var monitor = MobileNetworkMonitor.shared
+    /// Offline at launch, Downloads opens by itself once (as the Expo app redirects there).
+    @State private var openedDownloadsOffline = false
+    #if DEBUG
+    @State private var showsConnectionSettings = DebugPrefill.showConnectionSettings
+    #endif
 
     var body: some View {
         Group {
             switch session.phase {
             case .starting:
-                ProgressView("Connecting…")
+                MobileStartingView()
             case .server:
                 ServerConnectView()
             case .login:
@@ -23,13 +30,32 @@ struct MobileRootView: View {
                 // Rebuilt per profile so every screen reloads its data.
                 MobileMainView().id(session.profile?.id)
             case let .unavailable(message):
-                StartupUnavailableView(message: message)
+                MobileOfflineView(message: message)
             }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if session.phase == .ready { MobileConnectionBanner() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.brandBackground.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .onChange(of: session.phase) { _, phase in
+            connection.phaseChanged(phase)
+            if case .unavailable = phase, monitor.isDeviceOffline, !openedDownloadsOffline {
+                openedDownloadsOffline = true
+                connection.showsOfflineDownloads = true
+            }
+        }
+        .fullScreenCover(isPresented: $connection.showsOfflineDownloads) {
+            MobileOfflineDownloads()
+        }
+        #if DEBUG
+        .sheet(isPresented: $showsConnectionSettings) {
+            NavigationStack { MobileConnectionSettingsView() }
+        }
+        #endif
         .task {
+            connection.start()
             AdaptiveThroughput.shared.start()
             await session.start()
             #if DEBUG

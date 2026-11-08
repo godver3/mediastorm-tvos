@@ -25,6 +25,9 @@ final class AppSession: ObservableObject {
     @Published private(set) var serverVersion: ServerVersion?
     /// Connected over iroh remote access (`serverURL` is then the loopback proxy).
     @Published private(set) var isRemote = false
+    /// Paired over iroh, but talking to the server's verified home address directly (iOS
+    /// picks it on the home network; always false on tvOS).
+    @Published private(set) var isHomeDirect = false
     /// The server's custom logo (admin UI → Appearance & Branding), when one is uploaded.
     @Published private(set) var brandLogoURL: URL?
     /// Shown on the login screen after an involuntary sign-out.
@@ -142,7 +145,7 @@ final class AppSession: ObservableObject {
             throw APIError.notReady(String(localized: "Enter a server address, like 192.168.1.10 or media.example.com."))
         }
         try await api.checkHealth(of: url)
-        if isRemote { leaveRemote() }
+        if isRemote || isHomeDirect { leaveRemote() }
         if url != serverURL {
             await api.logout()
             defaults.removeObject(forKey: Key.lastProfileID)
@@ -182,6 +185,18 @@ final class AppSession: ObservableObject {
 
     private func startRemote() async {
         phase = .starting
+        #if os(iOS)
+        // On the home network a verified LAN address beats the tunnel (as Expo's selection).
+        if let home = await MobileConnectionSelector.shared.verifiedHomeURL() {
+            isRemote = false
+            isHomeDirect = true
+            api.remoteCredential = nil
+            useServer(home)
+            if api.session != nil { await resumeSession() } else { phase = .login }
+            return
+        }
+        isHomeDirect = false
+        #endif
         isRemote = true
         api.remoteCredential = RemoteAccess.shared.pairing?.credential
         do {
@@ -194,7 +209,7 @@ final class AppSession: ObservableObject {
     }
 
     /// The proxy again after sleep or a failure; its port can change, so the base URL follows.
-    private func reconnectRemoteOrThrow() async throws {
+    func reconnectRemoteOrThrow() async throws {
         let url = try await RemoteAccess.shared.connect()
         if url != serverURL {
             serverURL = url
@@ -210,12 +225,13 @@ final class AppSession: ObservableObject {
     private func leaveRemote() {
         RemoteAccess.shared.forget()
         isRemote = false
+        isHomeDirect = false
         api.remoteCredential = nil
     }
 
     /// Try Again on the startup error: a remote launch that never connected starts over.
     func retryStartup() async {
-        if isRemote, RemoteAccess.shared.pairing != nil { await startRemote() } else { await resumeSession() }
+        if isRemote || isHomeDirect, RemoteAccess.shared.pairing != nil { await startRemote() } else { await resumeSession() }
     }
 
     func changeServer() {
@@ -233,6 +249,49 @@ final class AppSession: ObservableObject {
         }
         phase = profile != nil ? .ready : api.session != nil ? .profiles : .login
     }
+
+    #if os(iOS)
+    // MARK: Network routes (iOS)
+
+    /// The address saved by Change Server; network switching never overwrites it.
+    var savedServerURL: URL? { defaults.url(forKey: Key.serverURL) }
+
+    /// Paired, on the home network: requests go straight to the verified LAN address.
+    func routeHomeDirect(_ url: URL) {
+        isRemote = false
+        isHomeDirect = true
+        api.remoteCredential = nil
+        serverURL = url
+        api.baseURL = url
+    }
+
+    /// Back onto the iroh tunnel. The bridge is sticky: if it can't start, requests go to an
+    /// unreachable loopback address rather than silently to the LAN.
+    func routeRemoteTunnel() async throws {
+        isHomeDirect = false
+        isRemote = true
+        api.remoteCredential = RemoteAccess.shared.pairing?.credential
+        do {
+            try await reconnectRemoteOrThrow()
+        } catch {
+            if serverURL?.host() != "127.0.0.1" {
+                serverURL = Self.unreachableLoopback
+                api.baseURL = Self.unreachableLoopback
+            }
+            throw error
+        }
+    }
+
+    /// Direct (unpaired) server: the home or away address from the server's network settings,
+    /// used until the network changes; not saved.
+    func routeNetworkURL(_ url: URL) {
+        guard !isRemote, !isHomeDirect else { return }
+        serverURL = url
+        api.baseURL = url
+    }
+
+    private static let unreachableLoopback = URL(string: "http://127.0.0.1:9")!
+    #endif
 
     private func useServer(_ url: URL) {
         serverURL = url

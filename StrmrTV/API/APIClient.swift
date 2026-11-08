@@ -14,6 +14,9 @@ final class APIClient: ObservableObject {
     /// Over remote access: brings the tunnel back after a transport failure and returns its
     /// base URL (the proxy's port can change). Set by `AppSession`.
     var recoverTransport: (() async -> URL?)?
+    /// Told after each request whether the server answered (any HTTP status) or the transport
+    /// failed (the `URLError`); iOS uses it to notice a lost connection. Nil on tvOS.
+    var onTransportResult: ((URLError?) -> Void)?
     /// Persisted to the Keychain whenever it changes (login, refresh).
     var session: AuthSession? {
         didSet { if let session, session != oldValue { session.save() } }
@@ -232,13 +235,23 @@ final class APIClient: ObservableObject {
     private func perform(_ req: URLRequest, retried: Bool = false) async throws -> Data {
         let data: Data, response: URLResponse
         do {
+            #if DEBUG
+            if let simulated = DebugNetworkFault.error { throw simulated }
+            #endif
             (data, response) = try await Self.http.data(for: req)
         } catch let error as URLError where !retried && remoteCredential != nil && Self.isTransportFailure(error) {
             // Through the iroh proxy, the first request after a sleep or a path change can fail
             // while the connection is re-established: reconnect, then retry once.
-            guard let base = await recoverTransport?(), let retry = Self.rebased(req, onto: base) else { throw error }
+            guard let base = await recoverTransport?(), let retry = Self.rebased(req, onto: base) else {
+                onTransportResult?(error)
+                throw error
+            }
             return try await perform(retry, retried: true)
+        } catch let error as URLError {
+            onTransportResult?(error)
+            throw error
         }
+        onTransportResult?(nil)
         let http = response as? HTTPURLResponse
         let status = http?.statusCode ?? 0
         guard (200..<300).contains(status) else {

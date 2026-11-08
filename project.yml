@@ -118,6 +118,8 @@ targets:
       base:
         PRODUCT_NAME: StrmrMobile
         PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.mobile
+        # Access Wi-Fi Information: the home Wi-Fi's name for home/away switching.
+        CODE_SIGN_ENTITLEMENTS: Mobile/StrmrMobile.entitlements
         INFOPLIST_FILE: Mobile/Info.plist
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -140,6 +142,7 @@ targets:
           NSAllowsArbitraryLoads: true
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Strmr finds and connects to your media server on the local network.
+        NSLocationWhenInUseUsageDescription: MediaStorm uses your location only to read your Wi-Fi network's name, so it can switch between your home and remote server addresses automatically.
         NSBonjourServices: [_mediastorm._tcp]
         CFBundleURLTypes:
           - CFBundleURLName: com.strmr.app.nx

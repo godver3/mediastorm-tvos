@@ -22,6 +22,8 @@ protocol DebugSecretsProviding {
 /// - `StrmrPairCode <code>`: with `StrmrAutoSignIn`, pair over iroh remote access with that
 ///   connection code first (when not already paired).
 /// - `StrmrEnableShelves <id,id>`: Home shows those rows even when the profile has them off.
+/// - `StrmrShowConnectionSettings`: (iPhone) opens Connection settings in a sheet at launch.
+/// - `StrmrSimulateOffline N` / `StrmrSimulateUnreachable N`: see `DebugNetworkFault`.
 /// With `Secrets` present the onboarding fields are prefilled either way.
 enum DebugPrefill {
     static var secrets: DebugSecretsProviding.Type? {
@@ -35,6 +37,7 @@ enum DebugPrefill {
     static var enabledShelves: Set<String> {
         Set((UserDefaults.standard.string(forKey: "StrmrEnableShelves") ?? "").split(separator: ",").map(String.init))
     }
+    static var showConnectionSettings: Bool { UserDefaults.standard.bool(forKey: "StrmrShowConnectionSettings") }
     static var autoPlayTrailers: Bool { UserDefaults.standard.bool(forKey: "StrmrAutoPlayTrailers") }
 }
 #endif
