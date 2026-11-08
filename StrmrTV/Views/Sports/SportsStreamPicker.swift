@@ -27,7 +27,8 @@ struct SportsWatchTarget {
 
 /// The live channels that look like they carry a game or race session
 /// (`/api/sports/game/{id}/streams`), strongest match first. Picking one closes the list and
-/// tunes it in the Live TV player; a single strong match of a live event plays at once.
+/// tunes it in the Live TV player; a single strong match of a live event plays at once. A Stremio
+/// addon channel lists its streams as rows of their own once looked up (`SportsStreamOptions`).
 /// "Search All Sources" widens the search past the admin's default sources for the league.
 struct SportsStreamPicker: View {
     let target: SportsWatchTarget
@@ -35,9 +36,15 @@ struct SportsStreamPicker: View {
     let onPick: (SportsStreamMatch) -> Void
 
     @State private var matches: [SportsStreamMatch] = []
+    @State private var groups: [SportsStreamGroup] = []
     @State private var loading = true
     @State private var broad = false
     @State private var error: String?
+    /// A single strong match waits for its Stremio lookup before it plays by itself.
+    @State private var autoPlayWaiting = false
+    @StateObject private var lookups = SportsStreamLookups()
+
+    private var rows: [SportsStreamRow] { SportsStreamOptions.rows(matches, lookups: lookups.states) }
 
     init(target: SportsWatchTarget, onPick: @escaping (SportsStreamMatch) -> Void) {
         self.target = target
@@ -56,19 +63,20 @@ struct SportsStreamPicker: View {
                     Text(subtitle).font(.callout).foregroundStyle(.secondary)
                 }
                 .padding(.bottom, 24)
-                if loading {
+                if loading || waitingOnLookup {
                     HStack(spacing: 24) {
                         ProgressView()
                         Text(broad ? "Searching all sources…" : "Searching channels…").foregroundStyle(.secondary)
                     }
                 } else {
                     if let error { Text(error).foregroundStyle(.secondary) }
-                    ForEach(matches) { match in
-                        Button { play(match) } label: { row(match) }
-                            .accessibilityIdentifier("sports-stream-\(match.channelId)")
+                    ForEach(rows) { row in
+                        Button { play(row.match) } label: { self.row(row) }
+                            .accessibilityIdentifier("sports-stream-\(row.match.channelId)"
+                                + (row.match.stremioStreamIndex.map { "-\($0)" } ?? ""))
                     }
                     if !broad {
-                        Button { Task { await search(broad: true) } } label: {
+                        Button { broad = true } label: {
                             Label("Search All Sources", systemImage: "magnifyingglass")
                         }
                         .padding(.top, 20)
@@ -79,23 +87,32 @@ struct SportsStreamPicker: View {
             .padding(80)
         }
         .background { SourcePickerBackdrop(url: nil) }
-        .task { await search(broad: false) }
+        // A new search (Search All Sources) or the list going away cancels the one running and its lookups.
+        .task(id: broad) {
+            await search(broad: broad)
+            await lookups.run(matches)
+        }
+        .onChange(of: lookups.states) { checkAutoPlay() }
     }
 
     private var subtitle: String {
-        if loading { return String(localized: "Looking for live channels") }
-        return matches.count == 1 ? String(localized: "1 channel") : String(localized: "\(matches.count) channels")
+        if loading || waitingOnLookup { return String(localized: "Looking for live channels") }
+        let count = rows.count
+        return count == 1 ? String(localized: "1 stream") : String(localized: "\(count) streams")
     }
 
-    private func row(_ match: SportsStreamMatch) -> some View {
-        HStack(spacing: 28) {
+    private func row(_ row: SportsStreamRow) -> some View {
+        let match = row.match
+        return HStack(spacing: 28) {
             RemoteImage(url: match.channel.logoURL, size: CGSize(width: 120, height: 68), contentMode: .fit) { _ in
                 Image(systemName: "tv").font(.title2).foregroundStyle(.secondary)
             }
             .frame(width: 120, height: 68)
             VStack(alignment: .leading, spacing: 6) {
-                Text(match.channelName).font(.headline).lineLimit(1)
-                Text(details(match)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(match.title).font(.headline).lineLimit(1)
+                Text(row.loading ? [details(match), String(localized: "Loading streams…")].filter { !$0.isEmpty }
+                        .joined(separator: " · ") : details(match))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
             Text(match.isStrong ? "Strong match" : "Possible match")
@@ -113,7 +130,7 @@ struct SportsStreamPicker: View {
     }
 
     private func search(broad: Bool) async {
-        self.broad = broad
+        autoPlayWaiting = false
         loading = true
         defer { loading = false }
         do {
@@ -126,17 +143,35 @@ struct SportsStreamPicker: View {
             // Strong matches first, otherwise in the server's order.
             matches = feeds.filter(\.isStrong) + feeds.filter { !$0.isStrong }
             error = matches.isEmpty ? String(localized: "No channel looks like it carries this \(target.noun).") : nil
-            // One clear answer for a game in progress: no need to ask.
-            if !broad, target.live, groups.count == 1, groups[0].confidenceTier == "strong",
-               groups[0].alternatives?.isEmpty ?? true {
-                play(groups[0].primary)
-            }
+            self.groups = groups
+            // One clear answer for a game in progress: no need to ask (a Stremio channel waits
+            // for its streams).
+            autoPlayWaiting = !broad
+            checkAutoPlay()
         } catch {
             if !(error is CancellationError) { self.error = error.localizedDescription }
         }
     }
 
+    /// The lone strong match of a live event is waiting on its Stremio lookup: the spinner stays.
+    private var waitingOnLookup: Bool {
+        autoPlayWaiting && SportsStreamOptions.autoPlay(live: target.live, broad: broad, groups: groups,
+                                                         lookups: lookups.states) == .wait
+    }
+
+    private func checkAutoPlay() {
+        guard autoPlayWaiting else { return }
+        switch SportsStreamOptions.autoPlay(live: target.live, broad: broad, groups: groups, lookups: lookups.states) {
+        case .wait: return
+        case .none: autoPlayWaiting = false
+        case let .play(match):
+            autoPlayWaiting = false
+            play(match)
+        }
+    }
+
     private func play(_ match: SportsStreamMatch) {
+        autoPlayWaiting = false
         onPick(match)
     }
 }

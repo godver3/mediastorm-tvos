@@ -92,10 +92,10 @@ extension APIClient {
     }
 
     /// The streams a Stremio channel's addon lists for it, for Choose Source.
-    func liveStremioStreams(_ channel: LiveChannel) async throws -> [LiveStremioStream] {
+    func liveStremioStreams(_ channel: LiveChannel, timeout: TimeInterval = 60) async throws -> [LiveStremioStream] {
         struct Response: Decodable { let streams: [LiveStremioStream]? }
         let response: Response = try await send("GET", "/api/live/stremio/streams",
-                                                query: ["url": channel.url, "profileId": profileID], timeout: 60)
+                                                query: ["url": channel.url, "profileId": profileID], timeout: timeout)
         return response.streams ?? []
     }
 

@@ -233,14 +233,22 @@ struct SportsStreamMatch: Decodable, Identifiable, Hashable {
     let confidence: Double?
     let confidenceTier: String?
     let matchReason: String?
+    /// One stream of a Stremio channel picked in the stream picker (`SportsStreamOptions`), and
+    /// its label; nil lets the server pick. Set on the device, never sent by the server.
+    var stremioStreamIndex: Int? = nil
+    var streamLabel: String? = nil
 
-    var id: String { "\(channelId)|\(channelUrl)" }
+    var id: String { "\(channelId)|\(channelUrl)|\(stremioStreamIndex.map(String.init) ?? "channel")" }
     var isStrong: Bool { confidenceTier == "strong" }
 
-    /// The channel as Live TV tunes it.
+    /// "<channel> · <stream>" for a picked stream, else the channel's name.
+    var title: String { streamLabel.map { "\(channelName) · \($0)" } ?? channelName }
+
+    /// The channel as Live TV tunes it, with the picked stream.
     var channel: LiveChannel {
         LiveChannel(id: channelId, name: channelName, url: channelUrl, logo: channelLogo, group: nil,
-                    tvgId: channelTvgId, tvgName: nil, sourceId: sourceId, sourceName: sourceName, playbackId: nil)
+                    tvgId: channelTvgId, tvgName: nil, sourceId: sourceId, sourceName: sourceName, playbackId: nil,
+                    stremioStreamIndex: stremioStreamIndex)
     }
 }
 
