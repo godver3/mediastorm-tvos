@@ -1,72 +1,60 @@
 #if os(iOS)
 import SwiftUI
 
-/// The signed-in phone app: a system tab bar in the Expo mobile app's order. On iPhone the
-/// tabs past the fourth go under More; on iPad the tab bar can become a sidebar. Which tabs
-/// show follows the profile's menu (`MenuTabsStore`), as on the TV.
+/// The signed-in phone app: a system tab bar in the Expo mobile app's order. Which sections
+/// show follows the profile's menu (`MenuTabsStore`), as on the TV. On iPhone the first four
+/// are tabs and the rest sit in a More tab of our own: the system More wraps each tab's
+/// NavigationStack in its own navigation bar, which stacked two bars on every page under it.
+/// On iPad every section is a tab (or a sidebar row).
 struct MobileMainView: View {
     @StateObject private var watchlist = WatchlistStore()
     @StateObject private var customLists = CustomListsStore()
     @StateObject private var titles = TitleStateStore()
     @StateObject private var listShelves = ListShelvesStore()
     @ObservedObject private var menu = MenuTabsStore.shared
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var homePath = NavigationPath()
+    @State private var morePath = NavigationPath()
+
+    /// Tabs on a compact-width screen before the rest go under More.
+    private static let compactTabs = 4
 
     init() {
         HomeViewsStore.shared.configure(profileID: APIClient.shared.profileID)
     }
 
-    private var isKids: Bool { AppSession.shared.profile?.isKidsProfile == true }
+    private var sections: [MobileSection] {
+        let kids = AppSession.shared.profile?.isKidsProfile == true
+        return MobileSection.allCases.filter { section in
+            guard let tab = section.menuTab else { return true }
+            // Kids profiles don't get Live TV (as in the Expo app).
+            if section == .live, kids { return false }
+            return menu.isVisible(tab)
+        }
+    }
+
+    private var split: (tabs: [MobileSection], more: [MobileSection]) {
+        let all = sections
+        guard sizeClass == .compact, all.count > Self.compactTabs + 1 else { return (all, []) }
+        return (Array(all.prefix(Self.compactTabs)), Array(all.dropFirst(Self.compactTabs)))
+    }
 
     var body: some View {
+        let split = split
         TabView {
-            Tab("Home", systemImage: "house") {
-                NavigationStack(path: $homePath) {
-                    MobileHomeView()
-                        .mobileDestinations()
+            ForEach(split.tabs) { section in
+                Tab(section.title, systemImage: section.symbol, role: section == .search ? .search : nil) {
+                    stack(for: section)
                 }
             }
-            if menu.isVisible(.watchlist) {
-                Tab("Watchlist", systemImage: "bookmark") {
-                    NavigationStack { MobileWatchlistView().mobileDestinations() }
+            if !split.more.isEmpty {
+                Tab("More", systemImage: "ellipsis") {
+                    NavigationStack(path: $morePath) {
+                        MobileMoreList(sections: split.more)
+                            .navigationDestination(for: MobileSection.self) { $0.screen }
+                            .mobileDestinations()
+                    }
                 }
-            }
-            if menu.isVisible(.search) {
-                Tab("Search", systemImage: "magnifyingglass", role: .search) {
-                    NavigationStack { MobileSearchView().mobileDestinations() }
-                }
-            }
-            if menu.isVisible(.lists) {
-                Tab("Lists", systemImage: "list.bullet.rectangle") {
-                    NavigationStack { MobileListsView().mobileDestinations() }
-                }
-            }
-            if menu.isVisible(.calendar) {
-                Tab("Calendar", systemImage: "calendar") {
-                    NavigationStack { MobileCalendarView().mobileDestinations() }
-                }
-            }
-            if menu.isVisible(.recordings) {
-                Tab("Recordings", systemImage: "record.circle") {
-                    NavigationStack { MobileRecordingsView().mobileDestinations() }
-                }
-            }
-            // Kids profiles don't get Live TV (as in the Expo app).
-            if menu.isVisible(.live), !isKids {
-                Tab("Live", systemImage: "dot.radiowaves.left.and.right") {
-                    NavigationStack { MobileLiveView().mobileDestinations() }
-                }
-            }
-            if menu.isVisible(.sports) {
-                Tab("Sports", systemImage: "trophy") {
-                    NavigationStack { MobileSportsView().mobileDestinations() }
-                }
-            }
-            Tab("Downloads", systemImage: "arrow.down.circle") {
-                NavigationStack { MobileDownloadsView().mobileDestinations() }
-            }
-            Tab("Settings", systemImage: "gear") {
-                NavigationStack { MobileSettingsView().mobileDestinations() }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -87,6 +75,97 @@ struct MobileMainView: View {
             Task { await watchlist.refresh() }
         }
         .mobileLongPressModals(customLists: customLists, titles: titles)
+    }
+
+    @ViewBuilder
+    private func stack(for section: MobileSection) -> some View {
+        if section == .home {
+            NavigationStack(path: $homePath) { section.screen.mobileDestinations() }
+        } else {
+            NavigationStack { section.screen.mobileDestinations() }
+        }
+    }
+}
+
+/// A top-level phone section, in the Expo mobile tab order.
+enum MobileSection: String, CaseIterable, Identifiable, Hashable {
+    case home, watchlist, search, lists, calendar, recordings, live, sports, downloads, settings
+
+    var id: String { rawValue }
+
+    /// The profile menu entry that shows or hides it; nil for sections always shown.
+    var menuTab: MenuTab? {
+        switch self {
+        case .watchlist: .watchlist
+        case .search: .search
+        case .lists: .lists
+        case .calendar: .calendar
+        case .recordings: .recordings
+        case .live: .live
+        case .sports: .sports
+        case .home, .downloads, .settings: nil
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .home: String(localized: "Home")
+        case .watchlist: String(localized: "Watchlist")
+        case .search: String(localized: "Search")
+        case .lists: String(localized: "Lists")
+        case .calendar: String(localized: "Calendar")
+        case .recordings: String(localized: "Recordings")
+        case .live: String(localized: "Live")
+        case .sports: String(localized: "Sports")
+        case .downloads: String(localized: "Downloads")
+        case .settings: String(localized: "Settings")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .home: "house"
+        case .watchlist: "bookmark"
+        case .search: "magnifyingglass"
+        case .lists: "list.bullet.rectangle"
+        case .calendar: "calendar"
+        case .recordings: "record.circle"
+        case .live: "dot.radiowaves.left.and.right"
+        case .sports: "trophy"
+        case .downloads: "arrow.down.circle"
+        case .settings: "gear"
+        }
+    }
+
+    /// The section's root screen, without a NavigationStack (the caller provides one).
+    @MainActor @ViewBuilder
+    var screen: some View {
+        switch self {
+        case .home: MobileHomeView()
+        case .watchlist: MobileWatchlistView()
+        case .search: MobileSearchView()
+        case .lists: MobileListsView()
+        case .calendar: MobileCalendarView()
+        case .recordings: MobileRecordingsView()
+        case .live: MobileLiveView()
+        case .sports: MobileSportsView()
+        case .downloads: MobileDownloadsView()
+        case .settings: MobileSettingsView()
+        }
+    }
+}
+
+/// The More tab's list of the sections past the tab bar, like the system More list.
+private struct MobileMoreList: View {
+    let sections: [MobileSection]
+
+    var body: some View {
+        List(sections) { section in
+            NavigationLink(value: section) {
+                Label(section.title, systemImage: section.symbol)
+            }
+        }
+        .navigationTitle("More")
     }
 }
 #endif
