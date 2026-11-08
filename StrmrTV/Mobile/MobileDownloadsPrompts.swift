@@ -62,8 +62,9 @@ struct MobileDownloadsPromptsModifier: ViewModifier {
                     onDeleted()
                 }
                 Button("Cancel", role: .cancel) {}
-            } message: { _ in
-                Text("The file is removed from this device.")
+            } message: { deletion in
+                Text(deletion.ids.count == 1 ? "The file is removed from this device."
+                                             : "The files are removed from this device.")
             }
             .confirmationDialog(prompts.resume?.item.displayTitle ?? "",
                                 isPresented: Binding(get: { prompts.resume != nil },

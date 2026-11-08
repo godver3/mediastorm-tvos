@@ -44,7 +44,9 @@ struct MobileDownloadsView: View {
             Section {
                 MobileDownloadsStorage(used: manager.usedBytes)
             }
-            let active = sorted(manager.items.filter { $0.status != .completed })
+            // Queue order, the running ones first, whatever the sort.
+            let active = manager.items.filter { $0.status != .completed }
+                .sorted { ($0.status == .downloading ? 0 : 1, $0.createdAt) < ($1.status == .downloading ? 0 : 1, $1.createdAt) }
             if !active.isEmpty {
                 Section("In Progress") {
                     ForEach(active) { item in row(item) }
@@ -136,7 +138,7 @@ struct MobileDownloadsView: View {
                     Label("Delete", systemImage: "trash")
                 }
                 .disabled(selection.isEmpty)
-            } else {
+            } else if !manager.items.isEmpty {
                 Menu {
                     Picker("Sort By", selection: $settings.sort) {
                         ForEach(DownloadSettings.Sort.allCases) { sort in Text(sort.label).tag(sort) }
@@ -144,6 +146,8 @@ struct MobileDownloadsView: View {
                 } label: {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
+            }
+            if !editMode.isEditing {
                 NavigationLink { MobileDownloadSettingsView() } label: {
                     Label("Download Settings", systemImage: "gearshape")
                 }

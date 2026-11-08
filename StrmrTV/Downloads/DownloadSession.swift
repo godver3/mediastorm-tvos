@@ -16,7 +16,7 @@ final class DownloadSession: NSObject, URLSessionDownloadDelegate, @unchecked Se
     /// What the session reports, keyed by download ID.
     enum Event {
         case progress(id: String, written: Int64, expected: Int64)
-        case finished(id: String, bytes: Int64)
+        case finished(id: String, bytes: Int64, task: Int)
         case failed(id: String, message: String, resumeData: Data?)
         /// A task cancelled by `pause` / `delete` ended; nothing to record.
         case cancelled(id: String)
@@ -96,7 +96,7 @@ final class DownloadSession: NSObject, URLSessionDownloadDelegate, @unchecked Se
             try DownloadStorage.moveIntoPlace(location, fileName: fileName)
             let bytes = DownloadStorage.fileSize(fileName)
             Self.log.notice("download \(id, privacy: .public) finished: \(bytes) bytes")
-            emit(.finished(id: id, bytes: bytes))
+            emit(.finished(id: id, bytes: bytes, task: downloadTask.taskIdentifier))
         } catch {
             Self.log.error("download \(id, privacy: .public) could not be saved: \(error.localizedDescription, privacy: .public)")
             emit(.failed(id: id, message: error.localizedDescription, resumeData: nil))

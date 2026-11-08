@@ -70,9 +70,14 @@ extension DownloadManager {
         let existing = await session.existingTasks()
         var adopted: Set<String> = []
         for task in existing {
-            guard let id = DownloadSession.downloadID(task), let item = item(id), item.isActive,
-                  task.state == .running || task.state == .suspended else {
+            guard let id = DownloadSession.downloadID(task), let item = item(id), item.isActive else {
                 task.cancel()
+                continue
+            }
+            // Finished (or failed) while the app was away: the session is about to deliver
+            // the outcome, so the download is neither requeued nor restarted.
+            if task.state == .completed || task.state == .canceling {
+                adopted.insert(id)
                 continue
             }
             tasks[id] = task
@@ -113,8 +118,13 @@ extension DownloadManager {
                 item.bytesWritten = written
             }
             persistSoon()
-        case let .finished(id, bytes):
-            tasks[id] = nil
+        case let .finished(id, bytes, taskID):
+            // A second transfer of the same download (requeued before this one's outcome
+            // arrived) has nothing left to do.
+            if let current = tasks.removeValue(forKey: id), current.taskIdentifier != taskID {
+                cancelling.insert(id)
+                current.cancel()
+            }
             speedSamples[id] = nil
             update(id) {
                 $0.status = .completed

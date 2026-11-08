@@ -166,6 +166,7 @@ enum DownloadFormat {
     static func eta(_ item: DownloadItem) -> String? {
         guard item.bytesPerSecond > 1, item.expectedBytes > item.bytesWritten else { return nil }
         let seconds = Double(item.expectedBytes - item.bytesWritten) / item.bytesPerSecond
+        guard seconds >= 1 else { return nil }
         let formatter = DateComponentsFormatter()
         formatter.unitsStyle = .abbreviated
         formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute, .second]
