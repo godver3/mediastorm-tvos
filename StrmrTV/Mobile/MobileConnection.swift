@@ -59,6 +59,15 @@ final class MobileConnection: ObservableObject {
             MainActor.assumeIsolated { self?.periodicCheck() }
         }
         if monitor.isDeviceOffline { status = .offline }
+        #if DEBUG
+        if let from = DebugNetworkFault.from {
+            Task {
+                try? await Task.sleep(for: .seconds(max(0, from.timeIntervalSinceNow) + 0.1))
+                monitor.refresh()
+                await verify(reason: "network failure")
+            }
+        }
+        #endif
     }
 
     /// The session reached a phase: offline at the startup error retries by itself; signed in,
@@ -180,8 +189,8 @@ final class MobileConnection: ObservableObject {
         } else if case .reconnecting = status {
             return
         } else {
+            // The retry re-selects the route first (on the home network, back to the tunnel).
             MobileReconnectJournal.record("server-unreachable", ["reason": reason])
-            if reason == "network failure" { await selector.select(reason: "network failure") }
             scheduleRetry(attempt: 0)
         }
     }

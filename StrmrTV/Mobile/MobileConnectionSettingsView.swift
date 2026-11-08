@@ -64,11 +64,11 @@ struct MobileConnectionSettingsView: View {
     private var statusSection: some View {
         Section {
             LabeledContent("Status") {
-                Label(statusText, systemImage: statusSymbol)
+                iconValue(statusText, statusSymbol)
                     .foregroundStyle(connection.status == .online ? Color.green : Color.orange)
             }
             LabeledContent("Connection") {
-                Label(routeText, systemImage: routeSymbol)
+                iconValue(routeText, routeSymbol)
             }
             if let url = session.serverURL {
                 LabeledContent("Address", value: session.isRemote ? String(localized: "Remote access tunnel") : ServerAddress.display(url))
@@ -84,8 +84,8 @@ struct MobileConnectionSettingsView: View {
     private var deviceSection: some View {
         Section {
             LabeledContent("Network") {
-                Label(monitor.isDeviceOffline ? String(localized: "Offline") : monitor.path.interface.title,
-                      systemImage: monitor.isDeviceOffline ? "wifi.slash" : monitor.path.interface.symbol)
+                iconValue(monitor.isDeviceOffline ? String(localized: "Offline") : monitor.path.interface.title,
+                          monitor.isDeviceOffline ? "wifi.slash" : monitor.path.interface.symbol)
             }
             if monitor.path.interface == .wifi {
                 LabeledContent("Wi-Fi Name", value: selector.lastSSID ?? String(localized: "Unavailable"))
@@ -111,7 +111,9 @@ struct MobileConnectionSettingsView: View {
         } header: {
             Text("This iPhone")
         } footer: {
-            Text("iOS shows the Wi-Fi name only with location access, which MediaStorm uses to tell your home network from others. Without it, the home address is still tried and checked before use.")
+            Text(RemoteAccess.shared.pairing != nil
+                 ? "iOS shows the Wi-Fi name only with location access, which MediaStorm uses to tell your home network from others. Without it, the home address is still tried and checked before use."
+                 : "iOS shows the Wi-Fi name only with location access, which MediaStorm uses to tell your home network from others. Without it, the address in use is kept while on Wi-Fi.")
         }
     }
 
@@ -183,6 +185,14 @@ struct MobileConnectionSettingsView: View {
         }
     }
     #endif
+
+    /// A value with a leading symbol (a `Label` there lays out at full height in a Form row).
+    private func iconValue(_ text: String, _ symbol: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+            Text(text)
+        }
+    }
 
     // MARK: Text
 

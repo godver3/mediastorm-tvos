@@ -8,14 +8,18 @@ import Foundation
 ///   `notConnectedToInternet` for the first N seconds after launch (0: until switched off).
 /// - `-StrmrSimulateUnreachable N`: the network is up but the server doesn't answer
 ///   (`cannotConnectToHost`) for the first N seconds (0: until switched off).
+/// - `StrmrSimulateFaultAfter N`: the fault starts N seconds after launch (its duration then
+///   counts from there), to watch a signed-in app lose the server.
 /// The iPhone's Connection settings can switch either at runtime.
 enum DebugNetworkFault {
     enum Mode: String, CaseIterable { case none, offline, unreachable }
 
     nonisolated(unsafe) static var mode: Mode = launchMode
+    nonisolated(unsafe) static var from: Date? = launchFrom
     nonisolated(unsafe) static var until: Date? = launchUntil
 
     static var current: Mode {
+        if let from, Date() < from { return .none }
         if let until, Date() >= until { return .none }
         return mode
     }
@@ -30,6 +34,7 @@ enum DebugNetworkFault {
 
     static func set(_ mode: Mode) {
         self.mode = mode
+        from = nil
         until = nil
     }
 
@@ -44,7 +49,12 @@ enum DebugNetworkFault {
         let d = UserDefaults.standard
         let key = d.object(forKey: "StrmrSimulateOffline") != nil ? "StrmrSimulateOffline" : "StrmrSimulateUnreachable"
         let seconds = d.double(forKey: key)
-        return seconds > 0 ? Date().addingTimeInterval(seconds) : nil
+        return seconds > 0 ? (launchFrom ?? Date()).addingTimeInterval(seconds) : nil
+    }
+
+    private static var launchFrom: Date? {
+        let delay = UserDefaults.standard.double(forKey: "StrmrSimulateFaultAfter")
+        return delay > 0 ? Date().addingTimeInterval(delay) : nil
     }
 }
 #endif

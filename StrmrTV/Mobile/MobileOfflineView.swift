@@ -125,14 +125,14 @@ struct MobileOfflineDownloads: View {
     var body: some View {
         NavigationStack {
             MobileDownloadsView()
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    MobileConnectionBanner(inDownloads: true)
+                }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Done") { dismiss() }
                     }
                 }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            MobileConnectionBanner(inDownloads: true)
         }
     }
 }

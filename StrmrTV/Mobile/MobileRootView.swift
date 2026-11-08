@@ -33,9 +33,6 @@ struct MobileRootView: View {
                 MobileOfflineView(message: message)
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if session.phase == .ready { MobileConnectionBanner() }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.brandBackground.ignoresSafeArea())
         .preferredColorScheme(.dark)

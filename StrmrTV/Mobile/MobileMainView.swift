@@ -58,6 +58,7 @@ struct MobileMainView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .mobileConnectionAccessory()
         .environmentObject(watchlist)
         .environmentObject(customLists)
         .environmentObject(titles)

@@ -9,6 +9,11 @@ struct MobileConnectionBanner: View {
     @ObservedObject private var session = AppSession.shared
     /// Shown over offline Downloads: no Downloads button, and a hint once the app can be used.
     var inDownloads = false
+    /// In the tab bar's accessory (glass already drawn by the system): no strip background.
+    var inAccessory = false
+
+    /// Whether there is anything to show.
+    var isVisible: Bool { content != nil }
 
     var body: some View {
         Group {
@@ -28,10 +33,10 @@ struct MobileConnectionBanner: View {
                     action
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, inAccessory ? 4 : 10)
                 .frame(maxWidth: .infinity)
-                .background(.regularMaterial)
-                .overlay(alignment: .bottom) { Divider() }
+                .background(inAccessory ? AnyShapeStyle(.clear) : AnyShapeStyle(.regularMaterial))
+                .overlay(alignment: .bottom) { if !inAccessory { Divider() } }
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("connection-banner")
@@ -82,5 +87,31 @@ struct MobileConnectionBanner: View {
             EmptyView()
         }
     }
+}
+
+/// The banner on the signed-in app's tab view: in the tab bar's bottom accessory where the
+/// system has one (iOS 26.1, shown only while there is something to say), else as a strip above
+/// the tab bar. (A strip at the top of the root sat over the stacks' navigation bars.)
+struct MobileConnectionAccessory: ViewModifier {
+    @ObservedObject private var connection = MobileConnection.shared
+    @ObservedObject private var session = AppSession.shared
+
+    func body(content: Content) -> some View {
+        let visible = MobileConnectionBanner().isVisible
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: visible) {
+                MobileConnectionBanner(inAccessory: true)
+            }
+        } else {
+            content.safeAreaInset(edge: .bottom, spacing: 0) {
+                if visible { MobileConnectionBanner() }
+            }
+        }
+    }
+}
+
+extension View {
+    /// Connection status for the signed-in app (`MobileConnectionBanner`).
+    func mobileConnectionAccessory() -> some View { modifier(MobileConnectionAccessory()) }
 }
 #endif

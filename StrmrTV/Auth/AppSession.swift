@@ -93,6 +93,10 @@ final class AppSession: ObservableObject {
             await startRemote()
         } else if let saved = defaults.url(forKey: Key.serverURL) {
             useServer(saved)
+            #if os(iOS)
+            // Home or away address from the cached network settings (Expo's getNetworkBasedUrl).
+            await MobileConnectionSelector.shared.select(reason: "startup")
+            #endif
             if api.session != nil {
                 await resumeSession()
             } else {
