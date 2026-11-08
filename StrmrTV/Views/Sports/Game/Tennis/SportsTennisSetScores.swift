@@ -22,9 +22,9 @@ struct SportsTennisSetScores: View {
                         Text("Player").gridColumnAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                         ForEach(periods.indices, id: \.self) { index in
                             Text("Set \(index + 1)").foregroundStyle(live && index == latest ? SportsTennis.accent : .secondary)
-                                .frame(width: 92)
+                                .frame(width: SportsMetric.tv(92, phone: 40))
                         }
-                        Text("Sets").frame(width: 92)
+                        Text("Sets").frame(width: SportsMetric.tv(92, phone: 40))
                     }
                     .font(.caption).foregroundStyle(.secondary).padding(.bottom, 10)
                     ForEach(Array(page.teams.enumerated()), id: \.offset) { _, player in
@@ -46,8 +46,8 @@ struct SportsTennisSetScores: View {
                 .padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading)
             ForEach(Array(periods.enumerated()), id: \.offset) { index, period in
                 Text(SportsTennis.games(period, away: away))
-                    .font(.system(size: 34, weight: index == latest ? .bold : SportsTennis.won(period, away: away) ? .semibold : .regular))
-                    .frame(width: 92)
+                    .font(.system(size: SportsMetric.tv(34, phone: 22), weight: index == latest ? .bold : SportsTennis.won(period, away: away) ? .semibold : .regular))
+                    .frame(width: SportsMetric.tv(92, phone: 40))
                     .frame(maxHeight: .infinity)
                     .background(index == latest ? SportsTennis.accent.opacity(0.08) : .clear)
                     .overlay(alignment: .bottom) {
@@ -56,7 +56,7 @@ struct SportsTennisSetScores: View {
                         }
                     }
             }
-            Text(player.score ?? "–").font(.system(size: 38, weight: .bold)).frame(width: 92)
+            Text(player.score ?? "–").font(.system(size: SportsMetric.tv(38, phone: 24), weight: .bold)).frame(width: SportsMetric.tv(92, phone: 40))
                 .overlay(alignment: .leading) { Rectangle().fill(Color.white.opacity(0.14)).frame(width: 1) }
         }
     }

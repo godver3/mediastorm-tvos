@@ -79,7 +79,7 @@ struct MobileSportsGameView: View {
                     if !Task.isCancelled { self.followFailure = nil }
                 }
         }
-        if !tabs.isEmpty {
+        if tabs.count > 1 {
             MobileSportsTabBar(tabs: tabs, label: { $0.label(page.kind) }, selection: Binding(get: { shown }, set: { selectedTab = $0 }))
                 .id("sports-tabs")
         }

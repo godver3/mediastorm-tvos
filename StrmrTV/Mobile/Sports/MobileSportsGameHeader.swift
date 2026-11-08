@@ -5,7 +5,7 @@ import SwiftUI
 /// competition and state, then both sides with logo, rank, name and record over their scores,
 /// the status between them with the live situation (`SportsHeaderSituation`: down and distance,
 /// runners and outs, possession), tennis's sets, then the result, delayed-data and starting-soon
-/// notes and when and where it is played. Fights use the TV's `SportsCombatHeader`; an event
+/// notes and when and where it is played. A fight shows both fighters' portraits either side of "VS"; an event
 /// that is not a matchup shows its title. With scores hidden: names, logos, time and state only.
 struct MobileSportsGameHeader: View {
     let page: SportsGamePage
@@ -22,7 +22,7 @@ struct MobileSportsGameHeader: View {
                 SportsStatusPill(lifecycle: page.lifecycle)
             }
             if page.kind == .mma || page.kind == .boxing {
-                SportsCombatHeader(page: page, spoilers: spoilers)
+                combat
             } else if page.game.isMatchup {
                 scoreline
             } else {
@@ -61,6 +61,44 @@ struct MobileSportsGameHeader: View {
             }
             if SportsTennisHeaderSets.shows(page, spoilers: spoilers) { SportsTennisHeaderSets(page: page) }
         }
+    }
+
+    /// A fight (the TV's `SportsCombatHeader`, upright): both fighters, the winner tagged, and the
+    /// result or start; a card without named fighters shows its title.
+    private var combat: some View {
+        let game = page.game
+        let named = SportsCombatRules.named(game)
+        let line: String = if page.lifecycle == .scheduled {
+            [game.combat?.division, SportsFormat.detailStatus(page)].compactMap { $0 }.joined(separator: " · ")
+        } else if spoilers || named {
+            SportsCombatRules.result(game, hidden: spoilers)
+        } else {
+            game.statusDetail.flatMap { $0.isEmpty ? nil : $0 } ?? String(localized: "Result not supplied")
+        }
+        return VStack(spacing: 10) {
+            if named {
+                HStack(alignment: .top, spacing: 8) {
+                    fighter(game.awayTeam)
+                    Text("VS").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 34)
+                    fighter(game.homeTeam)
+                }
+            } else {
+                Text(game.displayTitle).font(.title2.weight(.semibold)).multilineTextAlignment(.center)
+            }
+            Text(line).font(.headline).multilineTextAlignment(.center)
+        }
+    }
+
+    private func fighter(_ athlete: SportsTeam) -> some View {
+        VStack(spacing: 6) {
+            SportsPlayerPortrait(name: athlete.name, headshot: SportsCombatRules.portrait(league: page.game.league, fighter: athlete),
+                                 size: 84)
+            Text(athlete.name).font(.subheadline.weight(.semibold)).multilineTextAlignment(.center).lineLimit(2)
+            if !spoilers, page.lifecycle == .final, athlete.winner == true {
+                Text("WINNER").font(.caption2.weight(.bold)).foregroundStyle(SportsCombatHeader.winner)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var center: String {

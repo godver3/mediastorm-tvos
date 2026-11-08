@@ -50,7 +50,7 @@ struct SportsGolfOverview: View {
             }
             HStack(spacing: 8) {
                 Text("Player").frame(maxWidth: .infinity, alignment: .leading)
-                ForEach(1...4, id: \.self) { Text("R\($0)").frame(width: 64) }
+                ForEach(1...4, id: \.self) { Text("R\($0)").frame(width: SportsMetric.tv(64, phone: 28)) }
                 Text("To par").frame(width: SportsMetric.tv(100, phone: 56))
             }
             .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16)
@@ -66,7 +66,7 @@ struct SportsGolfOverview: View {
                     HStack(spacing: 8) {
                         Text(golfer.name).fontWeight(.semibold).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                         ForEach(1...4, id: \.self) { number in
-                            Text(golfer.rounds.first { $0.round == number }?.strokes ?? "–").foregroundStyle(.secondary).frame(width: 64)
+                            Text(golfer.rounds.first { $0.round == number }?.strokes ?? "–").foregroundStyle(.secondary).frame(width: SportsMetric.tv(64, phone: 28))
                         }
                         Text(golfer.score ?? "–").fontWeight(.bold).frame(width: SportsMetric.tv(100, phone: 56))
                     }
@@ -138,7 +138,7 @@ struct SportsGolfScorecard: View {
     private func nine(_ round: SportsGolfRound, from start: Int, title: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            HStack(spacing: 5) {
+            HStack(spacing: SportsMetric.tv(5, phone: 2)) {
                 ForEach(start..<(start + 9), id: \.self) { number in
                     let hole = round.holes.first { $0.hole == number }
                     let par = hole?.toPar ?? ""
