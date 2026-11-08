@@ -48,6 +48,9 @@ class EnginePlayerViewController: AVPlayerViewController {
         menu.allowedPressTypes = [NSNumber(value: UIPress.PressType.menu.rawValue)]
         menu.delegate = self
         view.addGestureRecognizer(menu)
+        #if os(iOS)
+        installTouchClose()
+        #endif
 
         // Native path: hand AVKit the engine's AVPlayer. nil on the software route, which
         // renders into `softwareSurface` instead.
@@ -56,6 +59,15 @@ class EnginePlayerViewController: AVPlayerViewController {
             .sink { [weak self] avPlayer in self?.player = avPlayer }
             .store(in: &cancellables)
     }
+
+    #if os(iOS)
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        enterLandscape()
+    }
+    #endif
 
     /// `finish()` logs the close only once the dismissal has finished; this marks its start, so
     /// a crash during the transition is told apart from one during playback.
@@ -67,6 +79,9 @@ class EnginePlayerViewController: AVPlayerViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         guard isBeingDismissed || presentingViewController == nil else { return }
+        #if os(iOS)
+        Self.restorePortrait()
+        #endif
         finish()
     }
 
@@ -115,6 +130,9 @@ class EnginePlayerViewController: AVPlayerViewController {
         }
         softwareSurfaceMounted = mounted
         showsPlaybackControls = !mounted
+        #if os(iOS)
+        updateTouchClose(softwareMounted: mounted)
+        #endif
         return true
     }
 

@@ -1,0 +1,113 @@
+#if os(iOS)
+import SwiftUI
+
+/// The iPhone / iPad app's root: the same session phases as the TV's `RootView`, with phone
+/// screens for the profile picker, PIN entry and the signed-in app. Server and sign-in
+/// screens are shared with tvOS.
+struct MobileRootView: View {
+    @StateObject private var session = AppSession.shared
+    @StateObject private var playback = PlaybackCoordinator.shared
+
+    var body: some View {
+        Group {
+            switch session.phase {
+            case .starting:
+                ProgressView("Connecting…")
+            case .server:
+                ServerConnectView()
+            case .login:
+                LoginView()
+            case .profiles:
+                MobileProfilePicker()
+            case .ready:
+                // Rebuilt per profile so every screen reloads its data.
+                MobileMainView().id(session.profile?.id)
+            case let .unavailable(message):
+                StartupUnavailableView(message: message)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.brandBackground.ignoresSafeArea())
+        .preferredColorScheme(.dark)
+        .task {
+            AdaptiveThroughput.shared.start()
+            await session.start()
+        }
+        .disabled(playback.resolving != nil)
+        .overlay {
+            if let request = playback.resolving {
+                MobilePlaybackLoadingView(request: request, stage: playback.resolvingStage,
+                                          detail: playback.resolvingDetail) {
+                    playback.cancelResolve()
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: playback.resolving == nil)
+        .modifier(MobileProfileLockPrompt(session: session))
+        .alert(
+            "Playback Error",
+            isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } }),
+            presenting: playback.errorMessage
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { Text($0) }
+    }
+}
+
+/// Asks for a PIN when a request hits a locked profile mid-session (`AppSession.pinChallenge`).
+struct MobileProfileLockPrompt: ViewModifier {
+    @ObservedObject var session: AppSession
+
+    func body(content: Content) -> some View {
+        content
+            .fullScreenCover(item: Binding(get: { session.pinChallenge }, set: { _ in })) { challenge in
+                MobilePINEntryView(
+                    profile: challenge.profile,
+                    notice: String(localized: "This profile is locked. Enter its PIN to continue."),
+                    verify: { await session.verifyChallenge(pin: $0) },
+                    onCancel: { session.cancelChallenge() }
+                )
+            }
+    }
+}
+
+/// Stream-start screen: the title's backdrop, its name and where resolving is up to.
+struct MobilePlaybackLoadingView: View {
+    let request: PlaybackRequest
+    let stage: String
+    let detail: String?
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            Color.black.ignoresSafeArea()
+            GeometryReader { geo in
+                RemoteImage(url: Artwork.url(request.artwork.backdropURLs.first ?? request.title.backdropURL),
+                            size: geo.size) { _ in Color.black }
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    .overlay { LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .center, endPoint: .bottom) }
+            }
+            .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(request.title.name).font(.title.bold())
+                if let ep = request.episode {
+                    Text(ep.code + (ep.name.map { " · \($0)" } ?? "")).font(.headline).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(stage).font(.subheadline)
+                }
+                .padding(.top, 8)
+                if let detail { Text(detail).font(.footnote).foregroundStyle(.secondary) }
+                Button("Cancel", role: .cancel, action: onCancel)
+                    .buttonStyle(.bordered)
+                    .padding(.top, 12)
+            }
+            .padding(24)
+        }
+    }
+}
+#endif

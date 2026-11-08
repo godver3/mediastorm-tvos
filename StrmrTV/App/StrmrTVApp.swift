@@ -10,9 +10,13 @@ struct StrmrTVApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if os(iOS)
+            MobileRootView()
+            #else
             RootView()
                 // Top Shelf links; held by the router until the main tabs are up.
                 .onOpenURL { DeepLinkRouter.shared.open($0) }
+            #endif
         }
     }
 }
