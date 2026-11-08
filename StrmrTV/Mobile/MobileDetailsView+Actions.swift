@@ -36,7 +36,7 @@ extension MobileDetailsView {
                 }
                 watchedAction
             }
-            .buttonStyle(.bordered)
+            .modifier(MobileSecondaryActionStyle())
             .buttonBorderShape(.circle)
             .controlSize(.large)
             .frame(maxWidth: .infinity)
@@ -58,6 +58,7 @@ extension MobileDetailsView {
                 .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
             .tint(.white)
             .foregroundStyle(.black)
             .controlSize(.large)
@@ -82,7 +83,8 @@ extension MobileDetailsView {
                 Button { model.play(primary.episode, from: nil) } label: {
                     Image(systemName: "arrow.counterclockwise").font(.headline).padding(.vertical, 6)
                 }
-                .buttonStyle(.bordered)
+                .modifier(MobileSecondaryActionStyle())
+                .buttonBorderShape(.circle)
                 .controlSize(.large)
                 .accessibilityLabel("Start Over")
             }
@@ -209,6 +211,18 @@ extension MobileDetailsView {
     }
 }
 
+/// The page's secondary buttons: white symbols on Liquid Glass (iOS 26), else on a
+/// translucent white fill, rather than the accent color's blue.
+struct MobileSecondaryActionStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.buttonStyle(.glass).foregroundStyle(.white)
+        } else {
+            content.buttonStyle(.bordered).tint(.white).foregroundStyle(.white)
+        }
+    }
+}
+
 /// A round icon button with a caption under it, the phone page's secondary action.
 struct MobileActionItem<Content: View>: View {
     let caption: String
@@ -217,6 +231,8 @@ struct MobileActionItem<Content: View>: View {
     var body: some View {
         VStack(spacing: 6) {
             content.font(.body.weight(.semibold))
+                // One height for every symbol, so the captions line up.
+                .frame(height: 52)
             Text(caption)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
