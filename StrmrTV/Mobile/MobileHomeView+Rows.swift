@@ -1,66 +1,7 @@
 #if os(iOS)
 import SwiftUI
 
-// Home's hero, rows, explore card and loading placeholder.
-
-struct MobileHomeHero: View {
-    let card: HomeCard
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-
-    /// Shorter on a wide screen (iPad), and a fixed strip on a phone on its side, so rows
-    /// show under it.
-    private var aspect: CGFloat { sizeClass == .regular ? 21 / 9 : 16 / 9 }
-    private var isLandscapePhone: Bool { verticalSizeClass == .compact }
-
-    var body: some View {
-        MobileCardLink(card: card) {
-            Color.clear
-                .aspectRatio(isLandscapePhone ? nil : aspect, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .frame(height: isLandscapePhone ? 210 : nil)
-                .overlay {
-                    GeometryReader { geo in
-                        RemoteImage(url: Artwork.url(card.backdropURL ?? card.artworkURL), size: geo.size) { _ in
-                            Rectangle().fill(.quaternary)
-                        }
-                        .frame(width: geo.size.width, height: geo.size.height)
-                    }
-                }
-                .clipped()
-                .overlay {
-                    LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
-                }
-                .overlay(alignment: .bottomLeading) { info }
-                .overlay(alignment: .bottom) {
-                    if ProgressBar.shows(card.progress) {
-                        MobileProgressBar(value: card.progress).padding(.horizontal, 16).padding(.bottom, 6)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .padding(.horizontal, 16)
-        .accessibilityIdentifier("homeHero")
-    }
-
-    private var info: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let logo = Artwork.logoURL(card.logoURL, size: "w500") {
-                RemoteImage(url: logo, size: CGSize(width: 220, height: 70), contentMode: .fit,
-                            alignment: .bottomLeading) { _ in
-                    Text(card.title).font(.title2.bold())
-                }
-                .frame(width: 220, height: 70, alignment: .bottomLeading)
-            } else {
-                Text(card.title).font(.title2.bold())
-            }
-            Text(card.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-        }
-        .padding(16)
-        .foregroundStyle(.white)
-    }
-}
+// Home's rows, explore card and loading placeholder (the carousel is `MobileHomeCarousel`).
 
 /// One titled row. A row longer than its cap ends (or starts) with the explore card, and
 /// its title opens the whole list too.

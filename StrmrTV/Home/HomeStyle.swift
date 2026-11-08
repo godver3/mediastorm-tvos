@@ -11,7 +11,12 @@ final class HomeStyleStore: ObservableObject {
     static let shared = HomeStyleStore()
     private static let log = AppLog(category: "home-carousel")
 
+    /// On for a phone, whose Home has no focused-title hero to show instead.
+    #if os(iOS)
+    static let defaultTopCarousel = true
+    #else
     static let defaultTopCarousel = false
+    #endif
     static let defaultFocusedInfo = true
     static let defaultShelfTransition = ShelfTransition.slide
 

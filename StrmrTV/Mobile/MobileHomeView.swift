@@ -40,6 +40,7 @@ private struct MobileHomeContent: View {
     @ObservedObject private var playback = PlaybackCoordinator.shared
     @ObservedObject private var layout = HomeLayoutStore.shared
     @ObservedObject private var views = HomeViewsStore.shared
+    @ObservedObject private var style = HomeStyleStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var searching = false
@@ -62,9 +63,12 @@ private struct MobileHomeContent: View {
     private var page: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 26) {
-                if let first = firstHero { MobileHomeHero(card: first) }
+                let carousel = carouselSource
+                if let shelf = carousel.shelf { MobileHomeCarousel(shelf: shelf) }
                 ForEach(store.slots) { slot in
                     switch slot {
+                    case _ where slot.id == carousel.id:
+                        EmptyView()
                     case let .shelf(shelf) where !shelf.cards.isEmpty:
                         MobileShelfRow(shelf: shelf, landscape: layout.style(for: shelf.id) == .landscape,
                                        onHide: hideAction(shelf))
@@ -158,12 +162,9 @@ private extension MobileHomeContent {
         }
     }
 
-    /// The first title card of the first loaded row, as a large tile at the top of the page.
-    private var firstHero: HomeCard? {
-        for slot in store.slots {
-            if case let .shelf(shelf) = slot, let card = shelf.shown.first(where: { $0.target != nil }) { return card }
-        }
-        return nil
+    /// The Top Carousel's row (Settings › Home), left out of the rows below; empty with it off.
+    var carouselSource: HomeCarouselSource {
+        style.topCarousel ? .resolve(slots: store.slots, chosen: style.carouselRow) : HomeCarouselSource()
     }
 
     func hideAction(_ shelf: HomeShelf) -> ((HomeCard) -> Void)? {

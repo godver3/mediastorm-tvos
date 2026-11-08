@@ -63,7 +63,7 @@ struct MobileSettingsView: View {
                 NavigationLink {
                     MobileHomeRowsSettingsView()
                 } label: {
-                    Label("Home Rows", systemImage: "rectangle.grid.1x2")
+                    Label("Home Layout", systemImage: "rectangle.grid.1x2")
                 }
                 NavigationLink {
                     MobileMenuSettingsView()

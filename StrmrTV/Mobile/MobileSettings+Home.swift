@@ -1,14 +1,28 @@
 #if os(iOS)
 import SwiftUI
 
-/// Settings › Home Rows on the phone: each Home row's card style (Poster or Landscape) or
-/// Hidden, saved on this device in `HomeLayoutStore`, as the TV's Home Layout › Rows. The
-/// TV's hero, carousel, focus and card-size choices have no phone Home to apply to.
+/// Settings › Home Layout on the phone: the TV's Top Carousel and Carousel Row
+/// (`HomeStyleStore`), then each Home row's card style (Poster or Landscape) or Hidden,
+/// saved on this device in `HomeLayoutStore`, as the TV's Home Layout › Rows. The TV's
+/// focused-title, focus and card-size choices have no phone Home to apply to.
 struct MobileHomeRowsSettingsView: View {
     @ObservedObject private var layout = HomeLayoutStore.shared
+    @ObservedObject private var style = HomeStyleStore.shared
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Top Carousel", isOn: $style.topCarousel)
+                if style.topCarousel, !layout.shelves.isEmpty {
+                    MobileOverridePicker("Carousel Row", selection: $style.carouselRow,
+                                         defaultValue: HomeStyleStore.defaultRow(in: layout.shelves.map(\.id)),
+                                         choices: layout.shelves.map { .init(value: $0.id, name: $0.title) })
+                }
+            } header: {
+                Text("Top of Home")
+            } footer: {
+                Text("A carousel of one row's titles at the top of Home; that row isn't repeated below.")
+            }
             Section {
                 if layout.shelves.isEmpty {
                     Text("Open Home to list its rows.").foregroundStyle(.secondary)
@@ -16,6 +30,8 @@ struct MobileHomeRowsSettingsView: View {
                 ForEach(layout.shelves) { shelf in
                     MobileShelfStylePicker(shelf: shelf)
                 }
+            } header: {
+                Text("Rows")
             } footer: {
                 Text("Hidden rows are left off Home on this device. Continue Watching, My Upcoming, Watch Something, Dashboard, Streaming Services, Recently Watched and collection rows default to landscape cards; other rows to posters.")
             }
@@ -25,7 +41,7 @@ struct MobileHomeRowsSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Home Rows")
+        .navigationTitle("Home Layout")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
