@@ -22,6 +22,10 @@ final class MobileChromeVisibility {
     private var lastVisible: Bool?
     private var fallbackTap: UITapGestureRecognizer?
     private var fallbackHide: DispatchWorkItem?
+    /// When the tracker started; the fallback waits for AVKit to build its chrome first.
+    private var startedAt: CFTimeInterval = 0
+    /// How long AVKit's chrome may take to appear before the fallback tap goes in.
+    private static let fallbackDelay: CFTimeInterval = 2
 
     init(root: UIView, controls: MobilePlayerControls) {
         self.root = root
@@ -30,6 +34,7 @@ final class MobileChromeVisibility {
 
     func start() {
         guard link == nil else { return }
+        startedAt = CACurrentMediaTime()
         let link = CADisplayLink(target: DisplayLinkTarget { [weak self] in self?.tick() }, selector: #selector(DisplayLinkTarget.fire))
         // A tenth of a second is quick enough to fade in with AVKit's own fade.
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: 15, preferred: 10)
@@ -50,7 +55,13 @@ final class MobileChromeVisibility {
             return
         }
         if playbackGroup?.window == nil { findGroups(in: root) }
-        guard let playbackGroup else { return installFallback() }
+        guard let playbackGroup else {
+            if CACurrentMediaTime() - startedAt > Self.fallbackDelay { installFallback() }
+            return
+        }
+        // A tap recognizer on the player's view makes AVKit's own tap-to-show fail, so the
+        // fallback must never outlive AVKit's chrome turning up.
+        removeFallback()
         let visible = Self.isVisible(playbackGroup, below: root)
         alignRow()
         guard visible != lastVisible else { return }
@@ -103,6 +114,13 @@ final class MobileChromeVisibility {
         tap.delegate = SimultaneousDelegate.shared
         root.addGestureRecognizer(tap)
         fallbackTap = tap
+    }
+
+    private func removeFallback() {
+        guard let fallbackTap else { return }
+        fallbackTap.view?.removeGestureRecognizer(fallbackTap)
+        self.fallbackTap = nil
+        fallbackHide?.cancel()
     }
 
     @objc private func fallbackTapped() {
