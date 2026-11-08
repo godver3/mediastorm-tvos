@@ -184,31 +184,7 @@ extension DetailsView {
     }
 
     func request(_ episode: Episode?, from start: StartPoint?) -> PlaybackRequest {
-        PlaybackRequest(title: target, episode: episode.map(episodeInfo), start: start,
-                        following: episode.map(airedEpisodes(after:)) ?? [],
-                        artwork: .init(
-                            backdropURLs: PlaybackRequest.Artwork.rotation(
-                                still: episode?.image?.url,
-                                primary: title?.backdrop?.url ?? target.backdropURL,
-                                alternates: title?.backdrops?.map(\.url) ?? [],
-                                showing: title?.backdrop?.url ?? target.backdropURL,
-                                seed: artSeed),
-                            logoURL: title?.logo?.url),
-                        library: libraryVersions)
-    }
-
-    func episodeInfo(_ ep: Episode) -> PlaybackRequest.EpisodeInfo {
-        PlaybackRequest.EpisodeInfo(season: ep.seasonNumber, episode: ep.episodeNumber,
-                                    absolute: ep.absoluteEpisodeNumber, name: ep.name, itemID: ep.itemId,
-                                    imageURL: ep.image?.url, overview: ep.overview, numbering: ep.numbering)
-    }
-
-    /// Regular-season episodes after `episode` that have aired, for Next Episode at the credits.
-    func airedEpisodes(after episode: Episode) -> [PlaybackRequest.EpisodeInfo] {
-        let regular = seasons.filter { $0.number > 0 }.sorted { $0.number < $1.number }.flatMap(\.episodes)
-        guard let index = regular.firstIndex(where: { $0.id == episode.id }) else { return [] }
-        return regular[(index + 1)...]
-            .prefix { ReleaseBadge.forEpisode(airDate: $0.airedDate) == nil }
-            .map(episodeInfo)
+        DetailsRequest.make(target: target, title: title, seasons: seasons, episode: episode,
+                            start: start, seed: artSeed, library: libraryVersions)
     }
 }
