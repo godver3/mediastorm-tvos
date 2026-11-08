@@ -139,7 +139,7 @@ struct SportsBrowseHeading: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SportsEyebrow(text: eyebrow)
-            Text(title).font(.system(size: 52, weight: .semibold))
+            Text(title).font(.system(size: SportsMetric.tv(52, phone: 30), weight: .semibold))
             Text(description).font(.callout).foregroundStyle(.secondary)
         }
     }

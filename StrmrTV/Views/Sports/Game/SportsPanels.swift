@@ -106,6 +106,16 @@ extension View {
         #endif
     }
 
+    /// A row laid out for a TV's width (a weekend's sessions): on a phone it keeps its natural
+    /// width and scrolls sideways; on tvOS it is left as it is.
+    @ViewBuilder func sportsPhoneScrollRow() -> some View {
+        #if os(iOS)
+        fixedSize().sportsSideScroll()
+        #else
+        self
+        #endif
+    }
+
     /// Content of a fixed width (a line score, a chip row): on a phone it scrolls sideways when
     /// it outgrows the screen instead of widening the page; on tvOS it is left as it is.
     @ViewBuilder func sportsSideScroll() -> some View {

@@ -37,6 +37,7 @@ struct SportsRaceWeekendRow: View {
                         }
                     }
                 }
+                .sportsPhoneScrollRow()
                 .padding(.vertical, 4)
                 let count = weekend.subEvents.count
                 let noun = weekend.riders ? String(localized: "riders") : String(localized: "drivers")
