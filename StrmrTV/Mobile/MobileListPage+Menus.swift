@@ -116,16 +116,17 @@ struct MobileContinueWatchingGrid: View {
                     MobileGridCard(card: card, landscape: true, onHide: { hide(card) })
                 }
                 .padding(.vertical, 8)
-            }
-        }
-        .overlay {
-            if let cards, cards.isEmpty {
-                ContentUnavailableView("Nothing to Continue", systemImage: "play.circle",
-                                       description: Text("Titles you start watching show up here."))
-            } else if cards == nil, let loadError {
-                ContentUnavailableView("Couldn't Load", systemImage: "exclamationmark.triangle", description: Text(loadError))
-            } else if cards == nil {
-                ProgressView()
+            } else {
+                MobileScrollStatus {
+                    if cards != nil {
+                        ContentUnavailableView("Nothing to Continue", systemImage: "play.circle",
+                                               description: Text("Titles you start watching show up here."))
+                    } else if let loadError {
+                        ContentUnavailableView("Couldn't Load", systemImage: "exclamationmark.triangle", description: Text(loadError))
+                    } else {
+                        ProgressView()
+                    }
+                }
             }
         }
         .navigationTitle("Continue Watching")
@@ -142,7 +143,7 @@ struct MobileContinueWatchingGrid: View {
             cards = try await APIClient.shared.continueWatching().map(HomeCard.init)
             loadError = nil
         } catch {
-            if cards == nil { loadError = error.localizedDescription }
+            if cards == nil, !error.isCancellation { loadError = error.localizedDescription }
         }
     }
 
@@ -171,15 +172,14 @@ struct MobileHiddenGrid: View {
                                                   subtitle: HomeCard.kindLine(year: item.year, isMovie: item.isMovie),
                                                   overview: nil, artworkURL: target.backdropURL))
                 }
-            }
-        }
-        .overlay {
-            if titles.hidden.isEmpty {
-                if titles.hiddenLoaded {
-                    ContentUnavailableView("Nothing Hidden", systemImage: "eye",
-                                           description: Text("Nothing is hidden from this profile."))
-                } else {
-                    ProgressView()
+            } else {
+                MobileScrollStatus {
+                    if titles.hiddenLoaded {
+                        ContentUnavailableView("Nothing Hidden", systemImage: "eye",
+                                               description: Text("Nothing is hidden from this profile."))
+                    } else {
+                        ProgressView()
+                    }
                 }
             }
         }

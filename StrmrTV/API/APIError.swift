@@ -127,3 +127,13 @@ enum APIError: LocalizedError {
         return trimmed.isEmpty || trimmed.count > 160 || trimmed.hasPrefix("<") || trimmed.hasPrefix("{") ? nil : trimmed
     }
 }
+
+extension Error {
+    /// A cancelled task or request (a `.task` restarting, a tab switch, pull to refresh):
+    /// never a load failure to show.
+    var isCancellation: Bool {
+        if self is CancellationError { return true }
+        if let url = self as? URLError, url.code == .cancelled { return true }
+        return (self as NSError).domain == NSURLErrorDomain && (self as NSError).code == NSURLErrorCancelled
+    }
+}
