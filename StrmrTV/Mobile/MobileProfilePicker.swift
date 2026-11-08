@@ -55,9 +55,7 @@ struct MobileProfilePicker: View {
                     }
                     .padding(.horizontal, 24)
 
-                    Toggle("Use this profile automatically", isOn: $automatic)
-                        .font(.subheadline)
-                        .padding(.horizontal, 32)
+                    MobileAutoProfileToggle(isOn: $automatic)
                         .onChange(of: automatic) { _, on in if !on { session.setAutoProfile(nil) } }
                 }
 
@@ -119,6 +117,42 @@ struct MobileProfilePicker: View {
             return .unlocked
         } catch {
             return .failed(error.localizedDescription)
+        }
+    }
+}
+
+/// "Use automatically" as one inset grouped row (Liquid Glass on iOS 26, else the grouped
+/// cell fill) with a footnote under it, the way a Settings toggle reads, sized to the
+/// avatars rather than spanning the screen.
+private struct MobileAutoProfileToggle: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $isOn) {
+                Label("Use Automatically", systemImage: "person.crop.circle.badge.checkmark")
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .modifier(RowBackground())
+            Text("Next time, skip this screen and open the profile you pick.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+        }
+        .frame(maxWidth: 340)
+        .padding(.horizontal, 24)
+    }
+
+    private struct RowBackground: ViewModifier {
+        private let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *) {
+                content.glassEffect(.regular, in: shape)
+            } else {
+                content.background(Color(.secondarySystemGroupedBackground), in: shape)
+            }
         }
     }
 }

@@ -57,11 +57,15 @@ struct MobileHomeCarousel: View {
         let count: Int
     }
 
-    /// The next title's backdrop, so it is decoded before it slides in.
+    /// The neighbouring titles' backdrops and logos, so they are decoded before they slide
+    /// in and a swipe either way lands on the logo rather than its text fallback.
     private func prefetchNext() {
         guard slides.count > 1, width > 0 else { return }
-        let next = slides[(index + 1) % slides.count]
-        ImagePipeline.prefetch(Artwork.url(next.backdropURL ?? next.artworkURL), size: tileSize)
+        for step in [1, slides.count - 1] {
+            let card = slides[(index + step) % slides.count]
+            ImagePipeline.prefetch(Artwork.url(card.backdropURL ?? card.artworkURL), size: tileSize)
+            ImagePipeline.prefetch(Artwork.logoURL(card.logoURL, size: "w500"), size: MobileHeroLogo.size, mode: .fit)
+        }
     }
 }
 
@@ -102,11 +106,7 @@ struct MobileHomeHero: View {
     private var info: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let logo = Artwork.logoURL(card.logoURL, size: "w500") {
-                RemoteImage(url: logo, size: CGSize(width: 220, height: 70), contentMode: .fit,
-                            alignment: .bottomLeading) { _ in
-                    Text(card.title).font(.title2.bold())
-                }
-                .frame(width: 220, height: 70, alignment: .bottomLeading)
+                MobileHeroLogo(url: logo, title: card.title)
             } else {
                 Text(card.title).font(.title2.bold())
             }
@@ -117,6 +117,39 @@ struct MobileHomeHero: View {
         .padding(.bottom, pageCount > 1 ? 30 : 16)
         .padding(.top, 16)
         .foregroundStyle(.white)
+    }
+}
+
+/// A carousel title's logo in its fixed slot. While the logo loads the slot stays empty for
+/// a short grace period rather than flashing the name first; the name shows only when there
+/// is no logo, it failed, or it is still loading after the grace period.
+struct MobileHeroLogo: View {
+    let url: URL
+    let title: String
+
+    static let size = CGSize(width: 220, height: 70)
+    private static let grace: Duration = .milliseconds(1200)
+
+    @State private var graceOver = false
+
+    var body: some View {
+        RemoteImage(url: url, size: Self.size, contentMode: .fit, alignment: .bottomLeading) { failed in
+            if failed || graceOver {
+                Text(title).font(.title2.bold()).transition(.opacity)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(width: Self.size.width, height: Self.size.height, alignment: .bottomLeading)
+        .animation(.easeOut(duration: 0.2), value: graceOver)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .task(id: url) {
+            graceOver = false
+            try? await Task.sleep(for: Self.grace)
+            guard !Task.isCancelled else { return }
+            graceOver = true
+        }
     }
 }
 #endif
