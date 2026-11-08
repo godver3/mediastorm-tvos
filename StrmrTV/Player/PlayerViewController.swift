@@ -128,7 +128,7 @@ final class PlayerViewController: EnginePlayerViewController {
                 self?.creditsAutoSkip = enabled
             }
         }
-        matchContent = view.window?.avDisplayManager.isDisplayCriteriaMatchingEnabled ?? false
+        matchContent = view.window?.displayCriteriaMatchingEnabled ?? false
         telemetry.start()
         startAutoSwitchWatch()
         loadTask = Task { [weak self] in

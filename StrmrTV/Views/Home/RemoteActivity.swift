@@ -50,8 +50,10 @@ private final class PressObserver: UIGestureRecognizer, UIGestureRecognizerDeleg
         delaysTouchesEnded = false
         delegate = self
         // The base class takes no presses unless told which.
-        let types: [UIPress.PressType] = [.upArrow, .downArrow, .leftArrow, .rightArrow, .select, .menu, .playPause,
-                                          .pageUp, .pageDown]
+        var types: [UIPress.PressType] = [.upArrow, .downArrow, .leftArrow, .rightArrow, .select, .menu, .playPause]
+        #if os(tvOS)
+        types += [.pageUp, .pageDown]
+        #endif
         allowedPressTypes = types.map { NSNumber(value: $0.rawValue) }
         allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirect.rawValue)]
     }

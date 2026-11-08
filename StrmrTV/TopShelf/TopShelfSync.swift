@@ -1,5 +1,7 @@
 import Foundation
+#if os(tvOS)
 import TVServices
+#endif
 
 /// Writes the Continue Watching and Watchlist snapshot the Top Shelf extension shows, as
 /// the Expo app's `TVTopShelfSync` does: poster art, select opens details, play resumes.
@@ -34,7 +36,9 @@ enum TopShelfSync {
             defaults.set(try JSONEncoder().encode(payload), forKey: TopShelfStore.payloadKey)
             last = payload
             log.info("wrote \(payload.sections.map { "\($0.id)=\($0.items.count)" }.joined(separator: ", "))")
+            #if os(tvOS)
             TVTopShelfContentProvider.topShelfContentDidChange()
+            #endif
         } catch {
             log.error("encode failed: \(error.localizedDescription)")
         }
@@ -45,7 +49,9 @@ enum TopShelfSync {
         last = nil
         guard let defaults = TopShelfStore.defaults, defaults.data(forKey: TopShelfStore.payloadKey) != nil else { return }
         defaults.removeObject(forKey: TopShelfStore.payloadKey)
+        #if os(tvOS)
         TVTopShelfContentProvider.topShelfContentDidChange()
+        #endif
     }
 
     private static func title(_ item: ContinueWatchingItem) -> String {

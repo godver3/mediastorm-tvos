@@ -9,7 +9,7 @@ import PackageDescription
 //   DolbyVisionStillReshaping: DV Profile 5 scrub thumbnails, built in by default before 7.39.
 let package = Package(
     name: "StrmrEngine",
-    platforms: [.tvOS(.v18)],
+    platforms: [.tvOS(.v18), .iOS(.v18)],
     products: [
         .library(name: "StrmrEngine", targets: ["StrmrEngine"]),
     ],

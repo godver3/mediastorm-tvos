@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.strmr.app
   deploymentTarget:
     tvOS: "18.0"
+    iOS: "18.0"
   createIntermediateGroups: true
 packages:
   # AetherEngine (version + optional-component traits) via a local wrapper: Packages/StrmrEngine.
@@ -93,6 +94,56 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.tv-top-shelf
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).TopShelfContentProvider
+  # iPhone / iPad client built from the same sources as StrmrTV. tvOS-only API is gated with
+  # `#if os(tvOS)` (or shimmed in StrmrTV/Platform/); iOS-only UI lives in StrmrTV/Mobile/.
+  StrmrMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: StrmrTV
+        excludes: ["**/*.example.swift.txt", "Info.plist", "StrmrTV.entitlements"]
+      - path: Shared
+    dependencies:
+      - package: StrmrEngine
+      - framework: Vendor/IrohBridge.xcframework
+        embed: false
+      - sdk: SystemConfiguration.framework
+      - sdk: Security.framework
+    preBuildScripts:
+      - name: Check file sizes
+        script: "if [ -x scripts/check-file-size.sh ]; then scripts/check-file-size.sh; fi"
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
+    settings:
+      base:
+        PRODUCT_NAME: StrmrMobile
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.mobile
+        INFOPLIST_FILE: Mobile/Info.plist
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+    info:
+      path: Mobile/Info.plist
+      properties:
+        CFBundleDisplayName: MediaStorm
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIBackgroundModes: [audio]
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Strmr finds and connects to your media server on the local network.
+        NSBonjourServices: [_mediastorm._tcp]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.strmr.app.nx
+            CFBundleURLSchemes: [com.strmr.app.nx]
   StrmrTVUITests:
     type: bundle.ui-testing
     platform: tvOS
@@ -124,3 +175,7 @@ schemes:
         StrmrTV: all
     test:
       targets: [StrmrTVUITests, StrmrTVTests]
+  StrmrMobile:
+    build:
+      targets:
+        StrmrMobile: all

@@ -45,7 +45,7 @@ final class StreamInfoViewController: UIViewController {
 
     private static func makeCard() -> UIVisualEffectView {
         let card: UIVisualEffectView
-        if #available(tvOS 26.0, *) {
+        if #available(tvOS 26.0, iOS 26.0, *) {
             card = UIVisualEffectView(effect: UIGlassEffect())
         } else {
             card = UIVisualEffectView(effect: UIBlurEffect(style: .dark))

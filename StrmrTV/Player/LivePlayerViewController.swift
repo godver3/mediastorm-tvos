@@ -128,7 +128,7 @@ final class LivePlayerViewController: EnginePlayerViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard loadTask == nil, !didFinish else { return }
-        matchContent = view.window?.avDisplayManager.isDisplayCriteriaMatchingEnabled ?? false
+        matchContent = view.window?.displayCriteriaMatchingEnabled ?? false
         tune()
     }
 

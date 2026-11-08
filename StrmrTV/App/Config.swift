@@ -23,10 +23,15 @@ enum Config {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
     }
 
+    /// Matches the Expo client's values, which the server shows and keys client settings on.
+    #if os(tvOS)
     static let deviceType = "Apple TV"
+    #else
+    static let deviceType = "iPhone"
+    #endif
 
     @MainActor
-    static var osVersion: String { "tvOS \(UIDevice.current.systemVersion)" }
+    static var osVersion: String { "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)" }
 
     /// `version+build`, as registration and log uploads report it.
     static var fullVersion: String { "\(appVersion)+\(buildNumber)" }
