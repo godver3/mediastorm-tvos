@@ -18,6 +18,14 @@ final class MobileAppDelegate: NSObject, UIApplicationDelegate {
         return .portrait
     }
 
+    /// The download manager re-attaches to its background session and moves the queue on as it
+    /// starts, so it starts with the app rather than with the first Downloads or details page.
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        _ = DownloadManager.shared
+        return true
+    }
+
     /// The system relaunched the app for the downloads' background session: re-create it so
     /// the finished transfers are delivered, and tell the system once they have been.
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
