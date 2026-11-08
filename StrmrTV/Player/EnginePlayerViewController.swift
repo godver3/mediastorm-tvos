@@ -44,10 +44,14 @@ class EnginePlayerViewController: AVPlayerViewController {
         // AVKit's automatic criteria would race it.
         appliesPreferredDisplayCriteriaAutomatically = false
         allowsPictureInPicturePlayback = false
+        #if os(tvOS)
         let menu = UITapGestureRecognizer(target: self, action: #selector(softwareMenuPressed))
         menu.allowedPressTypes = [NSNumber(value: UIPress.PressType.menu.rawValue)]
         menu.delegate = self
         view.addGestureRecognizer(menu)
+        #endif
+        // iOS has no Menu button, and with its default touch types this recognizer took the
+        // taps on the video that bring AVKit's controls back once they have hidden.
         #if os(iOS)
         installTouchClose()
         #endif
