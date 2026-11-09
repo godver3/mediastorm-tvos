@@ -221,11 +221,19 @@ struct NewListTile: View {
 /// scrolling back and forth or switching Movies / Shows doesn't refetch.
 @MainActor
 enum BrowsePreviews {
-    private static var cache: [String: TileArt] = [:]
+    /// Keyed by value: interpolating the list into a string went through reflection, which cost
+    /// the first Lists screen hundreds of milliseconds on the main thread across its tiles.
+    private struct Key: Hashable {
+        let profileID: String
+        let list: BrowseList
+        let version: Int?
+    }
+
+    private static var cache: [Key: TileArt] = [:]
 
     static func art(for list: BrowseList, version: Int?) async -> TileArt {
         if case .similar = list { return TileArt() }  // the seed's own backdrop
-        let key = "\(APIClient.shared.profileID)|\(list)|\(version.map(String.init) ?? "")"
+        let key = Key(profileID: APIClient.shared.profileID, list: list, version: version)
         if let cached = cache[key] { return cached }
         // Four posters: the quick pass, not a whole remote list read and filled in first.
         guard let page = try? await APIClient.shared.browsePage(list, limit: 4, phase: .cards) else { return TileArt() }

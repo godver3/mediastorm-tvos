@@ -37,11 +37,12 @@ struct MobileMainView: View {
 
     var body: some View {
         let split = split
+        // Search is declared last, after More: the bar draws the search tab at its end, and
+        // declared earlier its index no longer matched its place, so the selection lens aimed
+        // at the last slot (Search) when moving to More and snapped back.
         TabView {
-            ForEach(split.tabs) { section in
-                Tab(section.title, systemImage: section.symbol, role: section == .search ? .search : nil) {
-                    stack(for: section)
-                }
+            ForEach(split.tabs.filter { $0 != .search }) { section in
+                Tab(section.title, systemImage: section.symbol) { stack(for: section) }
             }
             if !split.more.isEmpty {
                 Tab("More", systemImage: "ellipsis") {
@@ -50,6 +51,11 @@ struct MobileMainView: View {
                             .navigationDestination(for: MobileSection.self) { $0.screen }
                             .mobileDestinations()
                     }
+                }
+            }
+            if split.tabs.contains(.search) {
+                Tab(MobileSection.search.title, systemImage: MobileSection.search.symbol, role: .search) {
+                    stack(for: .search)
                 }
             }
         }
