@@ -16,6 +16,8 @@ extension PlayerViewController {
         controls.onPlayPause = { [weak self] in self?.engine.togglePlayPause() }
         controls.onSkip = { [weak self] delta in self?.skip(by: delta) }
         controls.onScrub = { [weak self] time, ended in self?.mobileScrub(to: time, ended: ended) }
+        // A download plays from this device's storage, which no TV can fetch.
+        if !playsDownload { controls.setCastAction { [weak self] in self?.openCastPicker() } }
         mobileChromeTracker.start()
         installPictureInPicture()
     }

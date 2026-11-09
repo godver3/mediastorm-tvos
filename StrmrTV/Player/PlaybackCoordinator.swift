@@ -379,6 +379,7 @@ final class PlaybackCoordinator: ObservableObject {
     private func presentPlayer(engine: AetherEngine, request: PlaybackRequest, path: String,
                                tracks: TrackPreferences, source: SourceSwitch.Current, carry: TrackCarry?,
                                previewsEnabled: Bool, completion: @escaping () -> Void) {
+        if castClaims(request, path: path, tracks: tracks) { return completion() }
         guard let presenter = Self.topViewController() else { return completion() }
         let metadata = request.streamMetadata(path: path).merging(source.trackerQuery) { _, new in new }
         let url = api.streamURL(for: path, metadata: metadata)

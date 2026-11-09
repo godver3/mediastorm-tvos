@@ -95,18 +95,24 @@ struct MobileConnectionBanner: View {
 struct MobileConnectionAccessory: ViewModifier {
     @ObservedObject private var connection = MobileConnection.shared
     @ObservedObject private var session = AppSession.shared
+    /// A cast is running (its bar takes the accessory when there is no connection news). Kept
+    /// as state, not observed: the cast's position changes every second.
+    @State private var casting = false
 
     func body(content: Content) -> some View {
         let visible = MobileConnectionBanner().isVisible
-        if #available(iOS 26.1, *) {
-            content.tabViewBottomAccessory(isEnabled: visible) {
-                MobileConnectionBanner(inAccessory: true)
-            }
-        } else {
-            content.safeAreaInset(edge: .bottom, spacing: 0) {
-                if visible { MobileConnectionBanner() }
+        Group {
+            if #available(iOS 26.1, *) {
+                content.tabViewBottomAccessory(isEnabled: visible || casting) {
+                    if visible { MobileConnectionBanner(inAccessory: true) } else { CastNowPlayingBar(inAccessory: true) }
+                }
+            } else {
+                content.safeAreaInset(edge: .bottom, spacing: 0) {
+                    if visible { MobileConnectionBanner() } else if casting { CastNowPlayingBar() }
+                }
             }
         }
+        .onReceive(CastController.shared.$session.map { $0 != nil }.removeDuplicates()) { casting = $0 }
     }
 }
 

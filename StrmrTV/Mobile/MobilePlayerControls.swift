@@ -30,6 +30,7 @@ final class MobilePlayerControls: UIView {
     let transport = MobileTransportView()
     private let menuRow = UIStackView()
     private var actionButton: UIButton?
+    private var castButton: UIButton?
     /// The skip button's bottom: above AVKit's bottom bar (native route), or above the menu row.
     private var actionOverlayBottom: NSLayoutConstraint?
     private var actionTransportBottom: NSLayoutConstraint?
@@ -141,7 +142,7 @@ final class MobilePlayerControls: UIView {
 
     /// The TV's transport-bar menus as menu buttons: tap opens the menu.
     func setMenus(_ menus: [UIMenu]) {
-        let buttons = menuRow.arrangedSubviews.compactMap { $0 as? UIButton }
+        let buttons = menuRow.arrangedSubviews.compactMap { $0 as? UIButton }.filter { $0 !== castButton }
         if buttons.count == menus.count {
             zip(buttons, menus).forEach { button, menu in
                 button.menu = menu
@@ -153,6 +154,23 @@ final class MobilePlayerControls: UIView {
         for menu in menus {
             menuRow.addArrangedSubview(menuButton(menu))
         }
+    }
+
+    /// The cast button, first in the row (beside AVKit's AirPlay on the native route).
+    func setCastAction(_ action: @escaping () -> Void) {
+        castButton?.removeFromSuperview()
+        var config = Self.glassConfiguration()
+        config.image = CastPresenter.castIcon(pointSize: 21)
+        let button = UIButton(configuration: config, primaryAction: UIAction { _ in action() })
+        button.accessibilityLabel = String(localized: "Cast")
+        button.accessibilityIdentifier = "player.cast"
+        button.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 44),
+            button.heightAnchor.constraint(equalToConstant: 44),
+        ])
+        menuRow.insertArrangedSubview(button, at: 0)
+        castButton = button
     }
 
     private func menuButton(_ menu: UIMenu) -> UIButton {

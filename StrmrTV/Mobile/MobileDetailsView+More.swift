@@ -25,6 +25,13 @@ extension MobileDetailsView {
                     Label("Choose Source", systemImage: "magnifyingglass")
                 }
                 .disabled(!target.isMovie && model.activeEpisode == nil)
+                // Plays what Play would, on a Chromecast or DLNA TV (the Expo page's Cast / DLNA).
+                Button {
+                    CastPresenter.showPicker { device in CastController.shared.arm(device) { model.playPrimary() } }
+                } label: {
+                    Label { Text("Cast to Device…") } icon: { Image.castIcon() }
+                }
+                .disabled(model.primaryTarget == nil || model.title == nil)
             }
             downloadItems
             titleStateItems
