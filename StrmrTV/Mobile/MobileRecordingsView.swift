@@ -32,7 +32,11 @@ struct MobileRecordingsView: View {
                                 titleVisibility: .visible, presenting: confirming) { pending in
                 Button(pending.confirmLabel, role: .destructive) {
                     Task {
-                        if pending.action == .delete { await store.delete(pending.recording) } else { await store.cancel(pending.recording) }
+                        switch pending.action {
+                        case .delete: await store.delete(pending.recording)
+                        case .cancelSeries: await store.cancelSeries(pending.recording)
+                        default: await store.cancel(pending.recording)
+                        }
                     }
                 }
                 Button("Keep Recording", role: .cancel) {}
@@ -126,6 +130,13 @@ struct MobileRecordingsView: View {
                     Label(recording.status == .pending ? "Cancel Recording" : "Stop Recording", systemImage: "stop.circle")
                 }
             }
+            if let rule = store.rule(for: recording) {
+                Button(role: .destructive) {
+                    confirming = .init(action: .cancelSeries, recording: recording, rule: rule)
+                } label: {
+                    Label("Cancel Series Recording", systemImage: "repeat.circle.fill")
+                }
+            }
             if recording.canDelete {
                 Button(role: .destructive) { confirming = .init(action: .delete, recording: recording) } label: {
                     Label("Delete", systemImage: "trash")
@@ -140,6 +151,7 @@ struct MobileRecordingsView: View {
         switch action {
         case .play: RecordingPlayback.play(recording)
         case .cancel, .delete: confirming = .init(action: action, recording: recording)
+        case .cancelSeries: confirming = .init(action: action, recording: recording, rule: store.rule(for: recording))
         }
     }
 
@@ -179,10 +191,12 @@ struct MobileRecordingsView: View {
     }
 }
 
-/// A cancel / stop or delete waiting for confirmation.
+/// A cancel / stop, cancel series or delete waiting for confirmation.
 struct MobileRecordingConfirm: Identifiable {
     let action: RecordingAction
     let recording: Recording
+    /// The series rule, for `.cancelSeries`.
+    var rule: RecordingRule?
 
     var id: String { "\(action)|\(recording.id)" }
 
@@ -191,6 +205,7 @@ struct MobileRecordingConfirm: Identifiable {
     var title: String {
         switch action {
         case .delete: String(localized: "Delete “\(recording.displayTitle)”?")
+        case .cancelSeries: String(localized: "Cancel the series recording \(rule?.summary ?? recording.displayTitle)?")
         default: stopping ? String(localized: "Stop recording “\(recording.displayTitle)”?")
             : String(localized: "Cancel “\(recording.displayTitle)”?")
         }
@@ -199,6 +214,7 @@ struct MobileRecordingConfirm: Identifiable {
     var message: String {
         switch action {
         case .delete: String(localized: "The recording and its file are removed from the server.")
+        case .cancelSeries: String(localized: "Its scheduled airings won't be recorded; one recording now keeps going.")
         default: stopping ? String(localized: "What has been recorded so far is kept.")
             : String(localized: "It won't be recorded.")
         }
@@ -207,6 +223,7 @@ struct MobileRecordingConfirm: Identifiable {
     var confirmLabel: String {
         switch action {
         case .delete: String(localized: "Delete Recording")
+        case .cancelSeries: String(localized: "Cancel Series")
         default: stopping ? String(localized: "Stop Recording") : String(localized: "Cancel Recording")
         }
     }
