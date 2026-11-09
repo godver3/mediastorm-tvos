@@ -6,11 +6,12 @@ import Foundation
 /// - Paired over iroh with a home network configured: the home address is used only once it
 ///   proves to be the paired server (`/api/remote-access/identity` answers with the invite's
 ///   endpoint id, within 2 s, without credentials). The Wi-Fi name is only a hint: a different,
-///   readable SSID skips the probe; an unreadable one still probes. Otherwise the tunnel; the
-///   bridge is sticky and never falls back to an unverified LAN address.
+///   readable SSID skips the probe; an unreadable one still probes; cellular never probes.
+///   Otherwise the tunnel; the bridge is sticky and never falls back to an unverified LAN address.
 /// - A typed server with a home network configured: on the home Wi-Fi the home address, on
-///   another Wi-Fi or on cellular the away address; on Wi-Fi with an unreadable name, the last
-///   name-based answer from the past five minutes, else the address in use is kept.
+///   another Wi-Fi or on cellular (the interface in use, even mid-handover) the away address;
+///   on Wi-Fi with an unreadable name, the last name-based answer from the past five minutes,
+///   else the address in use is kept.
 @MainActor
 final class MobileConnectionSelector: ObservableObject {
     static let shared = MobileConnectionSelector()
@@ -115,19 +116,22 @@ final class MobileConnectionSelector: ObservableObject {
         let path = MobileNetworkMonitor.shared.path
         // Asking is worth it only when the answer picks between two addresses.
         let ask = settings.homeURL != nil && settings.remoteURL != nil
-        let ssid = await MobileWiFiSSID.shared.current(ask: ask)
+        // Requests go over the interface in use: on cellular the home LAN address can't answer,
+        // even while iOS still lists Wi-Fi (or still reports its name) during the handover.
+        let onCellular = path.interface == .cellular
+        let ssid = onCellular ? nil : await MobileWiFiSSID.shared.current(ask: ask)
         lastSSID = ssid
         let target: URL?
-        if let ssid {
-            let home = ssid.caseInsensitiveCompare(settings.homeWifiSSID) == .orderedSame
-            isHomeNetwork = home
-            Self.saveDetection(home: home)
-            target = home ? settings.homeURL : settings.remoteURL
-        } else if path.interface == .cellular, !path.hasWiFi {
+        if onCellular {
             // Off Wi-Fi: away from home (a stale "home" answer must not keep the LAN address).
             isHomeNetwork = false
             Self.saveDetection(home: nil)
             target = settings.remoteURL
+        } else if let ssid {
+            let home = ssid.caseInsensitiveCompare(settings.homeWifiSSID) == .orderedSame
+            isHomeNetwork = home
+            Self.saveDetection(home: home)
+            target = home ? settings.homeURL : settings.remoteURL
         } else if let recent = Self.recentDetection() {
             isHomeNetwork = recent
             target = recent ? settings.homeURL : settings.remoteURL
@@ -142,6 +146,8 @@ final class MobileConnectionSelector: ObservableObject {
     }
 
     private func shouldProbe(homeSSID: String) async -> Bool {
+        // On cellular the home address can't be the route, whatever Wi-Fi still reports.
+        guard MobileNetworkMonitor.shared.path.interface != .cellular else { lastSSID = nil; return false }
         let ssid = await MobileWiFiSSID.shared.current()
         lastSSID = ssid
         return ssid == nil || ssid?.caseInsensitiveCompare(homeSSID) == .orderedSame
