@@ -124,7 +124,9 @@ targets:
     settings:
       base:
         PRODUCT_NAME: StrmrMobile
-        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx.mobile
+        # Same app as tvOS (mediastorm.nx, universal purchase): one App Store Connect record
+        # and TestFlight groups for Apple TV and iPhone / iPad.
+        PRODUCT_BUNDLE_IDENTIFIER: com.strmr.app.nx
         # Access Wi-Fi Information: the home Wi-Fi's name for home/away switching.
         CODE_SIGN_ENTITLEMENTS: Mobile/StrmrMobile.entitlements
         INFOPLIST_FILE: Mobile/Info.plist
