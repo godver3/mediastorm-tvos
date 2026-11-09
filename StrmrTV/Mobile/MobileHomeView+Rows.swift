@@ -24,6 +24,9 @@ struct MobileShelfRow: View {
                 .scrollTargetLayout()
             }
             .contentMargins(.horizontal, 16, for: .scrollContent)
+            // A long-pressed card grows before its menu opens; unclipped, it grows over the
+            // rows above and below instead of being cut off at the row's edges.
+            .scrollClipDisabled()
             .scrollTargetBehavior(.viewAligned)
             .scrollIndicators(.hidden)
         }

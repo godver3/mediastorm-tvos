@@ -80,6 +80,7 @@ extension MobileDetailsView {
                     .padding(.horizontal, 16)
             }
             .scrollIndicators(.hidden)
+            .scrollClipDisabled()  // the long-press lift grows past the row
             .padding(.horizontal, -16)
         }
     }

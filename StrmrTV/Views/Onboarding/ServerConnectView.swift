@@ -15,6 +15,26 @@ struct ServerConnectView: View {
     private var resolved: URL? { ServerAddress.normalize(address) }
 
     var body: some View {
+        #if os(iOS)
+        MobileServerForm(
+            address: $address, code: $code, servers: browser.servers, resolved: resolved, error: error,
+            isConnecting: isConnecting, connectingServerID: connectingServerID, isPairing: isPairing,
+            canCancel: session.canCancelServerChange, connect: connect, connectTo: connect(to:), pair: pair,
+            cancel: { session.cancelServerChange() }
+        )
+        .onAppear {
+            prefill()
+            browser.start()
+        }
+        .onDisappear { browser.stop() }
+        .onChange(of: address) { error = nil }
+        .onChange(of: code) { error = nil }
+        #else
+        tvBody
+        #endif
+    }
+
+    private var tvBody: some View {
         OnboardingLayout(
             title: "Connect to Your Server",
             subtitle: Text("Enter the address of your MediaStorm server. Local addresses use port \(String(ServerAddress.defaultPort)) unless you add one.")

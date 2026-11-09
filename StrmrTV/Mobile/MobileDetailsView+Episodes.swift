@@ -72,6 +72,7 @@ extension MobileDetailsView {
             }
             .scrollTargetBehavior(.viewAligned)
             .scrollIndicators(.hidden)
+            .scrollClipDisabled()  // the long-press lift grows past the row
             .padding(.horizontal, -16)
             .onAppear {
                 if let id = model.activeEpisode?.id, season.episodes.contains(where: { $0.id == id }),

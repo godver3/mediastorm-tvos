@@ -9,6 +9,21 @@ struct LoginView: View {
     @State private var isSigningIn = false
 
     var body: some View {
+        #if os(iOS)
+        MobileLoginForm(
+            username: $username, password: $password,
+            server: session.isRemote ? Text("Remote access")
+                : session.serverURL.map { Text(verbatim: ServerAddress.display($0)) },
+            notice: session.loginNotice, error: error, isSigningIn: isSigningIn,
+            signIn: signIn, changeServer: { session.changeServer() }
+        )
+        .onAppear(perform: prefill)
+        #else
+        tvBody
+        #endif
+    }
+
+    private var tvBody: some View {
         OnboardingLayout(
             title: "Sign In",
             subtitle: session.isRemote ? Text("Remote access")
