@@ -41,7 +41,7 @@ struct CastRemoteView: View {
     private func content(_ session: CastController.Session) -> some View {
         ScrollView {
             VStack(spacing: 24) {
-                artwork(session.artworkURL)
+                if session.isLive { channelLogo(session.artworkURL) } else { artwork(session.artworkURL) }
                 VStack(spacing: 4) {
                     Text(session.title).font(.title2.weight(.bold)).multilineTextAlignment(.center)
                     if let subtitle = session.subtitle {
@@ -83,6 +83,21 @@ struct CastRemoteView: View {
         }
     }
 
+    /// A channel's logo, fitted on a 16:9 tile.
+    private func channelLogo(_ url: URL?) -> some View {
+        RoundedRectangle(cornerRadius: 14).fill(.quaternary)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .overlay {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit).padding(28)
+                } placeholder: {
+                    Image(systemName: "tv").font(.largeTitle).foregroundStyle(.tertiary)
+                }
+            }
+            .frame(maxWidth: 360)
+            .padding(.top, 8)
+    }
+
     private func artwork(_ url: URL?) -> some View {
         AsyncImage(url: url) { image in
             image.resizable().aspectRatio(contentMode: .fit)
@@ -99,6 +114,38 @@ struct CastRemoteView: View {
 
     @ViewBuilder
     private func controls(_ session: CastController.Session) -> some View {
+        if session.isLive {
+            liveControls(session)
+        } else {
+            timeline(session)
+            transport(session)
+        }
+        volumeAndStop(session)
+    }
+
+    /// A channel: LIVE where the scrubber would be, and play / pause alone.
+    @ViewBuilder
+    private func liveControls(_ session: CastController.Session) -> some View {
+        Text("LIVE")
+            .font(.caption.weight(.heavy))
+            .tracking(1)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(.red, in: Capsule())
+            .accessibilityLabel("Live")
+            .accessibilityIdentifier("cast.live")
+        Button { cast.togglePlayPause() } label: {
+            Image(systemName: session.state.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 44))
+                .frame(width: 56, height: 56)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .accessibilityLabel(session.state.isPlaying ? "Pause" : "Play")
+    }
+
+    @ViewBuilder
+    private func timeline(_ session: CastController.Session) -> some View {
         let state = session.state
         let duration = max(state.duration, 0)
         let position = scrubbing ?? min(state.position, duration > 0 ? duration : state.position)
@@ -124,8 +171,11 @@ struct CastRemoteView: View {
                 Text("Seeking isn't available for this stream.").font(.caption2).foregroundStyle(.tertiary)
             }
         }
+    }
 
-        HStack(spacing: 44) {
+    private func transport(_ session: CastController.Session) -> some View {
+        let state = session.state
+        return HStack(spacing: 44) {
             Button { cast.skip(by: -10) } label: { Image(systemName: "gobackward.10") }
                 .disabled(!session.canSeek)
                 .accessibilityLabel("Skip Back 10 Seconds")
@@ -141,8 +191,11 @@ struct CastRemoteView: View {
         .font(.system(size: 30))
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
+    }
 
-        if let current = state.volume {
+    @ViewBuilder
+    private func volumeAndStop(_ session: CastController.Session) -> some View {
+        if let current = session.state.volume {
             HStack(spacing: 12) {
                 Image(systemName: "speaker.fill").foregroundStyle(.secondary)
                 Slider(value: Binding(get: { Double(volume ?? current) }, set: { volume = Float($0) }), in: 0...1) { editing in

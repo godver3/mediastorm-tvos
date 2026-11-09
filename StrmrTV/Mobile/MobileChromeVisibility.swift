@@ -25,6 +25,9 @@ final class MobileChromeVisibility {
     private var fallbackHide: DispatchWorkItem?
     /// When the tracker started; the fallback waits for AVKit to build its chrome first.
     private var startedAt: CFTimeInterval = 0
+    /// False where the controls are only an addition to AVKit's chrome and can go without it
+    /// (live): no tap recognizer then ever goes on the player's view.
+    var allowsFallback = true
     /// How long AVKit's chrome may take to appear before the fallback tap goes in.
     private static let fallbackDelay: CFTimeInterval = 2
 
@@ -124,7 +127,7 @@ final class MobileChromeVisibility {
     // MARK: Fallback
 
     private func installFallback() {
-        guard fallbackTap == nil, let root else { return }
+        guard allowsFallback, fallbackTap == nil, let root else { return }
         let tap = UITapGestureRecognizer(target: self, action: #selector(fallbackTapped))
         tap.cancelsTouchesInView = false
         tap.delegate = SimultaneousDelegate.shared

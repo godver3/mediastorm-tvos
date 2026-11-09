@@ -90,6 +90,11 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var catchupTask: Task<Void, Never>?
     var catchupScheduleTask: Task<Void, Never>?
     lazy var scrub = LiveProgrammeScrub(channel: channel)
+    #if os(iOS)
+    // The phone's menu row over AVKit's chrome (`LivePlayer+Cast`).
+    lazy var mobileControls = MobilePlayerControls(title: channel.name, subtitle: program?.title)
+    lazy var mobileChromeTracker = MobileChromeVisibility(root: view, controls: mobileControls)
+    #endif
 
     /// The menu entry for the server's captions; clear of every engine id.
     static let serverCaptionsID = -608
@@ -117,6 +122,9 @@ final class LivePlayerViewController: EnginePlayerViewController {
         Self.fill(cover, in: view)
         view.addSubview(cover)
         installProgrammeBar()
+        #if os(iOS)
+        installMobileLiveControls()
+        #endif
         bindEngine()
         telemetry.onDistress = { [weak self] in self?.noteHLSProofDistress($0) }
         telemetry.start()
@@ -390,6 +398,9 @@ final class LivePlayerViewController: EnginePlayerViewController {
         retuneRecoveryTimer?.invalidate()
         cancellables.removeAll()
         telemetry.stop()
+        #if os(iOS)
+        mobileChromeTracker.stop()
+        #endif
         settingsHider.stop()
         player = nil
         setSoftwareSurface(mounted: false)

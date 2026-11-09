@@ -39,7 +39,8 @@ extension CastController {
                     return
                 }
                 if ticks % 10 == 0 { self.reportProgress(ended: false) }
-                if ticks % 20 == 0 { self.keepAlive() }
+                // A live session every ten seconds, the live player's cadence.
+                if ticks % (self.session?.isLive == true ? 10 : 20) == 0 { self.keepAlive() }
             }
         }
     }
@@ -49,13 +50,14 @@ extension CastController {
         current.phase = state.phase
         current.position = state.position
         // A receiver that doesn't know the length (a transcode) keeps the one the server gave.
-        if state.duration > 0 { current.duration = state.duration }
+        // A live channel has no length (a receiver may report the seekable window as one).
+        if state.duration > 0, session?.isLive == false { current.duration = state.duration }
         if let volume = state.volume { current.volume = volume }
         session?.state = current
     }
 
     private var isNearEnd: Bool {
-        guard let state = session?.state, state.duration > 0 else { return false }
+        guard let state = session?.state, session?.isLive == false, state.duration > 0 else { return false }
         return state.position >= state.duration - 60 || state.position / state.duration >= 0.92
     }
 
@@ -74,7 +76,7 @@ extension CastController {
     /// The server reaps an HLS session that goes quiet for a minute, and a paused receiver
     /// fetches nothing.
     private func keepAlive() {
-        guard let id = playback?.hlsSessionID else { return }
+        guard let id = hlsSessionID else { return }
         let paused = session?.state.phase == .paused
         Task {
             _ = try? await APIClient.shared.sendRaw("POST", "/api/video/hls/\(APIClient.segment(id))/keepalive",
@@ -92,7 +94,8 @@ extension CastController {
         reportProgress(ended: ended)
         self.transport = nil
         if stopReceiver { await transport.stop() }
-        if let id = playback?.hlsSessionID { await APIClient.shared.stopLiveSession(id) }
+        if let id = hlsSessionID { await APIClient.shared.stopLiveSession(id) }
+        hlsSessionID = nil
         playback = nil
         session = nil
         CastPresenter.dismissRemote()

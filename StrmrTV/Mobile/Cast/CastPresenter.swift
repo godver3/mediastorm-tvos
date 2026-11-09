@@ -20,7 +20,9 @@ enum CastPresenter {
     /// The picker; `onPick` runs once it has closed.
     static func showPicker(from presenter: UIViewController? = nil, onPick: @escaping @MainActor (CastDevice) -> Void) {
         guard picker == nil, let presenter = presenter ?? topViewController() else { return }
-        var controller: UIViewController?
+        // Weak: the picker's closures are held by the controller's own root view, and a strong
+        // reference kept it (and `picker`) alive after it closed, so it never opened again.
+        weak var controller: UIViewController?
         let view = CastDevicePicker { device in
             controller?.dismiss(animated: true) { onPick(device) }
         } onShowRemote: {

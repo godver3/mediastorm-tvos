@@ -63,6 +63,9 @@ struct CastMedia: Sendable {
     var protocolInfo: String?
     /// DLNA's progressive MPEG-TS rung has no byte offsets, so no Seek.
     var seekable = true
+    /// A live channel: an endless stream with no timeline (Cast `streamType` LIVE, no start
+    /// time or duration sent).
+    var isLive = false
 }
 
 /// One live connection to a receiver. Every call is a network round trip.

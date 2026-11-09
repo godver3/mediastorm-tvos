@@ -16,7 +16,13 @@ struct CastNowPlayingBar: View {
                         Image.castIcon(pointSize: 18).foregroundStyle(.tint).frame(width: 28)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(session.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                            Text("Casting to \(session.device.name)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            HStack(spacing: 6) {
+                                if session.isLive {
+                                    Text("LIVE").font(.caption2.weight(.heavy)).foregroundStyle(.red)
+                                }
+                                Text("Casting to \(session.device.name)").font(.caption).foregroundStyle(.secondary)
+                            }
+                            .lineLimit(1)
                         }
                         Spacer(minLength: 8)
                     }

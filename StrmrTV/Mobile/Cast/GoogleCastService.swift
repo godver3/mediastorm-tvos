@@ -143,22 +143,27 @@ final class GoogleCastTransport: NSObject, CastTransport {
     }
 
     func load(_ media: CastMedia) async throws {
-        let metadata = GCKMediaMetadata(metadataType: media.subtitle == nil ? .movie : .tvShow)
+        let metadata = GCKMediaMetadata(metadataType: media.isLive ? .generic : media.subtitle == nil ? .movie : .tvShow)
         metadata.setString(media.title, forKey: kGCKMetadataKeyTitle)
         if let subtitle = media.subtitle { metadata.setString(subtitle, forKey: kGCKMetadataKeySubtitle) }
-        if let poster = media.posterURL { metadata.addImage(GCKImage(url: poster, width: 480, height: 720)) }
+        if let poster = media.posterURL {
+            // A channel logo is wide, a poster tall.
+            metadata.addImage(media.isLive ? GCKImage(url: poster, width: 512, height: 288)
+                                           : GCKImage(url: poster, width: 480, height: 720))
+        }
 
         let info = GCKMediaInformationBuilder(contentURL: media.url)
         info.contentID = media.url.absoluteString
         info.contentType = media.contentType
-        info.streamType = .buffered
+        info.streamType = media.isLive ? .live : .buffered
         info.metadata = metadata
-        if let duration = media.duration, duration > 0 { info.streamDuration = duration }
+        if !media.isLive, let duration = media.duration, duration > 0 { info.streamDuration = duration }
 
         let request = GCKMediaLoadRequestDataBuilder()
         request.mediaInformation = info.build()
         request.autoplay = true
-        request.startTime = media.startPosition
+        // A channel starts at the live edge, wherever that is.
+        if !media.isLive { request.startTime = media.startPosition }
         subtitleLanguage = media.subtitleLanguage
         appliedSubtitle = false
 

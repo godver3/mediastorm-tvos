@@ -23,9 +23,9 @@ struct CastHLSStart: Decodable {
 /// the TV can reach, which a remote-access (iroh) loopback proxy is not.
 extension CastController {
     private static let dlnaFlags = "01700000000000000000000000000000"
-    private static let hlsMime = "application/vnd.apple.mpegurl"
+    static let hlsMime = "application/vnd.apple.mpegurl"
 
-    private func requireReachableServer() throws {
+    func requireReachableServer() throws {
         let host = APIClient.shared.baseURL.host?.lowercased() ?? ""
         if host == "localhost" || host == "::1" || host.hasPrefix("127.") {
             throw CastError(String(localized: "Casting needs the server's network address. Over remote access the TV can't reach the server; connect on your home network first."))
@@ -101,7 +101,7 @@ extension CastController {
         }
     }
 
-    private static func protocolInfo(_ mime: String, profile: String? = nil, operation: String = "01",
+    static func protocolInfo(_ mime: String, profile: String? = nil, operation: String = "01",
                                       converted: Bool) -> String {
         let features = [profile.map { "DLNA.ORG_PN=\($0)" }, "DLNA.ORG_OP=\(operation)",
                         "DLNA.ORG_CI=\(converted ? 1 : 0)", "DLNA.ORG_FLAGS=\(dlnaFlags)"].compactMap { $0 }

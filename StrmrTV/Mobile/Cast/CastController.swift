@@ -22,6 +22,8 @@ final class CastController: ObservableObject {
         let title: String
         let subtitle: String?
         let artworkURL: URL?
+        /// A live channel: no timeline, no seeking, no progress.
+        var isLive = false
         var phase: Phase = .connecting
         var state = CastPlaybackState()
         var canSeek = true
@@ -32,12 +34,15 @@ final class CastController: ObservableObject {
     @Published private(set) var isSearching = false
     @Published var session: Session?
 
-    private var dlna: [String: DLNARenderer] = [:]
+    private(set) var dlna: [String: DLNARenderer] = [:]
     var transport: CastTransport?
-    var playback: (request: PlaybackRequest, path: String, hlsSessionID: String?)?
+    /// The title watch progress is reported against; nil for a live channel.
+    var playback: (request: PlaybackRequest, path: String)?
+    /// The server HLS session the receiver reads: kept alive, stopped with the cast.
+    var hlsSessionID: String?
     var pollTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
-    private var startTask: Task<Void, Never>?
+    var startTask: Task<Void, Never>?
     /// Armed by the details page's Cast: the next resolved stream goes to this device.
     var handoff: (device: CastDevice, armed: Date)?
     var handoffWatch: AnyCancellable?
@@ -96,59 +101,35 @@ final class CastController: ObservableObject {
     /// none). Shows the remote at once; a failure is shown there.
     func start(on device: CastDevice, request: PlaybackRequest, path: String, position: Double,
                audio: Int?, subtitle: Int?, subtitleLanguage: String?) async {
-        startTask?.cancel()
-        await finish(reason: "replaced by a new cast", stopReceiver: transport?.device.id != device.id)
         let poster = (request.title.posterURL ?? request.episode?.imageURL).flatMap(Self.absoluteURL)
-        session = Session(device: device, title: request.title.name,
-                          subtitle: request.episode.map { [$0.code, $0.name].compactMap { $0 }.joined(separator: " · ") },
-                          artworkURL: poster)
-        CastPresenter.showRemote()
+        let session = Session(device: device, title: request.title.name,
+                              subtitle: request.episode.map { [$0.code, $0.name].compactMap { $0 }.joined(separator: " · ") },
+                              artworkURL: poster)
         log.notice("casting \(request.displayTitle) to \(device.name) (\(device.kind.rawValue)) from \(Int(position))s")
-        let task = Task {
-            do {
-                let transport: CastTransport
-                let media: CastMedia
-                switch device.kind {
-                case .googleCast:
-                    let connected = try await GoogleCastService.shared.connect(to: device)
-                    let built = try await chromecastMedia(request: request, path: path, position: position,
-                                                          audio: audio, subtitle: subtitle,
-                                                          subtitleLanguage: subtitleLanguage, poster: poster)
-                    media = built.media
-                    playback = (request, path, built.hlsSessionID)
-                    transport = connected
-                case .dlna:
-                    guard let renderer = dlna[device.id] else {
-                        throw CastError(String(localized: "\(device.name) is no longer on the network."))
-                    }
-                    let dlnaTransport = DLNATransport(renderer: renderer)
-                    let built = try await dlnaMedia(for: dlnaTransport, request: request, path: path,
-                                                    position: position, audio: audio, subtitle: subtitle, poster: poster)
-                    media = built.media
-                    playback = (request, path, built.hlsSessionID)
-                    transport = dlnaTransport
-                }
-                try Task.checkCancellation()
-                self.transport = transport
-                try await transport.load(media)
-                try Task.checkCancellation()
-                session?.phase = .active
-                session?.canSeek = transport.canSeek
-                session?.state.duration = media.duration ?? 0
-                session?.state.position = media.startPosition
-                startPolling()
-            } catch is CancellationError {
-            } catch {
-                log.error("cast to \(device.name) failed: \(error.localizedDescription)")
-                await self.transport?.stop()
-                self.transport = nil
-                if let id = playback?.hlsSessionID { await APIClient.shared.stopLiveSession(id) }
-                playback = nil
-                session?.phase = .failed(error.localizedDescription)
+        await begin(session) { [self] in
+            switch device.kind {
+            case .googleCast:
+                let connected = try await GoogleCastService.shared.connect(to: device)
+                let built = try await chromecastMedia(request: request, path: path, position: position,
+                                                      audio: audio, subtitle: subtitle,
+                                                      subtitleLanguage: subtitleLanguage, poster: poster)
+                return Prepared(transport: connected, media: built.media, hlsSessionID: built.hlsSessionID,
+                                playback: (request, path))
+            case .dlna:
+                let dlnaTransport = try dlnaTransport(for: device)
+                let built = try await dlnaMedia(for: dlnaTransport, request: request, path: path,
+                                                position: position, audio: audio, subtitle: subtitle, poster: poster)
+                return Prepared(transport: dlnaTransport, media: built.media, hlsSessionID: built.hlsSessionID,
+                                playback: (request, path))
             }
         }
-        startTask = task
-        await task.value
+    }
+
+    func dlnaTransport(for device: CastDevice) throws -> DLNATransport {
+        guard let renderer = dlna[device.id] else {
+            throw CastError(String(localized: "\(device.name) is no longer on the network."))
+        }
+        return DLNATransport(renderer: renderer)
     }
 
     static func absoluteURL(_ string: String) -> URL? {
@@ -170,7 +151,7 @@ final class CastController: ObservableObject {
     }
 
     func seek(to seconds: Double) {
-        guard let transport, session?.canSeek == true else { return }
+        guard let transport, session?.canSeek == true, session?.isLive == false else { return }
         let duration = session?.state.duration ?? 0
         let target = duration > 0 ? min(max(0, seconds), duration - 1) : max(0, seconds)
         session?.state.position = target

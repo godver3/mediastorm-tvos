@@ -156,6 +156,18 @@ struct MobileLiveChannelMenu: View {
                 Label("Start Over", systemImage: "gobackward")
             }
         }
+        // The channel as it airs now: a guide programme that has ended or is still to come has
+        // nothing live to send.
+        if program.map({ $0.isAiring(at: Date()) }) ?? true {
+            Button {
+                let airing = program ?? store.current(channel)
+                CastPresenter.showPicker { device in
+                    Task { await CastController.shared.startLive(on: device, channel: channel, program: airing) }
+                }
+            } label: {
+                Label { Text("Cast…") } icon: { Image.castIcon() }
+            }
+        }
         Button {
             actions.showInfo(MobileLiveInfoTarget(channel: channel, program: shown))
         } label: {
