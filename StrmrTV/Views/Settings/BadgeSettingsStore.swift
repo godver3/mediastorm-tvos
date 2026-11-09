@@ -39,12 +39,13 @@ struct BadgeVisibility: Equatable {
     /// A card's top-left badges, in order: `badge` (a rank or air date always shows, a release
     /// status only with Release Status on), then the watch state with the series' unwatched
     /// episode count inside it, as the Expo card does. The count shows alone when the watch
-    /// state is off or the series has none, whenever the server sends one (zero included).
+    /// state is off or the series has none. A zero count is dropped: a fully watched series
+    /// shows just the checkmark, not a checkmark and 0.
     func badges(badge: CardBadge?, watch: CardBadge?, unwatchedCount count: Int?) -> [CardBadge] {
         var result: [CardBadge] = []
         if let badge, badge.kind != .release || releaseStatus { result.append(badge) }
         let shownWatch = watchState ? watch : nil
-        let shownCount = unwatchedCount ? count : nil
+        let shownCount = unwatchedCount ? count.flatMap { $0 > 0 ? $0 : nil } : nil
         if let shownCount {
             var counted = shownWatch ?? CardBadge(text: "", kind: .watch)
             counted.count = shownCount

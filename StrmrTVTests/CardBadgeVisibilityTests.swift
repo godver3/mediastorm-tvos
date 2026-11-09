@@ -38,10 +38,9 @@ final class CardBadgeVisibilityTests: XCTestCase {
         XCTAssertEqual(badges.first?.accessibilityText, "3 unwatched episodes")
     }
 
-    func testZeroCountShowsMissingOrOffHides() {
-        var zero = CardBadge.watched
-        zero.count = 0
-        XCTAssertEqual(all.badges(badge: nil, watch: .watched, unwatchedCount: 0), [zero])
+    func testZeroMissingOrOffCountHides() {
+        XCTAssertEqual(all.badges(badge: nil, watch: .watched, unwatchedCount: 0), [.watched])
+        XCTAssertEqual(all.badges(badge: nil, watch: nil, unwatchedCount: 0), [])
         XCTAssertEqual(all.badges(badge: nil, watch: nil, unwatchedCount: nil), [])
         let noCount = BadgeVisibility(watchState: true, releaseStatus: false, unwatchedCount: false)
         XCTAssertEqual(noCount.badges(badge: nil, watch: .inProgress, unwatchedCount: 4), [.inProgress])
