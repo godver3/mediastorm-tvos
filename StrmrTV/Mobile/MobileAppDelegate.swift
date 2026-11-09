@@ -23,6 +23,7 @@ final class MobileAppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         _ = DownloadManager.shared
+        GoogleCastService.shared.setUp()
         return true
     }
 

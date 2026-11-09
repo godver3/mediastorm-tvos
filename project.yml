@@ -9,6 +9,11 @@ packages:
   # AetherEngine (version + optional-component traits) via a local wrapper: Packages/StrmrEngine.
   StrmrEngine:
     path: Packages/StrmrEngine
+  # Google Cast sender (iOS only): Google's own Swift package, which fetches the SDK binary
+  # from dl.google.com at a pinned checksum (nothing vendored here).
+  GoogleCast:
+    url: https://github.com/googlecast/google-cast-ios-sdk
+    exactVersion: 4.8.6
 settings:
   base:
     CODE_SIGN_STYLE: Automatic
@@ -107,6 +112,8 @@ targets:
       - package: StrmrEngine
       - framework: Vendor/IrohBridge.xcframework
         embed: false
+      - package: GoogleCast
+        product: GoogleCastDynamic
       - sdk: SystemConfiguration.framework
       - sdk: Security.framework
     preBuildScripts:
@@ -142,9 +149,10 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
           NSAllowsLocalNetworking: true
-        NSLocalNetworkUsageDescription: Strmr finds and connects to your media server on the local network.
+        NSLocalNetworkUsageDescription: MediaStorm finds your media server, Chromecasts and DLNA TVs on the local network.
         NSLocationWhenInUseUsageDescription: MediaStorm uses your location only to read your Wi-Fi network's name, so it can switch between your home and remote server addresses automatically.
-        NSBonjourServices: [_mediastorm._tcp]
+        # Google Cast discovery: the Default Media Receiver (CC1AD845), as the Expo app casts to.
+        NSBonjourServices: [_mediastorm._tcp, _googlecast._tcp, _CC1AD845._googlecast._tcp]
         CFBundleURLTypes:
           - CFBundleURLName: com.strmr.app.nx
             CFBundleURLSchemes: [com.strmr.app.nx]
