@@ -197,17 +197,22 @@ private struct MobileGuideRow: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
+            // Cells are cut at the channel column rather than drawn under it: whatever covered
+            // them there (the channel cell, hidden by UIKit while its long-press menu is open)
+            // let the programme's colour show through beside the logo.
             ForEach(cells) { cell in
                 let x = cell.start.timeIntervalSince(start) * scale
-                let w = max(cell.end.timeIntervalSince(cell.start) * scale - 2, 4)
-                MobileGuideCell(channel: channel, cell: cell, now: now,
-                                recording: cell.program.flatMap { store.recording(on: channel, during: $0) },
-                                // A cell running under the channel column keeps its title in view.
-                                inset: min(max(0, offsetX - x), max(0, w - 60)))
-                    .frame(width: w)
-                    .frame(maxHeight: .infinity)
-                    .padding(.vertical, 3)
-                    .offset(x: channelWidth + x + 1)
+                let end = x + max(cell.end.timeIntervalSince(cell.start) * scale - 2, 4)
+                let left = max(x, offsetX)
+                if end - left >= 4 {
+                    MobileGuideCell(channel: channel, cell: cell, now: now,
+                                    recording: cell.program.flatMap { store.recording(on: channel, during: $0) },
+                                    continued: left > x)
+                        .frame(width: end - left)
+                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, 3)
+                        .offset(x: channelWidth + left + 1)
+                }
             }
             channelCell
                 .offset(x: offsetX)
@@ -256,7 +261,8 @@ private struct MobileGuideCell: View {
     let cell: GuideCell
     let now: Date
     let recording: Recording?
-    let inset: CGFloat
+    /// Cut at the channel column: the programme runs on to the left.
+    let continued: Bool
     @Environment(\.mobileLiveActions) private var actions
 
     private var airing: Bool { cell.program?.isAiring(at: now) == true }
@@ -273,7 +279,7 @@ private struct MobileGuideCell: View {
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    if let p = cell.program, p.start < cell.start {
+                    if continued || cell.program.map({ $0.start < cell.start }) == true {
                         Image(systemName: "chevron.left").font(.caption2.weight(.bold))
                     }
                     if let recording { LiveRecordingBadge(recording: recording) }
@@ -287,7 +293,6 @@ private struct MobileGuideCell: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.leading, inset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(airing ? Color.accentColor.opacity(0.22) : Color(white: 1, opacity: cell.program == nil ? 0.04 : 0.09)))
