@@ -20,6 +20,7 @@ final class MobileChromeVisibility {
     private var link: CADisplayLink?
     private var lastSearch: CFTimeInterval = 0
     private var lastVisible: Bool?
+    private var lastVolumeExpanded = false
     private var fallbackTap: UITapGestureRecognizer?
     private var fallbackHide: DispatchWorkItem?
     /// When the tracker started; the fallback waits for AVKit to build its chrome first.
@@ -36,8 +37,9 @@ final class MobileChromeVisibility {
         guard link == nil else { return }
         startedAt = CACurrentMediaTime()
         let link = CADisplayLink(target: DisplayLinkTarget { [weak self] in self?.tick() }, selector: #selector(DisplayLinkTarget.fire))
-        // A tenth of a second is quick enough to fade in with AVKit's own fade.
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: 15, preferred: 10)
+        // AVKit's chrome fades in 0.15 s; checking 30 times a second finds its animation while it
+        // still runs, so the controls can copy it (`MobilePlayerControls.setChrome`).
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 30, preferred: 30)
         link.add(to: .main, forMode: .common)
         self.link = link
     }
@@ -63,10 +65,24 @@ final class MobileChromeVisibility {
         // fallback must never outlive AVKit's chrome turning up.
         removeFallback()
         let visible = Self.isVisible(playbackGroup, below: root)
-        alignRow()
+        // The volume slider opens leftwards over the menu row: the row fades out meanwhile, and
+        // stays where it was rather than following the group.
+        let expanded = volumeExpanded
+        if expanded != lastVolumeExpanded {
+            lastVolumeExpanded = expanded
+            controls.setMenuRowCovered(expanded)
+        }
+        if !expanded { alignRow() }
         guard visible != lastVisible else { return }
         lastVisible = visible
-        controls.setChrome(visible: visible)
+        controls.setChrome(visible: visible, following: volumeGroup?.layer)
+    }
+
+    /// AVKit's volume group, 44 pt round at rest, is wider while its slider is open.
+    private var volumeExpanded: Bool {
+        guard let volumeGroup, volumeGroup.window != nil else { return false }
+        let widest = volumeGroup.subviews.reduce(volumeGroup.bounds.width) { max($0, $1.frame.width) }
+        return widest > volumeGroup.bounds.height + 16
     }
 
     private func findGroups(in root: UIView) {

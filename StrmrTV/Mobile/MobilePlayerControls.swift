@@ -42,7 +42,9 @@ final class MobilePlayerControls: UIView {
     private var rowOverlayConstraints: [NSLayoutConstraint] = []
     private var rowTransportConstraints: [NSLayoutConstraint] = []
 
-    var isChromeVisible: Bool { chrome.alpha > 0.01 }
+    /// Where the chrome is headed: its opacity stays 1 through a fade out (glass buttons drop
+    /// their glass at once when it doesn't), so this, not `chrome.alpha`, says whether it shows.
+    private(set) var isChromeVisible = false
 
     init(title: String, subtitle: String?) {
         super.init(frame: .zero)
@@ -249,11 +251,59 @@ final class MobilePlayerControls: UIView {
 
     // MARK: Visibility
 
-    /// Native route: follows AVKit's chrome.
-    func setChrome(visible: Bool) {
-        guard visible != isChromeVisible || chrome.layer.animationKeys() != nil else { return }
-        UIView.animate(withDuration: visible ? 0.2 : 0.35, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
-            self.chrome.alpha = visible ? 1 : 0
+    /// Shows or hides the chrome. On the native route `avkit` is AVKit's volume group layer, which
+    /// the menu row sits beside: its running fade's timing and its slide's distance are used, start
+    /// time included, so the row comes and goes with AVKit's top bar (a fade with a short slide
+    /// down on show, up on hide). Without them (the software route, or AVKit's animation already
+    /// over) the same fade runs from now.
+    func setChrome(visible: Bool, following avkit: CALayer? = nil) {
+        guard visible != isChromeVisible || chrome.layer.animation(forKey: "chrome.opacity") != nil else { return }
+        isChromeVisible = visible
+        let fade = (avkit?.animation(forKey: "opacity") as? CABasicAnimation).flatMap { fade in
+            (((fade.toValue as? NSNumber)?.floatValue ?? 0) > 0.5) == visible ? fade : nil
+        }
+        let slide = (avkit?.animation(forKey: "position") as? CABasicAnimation)?.fromValue as? NSValue
+        let distance = slide.map { -abs($0.cgPointValue.y) } ?? -8
+        let current = chrome.layer.presentation()?.opacity ?? Float(chrome.alpha)
+
+        let opacity = CABasicAnimation(keyPath: "opacity")
+        opacity.fromValue = fade == nil ? current : (visible ? 0 : 1)
+        opacity.toValue = visible ? 1 : 0
+        opacity.duration = fade?.duration ?? (ownsTransport ? (visible ? 0.2 : 0.35) : 0.15)
+        opacity.beginTime = fade?.beginTime ?? CACurrentMediaTime()
+        opacity.timingFunction = fade?.timingFunction ?? CAMediaTimingFunction(name: .linear)
+        opacity.fillMode = .both
+        opacity.isRemovedOnCompletion = false
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            guard let self, isChromeVisible == visible else { return }
+            chrome.alpha = visible ? 1 : 0
+            chrome.layer.removeAnimation(forKey: "chrome.opacity")
+            menuRow.layer.removeAnimation(forKey: "chrome.slide")
+        }
+        chrome.alpha = 1
+        chrome.layer.add(opacity, forKey: "chrome.opacity")
+        if ownsTransport {
+            menuRow.layer.removeAnimation(forKey: "chrome.slide")
+        } else {
+            let move = CABasicAnimation(keyPath: "transform.translation.y")
+            move.fromValue = visible ? distance : 0
+            move.toValue = visible ? 0 : distance
+            move.duration = opacity.duration
+            move.beginTime = opacity.beginTime
+            move.timingFunction = opacity.timingFunction
+            move.fillMode = .both
+            move.isRemovedOnCompletion = false
+            menuRow.layer.add(move, forKey: "chrome.slide")
+        }
+        CATransaction.commit()
+    }
+
+    /// AVKit's volume slider is open over the menu row (native route): the row fades out.
+    func setMenuRowCovered(_ covered: Bool) {
+        UIView.animate(withDuration: 0.15, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.menuRow.alpha = covered ? 0 : 1
         }
     }
 
