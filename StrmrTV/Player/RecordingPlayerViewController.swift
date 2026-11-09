@@ -31,12 +31,20 @@ enum RecordingPlayback {
 /// resumes where playback was.
 final class RecordingPlayerViewController: EnginePlayerViewController {
     let recording: Recording
-    private let growing: Bool
+    let growing: Bool
     private var loadTask: Task<Void, Never>?
-    private var didFinish = false
-    private var lastPosition: Double = 0
+    private(set) var didFinish = false
+    private(set) var lastPosition: Double = 0
+    #if os(iOS)
+    /// The phone's touch controls (`RecordingPlayer+Mobile`): the transport while the player owns
+    /// it, and the menu row over AVKit's chrome otherwise.
+    lazy var mobileControls = MobilePlayerControls(title: recording.displayTitle, subtitle: recording.channelName)
+    lazy var mobileChromeTracker = MobileChromeVisibility(root: view, controls: mobileControls)
+    override var hasTouchTransport: Bool { true }
+    #else
     private lazy var softwareHUD = SoftwareTransportHUD(title: recording.displayTitle, subtitle: recording.channelName)
     private lazy var recBadge = RecordingBadge()
+    #endif
 
     // The growing recording's HLS session.
     private var sessionID: String?
@@ -49,8 +57,11 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
     private var resumes = 0
     private static let resumeBudget = 3
     private static let seekStep: Double = 10
-    private var scrubTarget: Double?
+    var scrubTarget: Double?
     private var scrubCommit: DispatchWorkItem?
+
+    /// Shown while the server still follows the recording.
+    static let recBadgeText = String(localized: "● REC")
 
     init(engine: AetherEngine, recording: Recording) {
         self.recording = recording
@@ -63,6 +74,9 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         bindEngine()
         setInfoPanel(title: recording.displayTitle, subtitle: recording.channelName, description: recording.description)
         installStreamInfo(file: nil, source: StreamSource.joined([String(localized: "Recording"), recording.channelName]))
+        #if os(iOS)
+        installMobileRecordingControls()
+        #else
         if growing {
             Self.fill(recBadge, in: overlayHost)
             overlayHost.addSubview(recBadge)
@@ -71,6 +85,7 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
             view.addSubview(softwareHUD)
             softwareHUD.flash()
         }
+        #endif
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -137,7 +152,11 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
                   let self, sessionID == id else { return }
             if growing != serverGrowing { log.info("server growing: \(growing)") }
             serverGrowing = growing
+            #if os(iOS)
+            mobileControls.transport.setBadge(growing ? Self.recBadgeText : nil)
+            #else
             recBadge.isHidden = !growing
+            #endif
         }
     }
 
@@ -162,8 +181,7 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
                 guard let self else { return }
                 if time > 0, !opening { lastPosition = time }
                 guard ownsTransport else { return }
-                softwareHUD.update(position: scrubTarget ?? time, duration: transportDuration,
-                                   paused: engine.state == .paused)
+                updateTransport(position: scrubTarget ?? time)
             }
             .store(in: &cancellables)
         engine.$state
@@ -203,10 +221,10 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
 
     /// The app's readout and remote handling replace AVKit's: on the software route (no AVPlayer)
     /// and for a growing recording (AVKit would show it as live).
-    private var ownsTransport: Bool { growing || softwareSurfaceMounted }
+    var ownsTransport: Bool { growing || softwareSurfaceMounted }
 
     /// The length to scrub over: for a growing recording, as far as the playlist reaches so far.
-    private var transportDuration: Double {
+    var transportDuration: Double {
         let seekableEnd = player?.currentItem?.seekableTimeRanges.last.map { CMTimeRangeGetEnd($0.timeRangeValue).seconds } ?? 0
         return max(engine.duration, seekableEnd.isFinite ? seekableEnd : 0)
     }
@@ -214,6 +232,9 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
     private func setSoftwareSurface(mounted: Bool) {
         guard mountSoftwareSurface(mounted) else { return }
         if growing { showsPlaybackControls = false }
+        #if os(iOS)
+        mobileSoftwareSurfaceChanged()
+        #else
         if mounted, softwareHUD.superview == nil {
             Self.fill(softwareHUD, in: view)
             view.addSubview(softwareHUD)
@@ -221,8 +242,19 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         } else if !mounted, !growing {
             softwareHUD.removeFromSuperview()
         }
+        #endif
     }
 
+    /// The readout at `position`: the phone's controls or the TV's HUD.
+    private func updateTransport(position: Double) {
+        #if os(iOS)
+        mobileControls.update(position: position, duration: transportDuration, paused: engine.state == .paused)
+        #else
+        softwareHUD.update(position: position, duration: transportDuration, paused: engine.state == .paused)
+        #endif
+    }
+
+    #if os(tvOS)
     override var softwareHUDHasOpenLayer: Bool { ownsTransport && softwareHUD.isInfoShowing }
 
     override func closeSoftwareHUDLayer() {
@@ -251,13 +283,18 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         }
         softwareHUD.flash()
     }
+    #else
+    override func streamInfoDidChange(_ info: StreamInfo) {
+        mobileControls.setDetails(info.summary)
+    }
+    #endif
 
     /// A run of presses is one seek: the target moves with each press (and the readout with it),
     /// and the seek goes out once the presses pause.
-    private func seek(by delta: Double) {
+    func seek(by delta: Double) {
         let target = min(max(0, (scrubTarget ?? lastPosition) + delta), max(0, transportDuration - 1))
         scrubTarget = target
-        softwareHUD.update(position: target, duration: transportDuration, paused: engine.state == .paused)
+        updateTransport(position: target)
         scrubCommit?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, let target = scrubTarget else { return }
@@ -281,7 +318,7 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
 
     /// The engine clamps a seek to its duration, which an open-ended playlist doesn't have (0), so
     /// a growing recording's seeks go to AVPlayer, which seeks within the playlist so far.
-    private func seekPlayback(to seconds: Double) async {
+    func seekPlayback(to seconds: Double) async {
         guard growing, let avPlayer = player ?? engine.currentAVPlayer else { return await engine.seek(to: seconds) }
         await avPlayer.seek(to: CMTime(seconds: seconds, preferredTimescale: 600), toleranceBefore: .zero,
                             toleranceAfter: .zero)
@@ -302,6 +339,9 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
         log.notice("player closed at \(Int(lastPosition))s")
         loadTask?.cancel()
         scrubCommit?.cancel()
+        #if os(iOS)
+        mobileChromeTracker.stop()
+        #endif
         endSession()
         cancellables.removeAll()
         settingsHider.stop()
@@ -312,6 +352,7 @@ final class RecordingPlayerViewController: EnginePlayerViewController {
     }
 }
 
+#if os(tvOS)
 /// "● REC" at the top right while the server still follows the recording.
 private final class RecordingBadge: UIView {
     private let label = UILabel()
@@ -319,7 +360,7 @@ private final class RecordingBadge: UIView {
     init() {
         super.init(frame: .zero)
         isUserInteractionEnabled = false
-        label.text = String(localized: "● REC")
+        label.text = RecordingPlayerViewController.recBadgeText
         label.font = .systemFont(ofSize: 26, weight: .bold)
         label.textColor = .white
         label.backgroundColor = UIColor.systemRed.withAlphaComponent(0.85)
@@ -339,3 +380,4 @@ private final class RecordingBadge: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
+#endif

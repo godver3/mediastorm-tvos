@@ -20,6 +20,8 @@ final class MobileTransportView: UIView {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let detailsLabel = UILabel()
+    /// A status capsule beside AirPlay ("● REC" on a growing recording); hidden without one.
+    private let badge = TransportBadgeLabel()
     private let slider = UISlider()
     private let elapsedLabel = UILabel()
     private let remainingLabel = UILabel()
@@ -56,6 +58,10 @@ final class MobileTransportView: UIView {
         }
         subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.75)
         detailsLabel.textColor = UIColor.white.withAlphaComponent(0.7)
+        badge.isHidden = true
+        let trailing = UIStackView(arrangedSubviews: [badge, airPlay])
+        trailing.spacing = 10
+        trailing.alignment = .center
         let titles = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
         titles.axis = .vertical
         titles.spacing = 2
@@ -96,7 +102,7 @@ final class MobileTransportView: UIView {
         preview.alpha = 0
 
         addLayoutGuide(barGuide)
-        for view in [close, titles, airPlay, center, bar, detailsLabel, preview] as [UIView] {
+        for view in [close, titles, trailing, center, bar, detailsLabel, preview] as [UIView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -110,9 +116,9 @@ final class MobileTransportView: UIView {
             close.topAnchor.constraint(equalTo: guide.topAnchor, constant: 12),
             titles.leadingAnchor.constraint(equalTo: close.trailingAnchor, constant: 14),
             titles.centerYAnchor.constraint(equalTo: close.centerYAnchor),
-            titles.trailingAnchor.constraint(lessThanOrEqualTo: airPlay.leadingAnchor, constant: -14),
-            airPlay.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -16),
-            airPlay.centerYAnchor.constraint(equalTo: close.centerYAnchor),
+            titles.trailingAnchor.constraint(lessThanOrEqualTo: trailing.leadingAnchor, constant: -14),
+            trailing.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -16),
+            trailing.centerYAnchor.constraint(equalTo: close.centerYAnchor),
             airPlay.widthAnchor.constraint(equalToConstant: 44),
             airPlay.heightAnchor.constraint(equalToConstant: 44),
 
@@ -159,6 +165,11 @@ final class MobileTransportView: UIView {
     }
 
     func setDetails(_ text: String?) { detailsLabel.text = text }
+
+    func setBadge(_ text: String?) {
+        badge.text = text
+        badge.isHidden = text == nil
+    }
 
     func update(position: Double, duration: Double, paused: Bool) {
         self.duration = duration
@@ -251,6 +262,37 @@ final class MobileTransportView: UIView {
             UIColor.white.setFill()
             context.cgContext.fillEllipse(in: CGRect(x: 0, y: 0, width: diameter, height: diameter))
         }
+    }
+}
+/// A small red capsule, as the system's live / recording indicators.
+private final class TransportBadgeLabel: UILabel {
+    private static let padding = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: .systemFont(ofSize: 12, weight: .bold))
+        adjustsFontForContentSizeCategory = true
+        textColor = .white
+        backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width + Self.padding.left + Self.padding.right,
+                      height: size.height + Self.padding.top + Self.padding.bottom)
+    }
+
+    override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: Self.padding)) }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = bounds.height / 2
     }
 }
 #endif
