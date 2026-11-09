@@ -1,11 +1,13 @@
 import Foundation
 
 /// The Recordings screen's state: the profile's recordings, the filter, and the cancel /
-/// delete actions (Expo's `NewRecordingsScreen` handlers). While anything is scheduled or
+/// cancel series / delete actions (Expo's `NewRecordingsScreen` handlers). While anything is scheduled or
 /// recording the list refreshes itself every 30 s, so a status change shows up on its own.
 @MainActor
 final class RecordingsStore: ObservableObject {
     @Published private(set) var recordings: [Recording] = []
+    /// The profile's recording rules, so a rule's airing offers to cancel the whole series.
+    @Published private(set) var rules: [RecordingRule] = []
     @Published private(set) var loading = false
     @Published private(set) var refreshing = false
     @Published private(set) var loadError: String?
@@ -29,7 +31,9 @@ final class RecordingsStore: ObservableObject {
         if refresh { refreshing = true } else if recordings.isEmpty { loading = true }
         defer { loading = false; refreshing = false }
         do {
+            async let rulesLoad = try? api.recordingRules()
             recordings = try await api.recordings()
+            if let fresh = await rulesLoad { rules = fresh }
             loadError = nil
             log.info("loaded \(self.recordings.count) recordings")
         } catch is CancellationError {
@@ -52,6 +56,21 @@ final class RecordingsStore: ObservableObject {
         await perform(recording, verb: "cancel") {
             try await self.api.cancelRecording(recording.id)
             return String(localized: "Cancelled \(recording.displayTitle).")
+        }
+    }
+
+    /// The rule that scheduled a recording still to come or in progress (else nil).
+    func rule(for recording: Recording) -> RecordingRule? {
+        guard recording.canCancel, let id = recording.ruleId else { return nil }
+        return rules.first { $0.id == id }
+    }
+
+    /// Deletes the recording's rule; the server cancels the airings it scheduled.
+    func cancelSeries(_ recording: Recording) async {
+        guard let rule = rule(for: recording) else { return }
+        await perform(recording, verb: "cancel series") {
+            try await self.api.deleteRecordingRule(rule.id)
+            return String(localized: "Series recording cancelled for \(rule.summary).")
         }
     }
 

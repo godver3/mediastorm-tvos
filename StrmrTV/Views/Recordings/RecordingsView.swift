@@ -10,13 +10,14 @@ enum RecordingsFocus: Hashable {
 
 /// A recording's actions, in the Expo TV screen's order.
 enum RecordingAction: Hashable {
-    case play, cancel, delete
+    case play, cancel, cancelSeries, delete
 }
 
 /// Live TV recordings, a port of the Expo TV `TVRecordings` screen: filters (All, Upcoming,
 /// Recording, Completed, History, each with its count) and Refresh across the top, the
 /// recordings down the left, and the focused one's details and actions on the right: Play
-/// (completed, or in progress while it records), Stop / Cancel and Delete, each confirmed.
+/// (completed, or in progress while it records), Stop / Cancel, Cancel Series (a rule's airing)
+/// and Delete, each confirmed.
 /// Reached from the Recordings tab (Settings › Menu, hidden by default as in the Expo menu)
 /// and from the Live tab's More menu (the Expo Live drawer's Recordings action).
 struct RecordingsView: View {
@@ -71,7 +72,11 @@ struct RecordingsView: View {
     /// remaining action, or (once deleted) the row that took its place.
     private func run(_ pending: (action: RecordingAction, recording: Recording)) async {
         let index = store.visible.firstIndex { $0.id == pending.recording.id } ?? 0
-        if pending.action == .delete { await store.delete(pending.recording) } else { await store.cancel(pending.recording) }
+        switch pending.action {
+        case .delete: await store.delete(pending.recording)
+        case .cancelSeries: await store.cancelSeries(pending.recording)
+        default: await store.cancel(pending.recording)
+        }
         if let updated = store.visible.first(where: { $0.id == pending.recording.id }) {
             focus = .action(RecordingDetailPanel.firstAction(for: updated))
         } else if !store.visible.isEmpty {
@@ -138,7 +143,7 @@ struct RecordingsView: View {
                     .focusSection()
                     // Left from the actions returns to the recording they belong to.
                     .defaultFocus($focus, .row(selected.id), priority: .userInitiated)
-                RecordingDetailPanel(recording: selected, busy: store.busyID == selected.id, focus: $focus) { action in
+                RecordingDetailPanel(recording: selected, rule: store.rule(for: selected), busy: store.busyID == selected.id, focus: $focus) { action in
                     if action == .play { RecordingPlayback.play(selected) } else { confirming = (action, selected) }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -183,6 +188,9 @@ struct RecordingsView: View {
     private var confirmTitle: String {
         guard let confirming else { return "" }
         if confirming.action == .delete { return String(localized: "Delete this recording and its saved video? This cannot be undone.") }
+        if confirming.action == .cancelSeries, let rule = store.rule(for: confirming.recording) {
+            return String(localized: "Cancel the series recording \(rule.summary)? Its scheduled airings will not start; one recording now keeps going.")
+        }
         return confirming.recording.status == .running
             ? String(localized: "Stop this recording? Video captured so far will be kept.")
             : String(localized: "Cancel this scheduled recording? It will not start.")
@@ -190,6 +198,7 @@ struct RecordingsView: View {
 
     private func confirmLabel(_ pending: (action: RecordingAction, recording: Recording)) -> String {
         if pending.action == .delete { return String(localized: "Delete Recording") }
+        if pending.action == .cancelSeries { return String(localized: "Cancel Series") }
         return pending.recording.status == .running ? String(localized: "Stop Recording") : String(localized: "Cancel Recording")
     }
 }

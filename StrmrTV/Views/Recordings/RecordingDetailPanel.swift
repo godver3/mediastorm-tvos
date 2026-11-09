@@ -5,6 +5,8 @@ import SwiftUI
 /// it allows.
 struct RecordingDetailPanel: View {
     let recording: Recording
+    /// The series rule that scheduled it, while it is still to come or recording.
+    let rule: RecordingRule?
     let busy: Bool
     var focus: FocusState<RecordingsFocus?>.Binding
     let perform: (RecordingAction) -> Void
@@ -37,6 +39,9 @@ struct RecordingDetailPanel: View {
             if recording.canCancel {
                 button(.cancel, recording.status == .running ? "Stop Recording" : "Cancel Scheduled Recording",
                        "stop.circle")
+            }
+            if rule != nil {
+                button(.cancelSeries, "Cancel Series Recording", "repeat.circle.fill")
             }
             if recording.canDelete {
                 button(.delete, "Delete Recording", "trash")

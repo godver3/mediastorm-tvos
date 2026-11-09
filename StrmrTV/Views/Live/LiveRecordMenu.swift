@@ -3,7 +3,8 @@ import SwiftUI
 /// The long-press recording actions on a guide programme that hasn't ended (Expo's TV
 /// programme menu): Stop / Cancel the recording that covers it, else Record (on now) or
 /// Record Once (later); then Record Series, every airing of the title on this channel, or only
-/// the airings the guide doesn't flag as reruns.
+/// the airings the guide doesn't flag as reruns, or, when a rule already records it, switch or
+/// cancel that series.
 struct LiveProgramRecordMenu: View {
     let channel: LiveChannel
     let program: EPGProgram
@@ -24,15 +25,48 @@ struct LiveProgramRecordMenu: View {
                 Label(program.isAiring(at: Date()) ? "Record" : "Record Once", systemImage: "record.circle")
             }
         }
-        Button {
-            store.recordSeries(program, on: channel)
-        } label: {
-            Label("Record Series", systemImage: "repeat.circle")
+        if let rule = store.seriesRule(for: program, on: channel) {
+            LiveSeriesRuleActions(rule: rule)
+        } else {
+            Button {
+                store.recordSeries(program, on: channel)
+            } label: {
+                Label("Record Series", systemImage: "repeat.circle")
+            }
+            Button {
+                store.recordSeries(program, on: channel, newOnly: true)
+            } label: {
+                Label("Record New Episodes Only", systemImage: "sparkles")
+            }
         }
-        Button {
-            store.recordSeries(program, on: channel, newOnly: true)
+    }
+}
+
+/// A series the programme already belongs to: switch it between every airing and new episodes
+/// only, or cancel it (the rule and the airings it scheduled; one recording now keeps going).
+struct LiveSeriesRuleActions: View {
+    let rule: RecordingRule
+    @EnvironmentObject private var store: LiveStore
+
+    var body: some View {
+        if rule.newOnly {
+            Button {
+                store.setSeries(rule, newOnly: false)
+            } label: {
+                Label("Record Every Airing Instead", systemImage: "repeat.circle")
+            }
+        } else {
+            Button {
+                store.setSeries(rule, newOnly: true)
+            } label: {
+                Label("Record New Episodes Only Instead", systemImage: "sparkles")
+            }
+        }
+        Button(role: .destructive) {
+            store.cancelSeries(rule)
         } label: {
-            Label("Record New Episodes Only", systemImage: "sparkles")
+            Label(rule.isRegex ? "Delete Rule “\(rule.pattern)”" : "Cancel Series Recording",
+                  systemImage: "repeat.circle.fill")
         }
     }
 }
@@ -60,10 +94,14 @@ struct LiveChannelRecordMenu: View {
                     Label("Record Current Program", systemImage: "record.circle")
                 }
             }
-            Button {
-                store.recordSeries(current, on: channel)
-            } label: {
-                Label("Record Every Airing", systemImage: "repeat.circle")
+            if let rule = store.seriesRule(for: current, on: channel) {
+                LiveSeriesRuleActions(rule: rule)
+            } else {
+                Button {
+                    store.recordSeries(current, on: channel)
+                } label: {
+                    Label("Record Every Airing", systemImage: "repeat.circle")
+                }
             }
         }
         Button {

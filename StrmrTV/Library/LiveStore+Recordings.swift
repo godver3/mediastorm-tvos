@@ -15,8 +15,35 @@ extension LiveStore {
 
     /// Keeps what was last known through a transient failure.
     func refreshRecordings() async {
-        guard let fresh = try? await APIClient.shared.activeRecordings(), fresh != recordings else { return }
-        recordings = fresh
+        async let active = try? APIClient.shared.activeRecordings()
+        async let rules = try? APIClient.shared.recordingRules()
+        if let fresh = await active, fresh != recordings { recordings = fresh }
+        if let fresh = await rules, fresh != recordingRules { recordingRules = fresh }
+    }
+
+    /// The rule that records `program` on the channel, if any: a title rule for it here or on
+    /// every channel first, then a regex rule.
+    func seriesRule(for program: EPGProgram, on channel: LiveChannel) -> RecordingRule? {
+        let matches = recordingRules.filter { $0.covers(title: program.title, on: channel) }
+        return matches.first { !$0.isRegex } ?? matches.first
+    }
+
+    /// Deletes the rule; the server cancels the airings it had scheduled (one already
+    /// recording keeps going, and can be stopped on its own).
+    func cancelSeries(_ rule: RecordingRule) {
+        perform(success: String(localized: "Series recording cancelled for \(rule.summary).")) {
+            try await APIClient.shared.deleteRecordingRule(rule.id)
+        }
+    }
+
+    /// Switches an existing rule between every airing and new episodes only.
+    func setSeries(_ rule: RecordingRule, newOnly: Bool) {
+        let success = newOnly
+            ? String(localized: "Now recording only new episodes of \(rule.summary).")
+            : String(localized: "Now recording every airing of \(rule.summary).")
+        perform(success: success) {
+            try await APIClient.shared.updateRecordingRule(rule.id, newOnly: newOnly)
+        }
     }
 
     /// The active recording overlapping `program` on the channel, else (without a programme) the

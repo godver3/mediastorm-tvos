@@ -67,6 +67,9 @@ final class LiveStore: ObservableObject {
     var noticeClear: Task<Void, Never>?
     /// Scheduled, starting and recording ones, which the guide marks (`LiveStore+Recordings`).
     @Published var recordings: [Recording] = []
+    /// The profile's series / regex rules, so a guide programme a rule covers offers to cancel
+    /// or switch it rather than record it again.
+    @Published var recordingRules: [RecordingRule] = []
     /// The recording action in flight; one at a time.
     var recordingTask: Task<Void, Never>?
     /// nil until known; the guide is only offered when the EPG is on.

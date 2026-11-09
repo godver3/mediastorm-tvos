@@ -7,6 +7,7 @@ struct RecordingRule: Decodable, Identifiable, Hashable {
     let matchType: String
     let pattern: String
     let channelId: String?
+    let tvgId: String?
     let channelName: String?
     let allChannels: Bool
     let enabled: Bool
@@ -17,7 +18,7 @@ struct RecordingRule: Decodable, Identifiable, Hashable {
     var isRegex: Bool { matchType == "regex" }
 
     private enum CodingKeys: String, CodingKey {
-        case id, matchType, pattern, channelId, channelName, allChannels, enabled, newOnly,
+        case id, matchType, pattern, channelId, tvgId, channelName, allChannels, enabled, newOnly,
              paddingBeforeSeconds, paddingAfterSeconds
     }
 
@@ -27,6 +28,7 @@ struct RecordingRule: Decodable, Identifiable, Hashable {
         matchType = try c.decodeIfPresent(String.self, forKey: .matchType) ?? "title"
         pattern = try c.decodeIfPresent(String.self, forKey: .pattern) ?? ""
         channelId = try c.decodeIfPresent(String.self, forKey: .channelId)
+        tvgId = try c.decodeIfPresent(String.self, forKey: .tvgId)
         channelName = try c.decodeIfPresent(String.self, forKey: .channelName)
         allChannels = try c.decodeIfPresent(Bool.self, forKey: .allChannels) ?? false
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
@@ -60,11 +62,12 @@ extension APIClient {
                                        "allChannels": true])
     }
 
-    /// Pauses / resumes a rule, or changes its padding.
-    func updateRecordingRule(_ id: String, enabled: Bool? = nil, paddingBefore: Int? = nil,
+    /// Pauses / resumes a rule, switches it to new episodes only (or back), or changes its padding.
+    func updateRecordingRule(_ id: String, enabled: Bool? = nil, newOnly: Bool? = nil, paddingBefore: Int? = nil,
                              paddingAfter: Int? = nil) async throws {
         var body: [String: Any] = ["profileId": profileID]
         if let enabled { body["enabled"] = enabled }
+        if let newOnly { body["newOnly"] = newOnly }
         if let paddingBefore { body["paddingBeforeSeconds"] = paddingBefore }
         if let paddingAfter { body["paddingAfterSeconds"] = paddingAfter }
         try await sendRaw("PUT", "/api/live/recording-rules/\(Self.segment(id))", jsonObject: body)
