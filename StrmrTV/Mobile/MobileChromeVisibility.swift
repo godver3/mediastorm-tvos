@@ -1,6 +1,8 @@
 #if os(iOS)
 import UIKit
 
+private let log = AppLog(category: "chrome")
+
 /// Follows AVKit's iOS playback chrome so the player's own controls (`MobilePlayerControls`) come
 /// and go with it, and lines the menu row up with AVKit's top bar.
 ///
@@ -73,19 +75,32 @@ final class MobileChromeVisibility {
         let expanded = volumeExpanded
         if expanded != lastVolumeExpanded {
             lastVolumeExpanded = expanded
+            log.info("volume slider \(expanded ? "open" : "closed"): \(volumeLayout)")
             controls.setMenuRowCovered(expanded)
         }
         if !expanded { alignRow() }
         guard visible != lastVisible else { return }
         lastVisible = visible
+        log.info("chrome \(visible ? "shown" : "hidden")")
         controls.setChrome(visible: visible, following: volumeGroup?.layer)
     }
 
-    /// AVKit's volume group, 44 pt round at rest, is wider while its slider is open.
+    /// AVKit's volume group is wider while its slider is open. Its closed width differs between
+    /// releases (44 pt round on iOS 27.2, 202 pt on 27.3), so the narrowest width seen counts as
+    /// closed and the slider as open only well past it.
     private var volumeExpanded: Bool {
-        guard let volumeGroup, volumeGroup.window != nil else { return false }
-        let widest = volumeGroup.subviews.reduce(volumeGroup.bounds.width) { max($0, $1.frame.width) }
-        return widest > volumeGroup.bounds.height + 16
+        guard let volumeGroup, volumeGroup.window != nil, volumeGroup.bounds.width > 0 else { return false }
+        let widest = volumeGroup.subviews.lazy.filter { !$0.isHidden && $0.alpha > 0.05 }
+            .reduce(volumeGroup.bounds.width) { max($0, $1.frame.width) }
+        volumeRestWidth = min(volumeRestWidth ?? widest, widest)
+        return widest > (volumeRestWidth ?? widest) + 24
+    }
+    private var volumeRestWidth: CGFloat?
+
+    private var volumeLayout: String {
+        guard let volumeGroup else { return "-" }
+        let parts = volumeGroup.subviews.map { "\(Self.className($0)) w=\(Int($0.frame.width)) a=\($0.alpha) h=\($0.isHidden)" }
+        return "group \(Int(volumeGroup.bounds.width))x\(Int(volumeGroup.bounds.height)) [\(parts.joined(separator: "; "))]"
     }
 
     private func findGroups(in root: UIView) {
@@ -94,6 +109,10 @@ final class MobileChromeVisibility {
         lastSearch = now
         playbackGroup = Self.find(in: root) { Self.className($0).hasSuffix("PlaybackControlsView") }
         volumeGroup = Self.find(in: root) { Self.className($0).hasSuffix("VolumeControlsView") }
+        volumeRestWidth = nil
+        if let playbackGroup {
+            log.info("found \(Self.className(playbackGroup)) volume=\(volumeGroup.map(Self.className) ?? "none")")
+        }
     }
 
     /// The menu row sits in AVKit's top bar, just before its volume group.
@@ -124,6 +143,12 @@ final class MobileChromeVisibility {
         return nil
     }
 
+    private static func collect(in view: UIView, into names: inout Set<String>) {
+        let name = className(view)
+        if name.contains("Controls") || name.contains("Chrome") { names.insert(name) }
+        view.subviews.forEach { collect(in: $0, into: &names) }
+    }
+
     // MARK: Fallback
 
     private func installFallback() {
@@ -133,6 +158,10 @@ final class MobileChromeVisibility {
         tap.delegate = SimultaneousDelegate.shared
         root.addGestureRecognizer(tap)
         fallbackTap = tap
+        // AVKit's chrome wasn't recognised: record its control classes to match a new AVKit.
+        var names = Set<String>()
+        Self.collect(in: root, into: &names)
+        log.notice("AVKit chrome not found; fallback tap. controls: \(names.sorted().joined(separator: ", "))")
     }
 
     private func removeFallback() {
