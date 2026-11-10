@@ -39,15 +39,18 @@ enum ServerAddress {
         return comps.url
     }
 
-    /// Private IPv4 ranges, localhost, `.local` and bare (dot-less) hostnames.
+    /// Private IPv4 ranges, localhost, `.local` and bare (dot-less) hostnames, plus Tailscale
+    /// (100.64.0.0/10 and MagicDNS `*.ts.net`): a VPN is how the server is reached away from
+    /// home, and it serves plain HTTP on 7777 there too. A typed scheme is always kept.
     static func isLocal(_ host: String) -> Bool {
         let h = host.lowercased()
-        if h == "localhost" || h.hasSuffix(".local") || !h.contains(".") { return true }
+        if h == "localhost" || h.hasSuffix(".local") || h.hasSuffix(".ts.net") || !h.contains(".") { return true }
         let octets = h.split(separator: ".").compactMap { Int($0) }
         guard octets.count == 4 else { return false }
         switch (octets[0], octets[1]) {
         case (10, _), (127, _), (192, 168): return true
         case (172, 16...31): return true
+        case (100, 64...127): return true
         default: return false
         }
     }
