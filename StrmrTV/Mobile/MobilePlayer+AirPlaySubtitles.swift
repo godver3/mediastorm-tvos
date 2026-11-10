@@ -13,7 +13,8 @@ import UIKit
 /// Those renditions stay off otherwise (`baseLoadOptions`): building them costs a second read of
 /// the source, and AVKit picking one by itself had stalled playback on a bitmap track. So they are
 /// turned on only once the picture leaves (in the load options when AirPlay is already up, by a
-/// session-preserving reload when it starts mid-session) and stay on for the rest of the session.
+/// session-preserving reload once the engine's own AirPlay reload has settled when it starts
+/// mid-session) and stay on for the rest of the session.
 ///
 /// Limits, all the engine's: text tracks only (a PGS / VobSub track, and an online subtitle, which
 /// is the app's own cues, stay on the phone's overlay); SDR only, since an HDR / Dolby Vision
@@ -24,6 +25,10 @@ final class AirPlaySubtitleHandoff {
     private var timer: Timer?
     private var active = false
     private var correcting = false
+    private var lastReading = false
+    private var readingTicks = 0
+    private var settledTicks = 0
+    private var gaveUp = false
     private let log = AppLog(category: "airplay-subs")
 
     init(player: PlayerViewController) {
@@ -54,43 +59,46 @@ final class AirPlaySubtitleHandoff {
     private func tick() {
         guard let player else { return stop() }
         let external = !player.softwareSurfaceMounted && (player.player?.isExternalPlaybackActive ?? false)
-        if external != active {
+        // AVPlayer's flag flickers while the engine rebuilds the item; act on a state held 2 s.
+        if external == lastReading { readingTicks += 1 } else { lastReading = external; readingTicks = 1 }
+        let engine = player.engine
+        let settled = engine.state == .playing || engine.state == .paused
+        settledTicks = settled ? settledTicks + 1 : 0
+        if readingTicks >= 2, external != active {
             active = external
             log.notice("picture \(external ? "on an AirPlay receiver: subtitles go with it" : "back on this device")")
-            if external { handOff() } else { player.engine.setNativeSubtitleRendering(false) }
+            engine.setNativeSubtitleRendering(external)
+        }
+        // 6 s: past the engine's own check that the receiver took the master it was given
+        // (`airPlayProgressWatchdogSeconds`, 5 s), whose fallback is one more rebuild.
+        if active, !player.nativeSubtitlesPrepared, !correcting, !gaveUp, settledTicks >= 6, !player.didFinish {
+            addRenditions()
         }
         updateOverlay()
     }
 
-    /// The renditions must be in the session before the receiver can be given one.
-    private func handOff() {
+    /// The session started without the renditions: add them with a session-preserving reload.
+    ///
+    /// Only once the engine's own AirPlay reload (its LAN address for the receiver) has finished and
+    /// playback has held for a few seconds: a reload started while that one is in flight supersedes
+    /// it, and the engine then served the rebuilt item on 127.0.0.1, which the receiver cannot
+    /// reach (device log 2026-11-10: playback wedged and the source auto-switched).
+    private func addRenditions() {
         guard let player else { return }
         let engine = player.engine
-        if player.nativeSubtitlesPrepared {
-            engine.setNativeSubtitleRendering(true)
-            return
-        }
-        guard !correcting else { return }
         correcting = true
         Task { [weak self] in
-            // The engine rebuilds the item itself on the AirPlay edge (its LAN address); let that
-            // settle before asking for another.
-            for _ in 0..<20 where engine.state == .loading || engine.state == .seeking {
-                try? await Task.sleep(for: .milliseconds(500))
-            }
-            guard let self, let player = self.player, self.active, !player.didFinish else {
-                self?.correcting = false
-                return
-            }
             do {
                 try await engine.reloadAtCurrentPosition { $0.prepareNativeSubtitles = true }
                 player.nativeSubtitlesPrepared = true
-                self.log.notice("native subtitle renditions on (\(engine.nativeSubtitleTracks.count) text tracks)")
+                self?.log.notice("native subtitle renditions on (\(engine.nativeSubtitleTracks.count) text tracks)")
             } catch {
-                self.log.error("native subtitle renditions refused: \(error.localizedDescription)")
+                // Not retried: a refusal means this session cannot be rebuilt in place.
+                self?.gaveUp = true
+                self?.log.error("native subtitle renditions refused: \(error.localizedDescription)")
             }
-            self.correcting = false
-            if self.active { engine.setNativeSubtitleRendering(true) }
+            self?.correcting = false
+            if self?.active == true { engine.setNativeSubtitleRendering(true) }
         }
     }
 
