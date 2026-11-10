@@ -111,6 +111,11 @@ final class MobilePlayerControls: UIView {
         rowOverlayConstraints.last?.constant = top
     }
 
+    /// Moves only the row's trailing edge (the top stays where AVKit's bar put it).
+    func setOverlayTrailing(_ trailing: CGFloat) {
+        rowOverlayConstraints.first?.constant = -trailing
+    }
+
     /// Only the controls take touches; elsewhere AVKit's chrome (native route) gets them, except
     /// on the software route, where a tap anywhere shows or hides the transport.
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
@@ -156,7 +161,7 @@ final class MobilePlayerControls: UIView {
         }
     }
 
-    /// The cast button, first in the row (beside AVKit's AirPlay on the native route).
+    /// The cast button, first in the row (the live player; the VOD player lists Cast in Settings).
     func setCastAction(_ action: @escaping () -> Void) {
         castButton?.removeFromSuperview()
         var config = Self.glassConfiguration()

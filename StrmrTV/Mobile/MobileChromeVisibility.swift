@@ -115,12 +115,45 @@ final class MobileChromeVisibility {
         }
     }
 
-    /// The menu row sits in AVKit's top bar, just before its volume group.
+    /// The menu row sits in AVKit's top bar, just before its volume group. While AirPlaying AVKit
+    /// drops the volume group (the volume is the receiver's), and the row moves into its place.
     private func alignRow() {
-        guard let controls, let volumeGroup, volumeGroup.window != nil, volumeGroup.bounds.width > 0 else { return }
-        let frame = volumeGroup.convert(volumeGroup.bounds, to: controls)
+        guard let controls, let root else { return }
+        // AVKit may take the group out of the tree rather than hide it, and build a new one later.
+        if volumeGroup?.window == nil, CACurrentMediaTime() - lastVolumeSearch > 0.5 {
+            lastVolumeSearch = CACurrentMediaTime()
+            volumeGroup = Self.find(in: root) { Self.className($0).hasSuffix("VolumeControlsView") }
+            volumeRestWidth = nil
+        }
         let safe = controls.bounds.inset(by: controls.safeAreaInsets)
-        controls.setOverlayTop(max(0, frame.midY - 22 - safe.minY), trailing: max(0, safe.maxX - frame.minX + 12))
+        let shown = volumeGroup.map { $0.window != nil && $0.bounds.width > 0 && volumeShownWithinChrome($0) } ?? false
+        if shown, let volumeGroup {
+            let frame = volumeGroup.convert(volumeGroup.bounds, to: controls)
+            volumeTrailing = max(0, safe.maxX - frame.maxX)
+            controls.setOverlayTop(max(0, frame.midY - 22 - safe.minY), trailing: max(0, safe.maxX - frame.minX + 12))
+        } else {
+            controls.setOverlayTrailing(volumeTrailing ?? MobilePlayerControls.overlayInset.width)
+        }
+        if shown != lastVolumeShown {
+            lastVolumeShown = shown
+            log.info("volume group \(shown ? "shown" : "gone"); menu row \(shown ? "beside it" : "in its place")")
+        }
+    }
+    /// The volume group's trailing inset while it showed: where the row goes once it is gone.
+    private var volumeTrailing: CGFloat?
+    private var lastVolumeSearch: CFTimeInterval = 0
+    private var lastVolumeShown: Bool?
+
+    /// Whether the volume group itself is shown, apart from the chrome fading as a whole: it and its
+    /// ancestors up to (not including) the first one that also holds the play / pause group.
+    private func volumeShownWithinChrome(_ volume: UIView) -> Bool {
+        var current: UIView? = volume
+        while let view = current {
+            if let playbackGroup, playbackGroup.isDescendant(of: view) { return true }
+            if view.isHidden || view.alpha < 0.05 { return false }
+            current = view.superview
+        }
+        return true
     }
 
     /// Whether `view` and every ancestor up to `root` is shown.

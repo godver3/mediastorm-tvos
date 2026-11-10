@@ -16,8 +16,6 @@ extension PlayerViewController {
         controls.onPlayPause = { [weak self] in self?.engine.togglePlayPause() }
         controls.onSkip = { [weak self] delta in self?.skip(by: delta) }
         controls.onScrub = { [weak self] time, ended in self?.mobileScrub(to: time, ended: ended) }
-        // A download plays from this device's storage, which no TV can fetch.
-        if !playsDownload { controls.setCastAction { [weak self] in self?.openCastPicker() } }
         mobileChromeTracker.start()
         installPictureInPicture()
     }
@@ -44,10 +42,18 @@ extension PlayerViewController {
         })
     }
 
-    /// The Settings menu's rows beyond the speeds: Switch Source…, then Stream Info and, on a
-    /// phone, the orientation (the Expo player's rotate button, plus following the device).
+    /// The Settings menu's rows beyond the speeds: Switch Source…, then Cast, Stream Info and, on a
+    /// phone, the orientation (the Expo player's rotate button, plus following the device). Cast
+    /// lives here rather than as its own button, which crowded AVKit's top bar on a phone.
     func mobileSettingsExtras() -> [UIMenuElement] {
-        var extras: [UIMenuElement] = [
+        var extras: [UIMenuElement] = []
+        // A download plays from this device's storage, which no TV can fetch.
+        if !playsDownload {
+            extras.append(UIAction(title: String(localized: "Cast…"), image: CastPresenter.castIcon(pointSize: 21)) { [weak self] _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { self?.openCastPicker() }
+            })
+        }
+        extras += [
             UIAction(title: String(localized: "Stream Info"), image: UIImage(systemName: "info.circle")) { [weak self] _ in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { self?.presentStreamInfo() }
             },
