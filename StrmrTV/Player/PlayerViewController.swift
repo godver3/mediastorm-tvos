@@ -105,6 +105,10 @@ final class PlayerViewController: EnginePlayerViewController {
     override var hasTouchTransport: Bool { true }
     /// An offline download (`DownloadPlayback`): the file is on the device.
     var playsDownload: Bool { url.isFileURL }
+    /// Subtitles on an AirPlay receiver (`MobilePlayer+AirPlaySubtitles`).
+    lazy var airPlaySubtitles = AirPlaySubtitleHandoff(player: self)
+    /// The session carries the engine's native subtitle renditions (`prepareNativeSubtitles`).
+    var nativeSubtitlesPrepared = false
     #else
     var playsDownload: Bool { false }
     #endif
@@ -191,6 +195,11 @@ final class PlayerViewController: EnginePlayerViewController {
         options.serveIFramePlaylist = previewsEnabled
         // TrueHD Atmos / DTS:X heights (Settings › Playback); the engine renders them on VOD only.
         options.objectAudioRendering = AtmosSettingsStore.shared.rendering
+        #if os(iOS)
+        // Already AirPlaying: the receiver gets the subtitle renditions from the start.
+        if !playsDownload, AirPlaySubtitleHandoff.routeIsAirPlay { options.prepareNativeSubtitles = true }
+        nativeSubtitlesPrepared = options.prepareNativeSubtitles
+        #endif
         return options
     }
 

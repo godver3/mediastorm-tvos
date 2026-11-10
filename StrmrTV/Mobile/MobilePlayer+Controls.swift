@@ -18,6 +18,7 @@ extension PlayerViewController {
         controls.onScrub = { [weak self] time, ended in self?.mobileScrub(to: time, ended: ended) }
         mobileChromeTracker.start()
         installPictureInPicture()
+        if !playsDownload { airPlaySubtitles.start() }
     }
 
     /// AVKit can add its own views above the controls as its chrome builds; keep them on top.
@@ -28,6 +29,7 @@ extension PlayerViewController {
 
     func stopMobileControls() {
         mobileChromeTracker.stop()
+        airPlaySubtitles.stop()
     }
 
     /// The transport-bar menus as the phone's menu buttons. On a button the top-level title would
