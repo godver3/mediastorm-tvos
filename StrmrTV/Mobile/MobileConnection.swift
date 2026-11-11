@@ -185,7 +185,13 @@ final class MobileConnection: ObservableObject {
         }
         let ok = await check()
         if ok {
-            if status != .online { recovered() }
+            if status != .online {
+                recovered()
+            } else if reason == "network change", session.phase == .ready {
+                // A new network that reaches the server (e.g. home Wi-Fi): save the home and
+                // away addresses now, so leaving it later can switch without asking the server.
+                await selector.refreshSettings()
+            }
         } else if case .reconnecting = status {
             return
         } else {
@@ -262,6 +268,8 @@ final class MobileConnection: ObservableObject {
         recoveredAt = Date()
         // Rows that failed while the server was away fill in again.
         if session.phase == .ready { NotificationCenter.default.post(name: .continueWatchingChanged, object: nil) }
+        // A sign-in-time fetch may have failed: read the home and away addresses while reachable.
+        Task { if session.phase == .ready { await selector.refreshSettings() } }
         Task {
             try? await Task.sleep(for: .seconds(3))
             if let at = recoveredAt, Date().timeIntervalSince(at) >= 3 { recoveredAt = nil }
