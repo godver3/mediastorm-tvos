@@ -61,9 +61,10 @@ extension PlayerViewController {
         let carry = currentTrackCarry()
         log.notice("switch source: \(currentSource.releaseName ?? currentSource.streamPath ?? "?") -> \(SourceSwitch.releaseName(result)) "
                    + "(\(result.serviceType)) at \(Int(position))s, carrying audio \(carry.audioLanguage ?? "-"), subtitle \(carry.subtitle)")
-        let next = PlaybackRequest(title: request.title, episode: request.episode,
+        var next = PlaybackRequest(title: request.title, episode: request.episode,
                                    start: position > 0 ? .seconds(position) : nil,
                                    following: request.following, artwork: request.artwork)
+        next.speed = playbackSpeed
         dismiss(animated: true) { PlaybackCoordinator.shared.play(next, source: result, carry: carry) }
     }
 

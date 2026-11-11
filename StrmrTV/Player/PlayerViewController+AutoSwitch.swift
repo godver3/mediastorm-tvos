@@ -113,6 +113,7 @@ extension PlayerViewController {
                                    following: request.following, artwork: request.artwork)
         next.autoSwitchTried = tried
         next.autoSwitchCount = request.autoSwitchCount + 1
+        next.speed = playbackSpeed
         subtitleStatus.hide()
         dismiss(animated: true) {
             PlaybackCoordinator.shared.play(next, source: result, carry: carry, resolved: resolved)

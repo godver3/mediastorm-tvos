@@ -104,6 +104,8 @@ extension PlayerViewController {
     /// Closes this episode (saving it as finished) and starts the next over the loading art.
     func playNext(_ next: PlaybackRequest) {
         guard !isAdvancing, !didFinish else { return }
+        var next = next
+        next.speed = playbackSpeed
         isAdvancing = true
         stopCountdown()
         log.notice("playing next: \(next.episode?.code ?? "?")")

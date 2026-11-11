@@ -172,6 +172,12 @@ final class PlayerViewController: EnginePlayerViewController {
                     // Percentage-only resume (e.g. a Trakt import): now the duration is known.
                     await engine.seek(to: engine.duration * percent / 100)
                 }
+                if request.speed != 1 {
+                    // Up Next / Switch Source: the previous playback's speed (a new item starts at 1x).
+                    log.notice("carried speed: \(self.request.speed)x")
+                    playbackSpeed = request.speed
+                    engine.setRate(request.speed)
+                }
                 engine.play()
                 startProgressTimer()
                 await applySubtitlePick()
