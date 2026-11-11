@@ -8,6 +8,8 @@ import UIKit
 final class SkipSegments {
     private let request: PlaybackRequest
     private var segments: [SkipSegment] = []
+    /// Credits found on the device (`PlayerViewController+Credits`), used while the server has none.
+    private var detectedCredits: SkipSegment?
     private var postedKey: String?
     private var task: Task<Void, Never>?
 
@@ -44,10 +46,20 @@ final class SkipSegments {
         task?.cancel()
     }
 
+    /// The server has a credits range for this item (IntroDB, SkipDB or a chapter name).
+    var hasOutro: Bool { segments.contains { $0.type == "outro" } }
+
+    /// Credits found on the device, from `start` to the end of the item.
+    func addDetectedCredits(start: Double, end: Double) {
+        guard end > start else { return }
+        detectedCredits = SkipSegment(type: "outro", start: start, end: end)
+    }
+
     /// The segment playback is inside, when it merits a button. Movie end credits are left
     /// alone (skipping them only ends the film, and may skip a post-credits scene).
     func active(at time: Double) -> SkipSegment? {
-        segments.first { segment in
+        let candidates = hasOutro ? segments : segments + [detectedCredits].compactMap { $0 }
+        return candidates.first { segment in
             time >= segment.start && time < segment.end - 1 && (segment.type != "outro" || request.isEpisode)
         }
     }

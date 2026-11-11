@@ -149,9 +149,10 @@ final class PlaybackCoordinator: ObservableObject {
         return enabled
     }
 
-    /// The profile's credits auto-skip.
-    func creditsAutoSkipEnabled() async -> Bool {
-        await playbackSettings().creditsAutoSkip
+    /// The profile's credits auto-skip, and the server's on-device credits detection switch.
+    func creditsSettings() async -> (autoSkip: Bool, detection: Bool) {
+        let settings = await playbackSettings()
+        return (settings.creditsAutoSkip, settings.creditsDetectionEnabled)
     }
 
     /// The profile's playback settings, re-read at most every five minutes (or on a profile switch).

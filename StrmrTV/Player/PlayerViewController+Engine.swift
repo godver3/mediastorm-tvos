@@ -15,6 +15,7 @@ extension PlayerViewController {
                 guard let self else { return }
                 noteProgress(time)
                 updateSkipAction(at: time)
+                sampleCreditsIfDue(at: time)
                 prefetchNextIfNear(time)
                 guard softwareSurfaceMounted else { return }
                 #if os(iOS)

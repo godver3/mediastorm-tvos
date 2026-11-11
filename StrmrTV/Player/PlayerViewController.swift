@@ -42,6 +42,10 @@ final class PlayerViewController: EnginePlayerViewController {
     // auto-skip on, the Next Episode button counts down and plays it by itself.
     lazy var nextEpisode = request.nextEpisode
     var creditsAutoSkip = false
+    /// Settings › Playback › Credits Detection (`PlayerViewController+Credits`).
+    var creditsDetectionEnabled = false
+    var creditsDetection = CreditsDetection()
+    var creditsTask: Task<Void, Never>?
     var didPrefetchNext = false
     var countdown: (remaining: Int, timer: Timer)?
     var isAdvancing = false
@@ -149,8 +153,9 @@ final class PlayerViewController: EnginePlayerViewController {
         guard loadTask == nil else { return }
         if nextEpisode != nil {
             Task { [weak self] in
-                let enabled = await PlaybackCoordinator.shared.creditsAutoSkipEnabled()
-                self?.creditsAutoSkip = enabled
+                let credits = await PlaybackCoordinator.shared.creditsSettings()
+                self?.creditsAutoSkip = credits.autoSkip
+                self?.creditsDetectionEnabled = CreditsDetectionSettingsStore.shared.enabled(server: credits.detection)
             }
         }
         matchContent = view.window?.displayCriteriaMatchingEnabled ?? false
@@ -313,6 +318,7 @@ final class PlayerViewController: EnginePlayerViewController {
         stopCountdown()
         settingsHider.stop()
         skipSegments.cancel()
+        cancelCreditsDetection()
         scrubCommit?.cancel()
         thumbnails.cancel()
         onlineSubtitles.cancel()

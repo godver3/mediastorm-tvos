@@ -9,6 +9,7 @@ struct MobilePlaybackSettingsView: View {
     @ObservedObject private var tracks = TrackSettingsStore.shared
     @ObservedObject private var atmos = AtmosSettingsStore.shared
     @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
+    @ObservedObject private var credits = CreditsDetectionSettingsStore.shared
     @AppStorage(PhonePlayerOrientation.defaultsKey) private var orientation: PhonePlayerOrientation = .landscape
 
     private static let languages: [ChoiceRow<String>.Choice] = SubtitleSearchModel.options.map {
@@ -92,10 +93,18 @@ struct MobilePlaybackSettingsView: View {
             } footer: {
                 Text("Moves to another source when the current one fails or keeps stalling.")
             }
+
+            Section {
+                MobileOverridePicker("Credits Detection", selection: $credits.override,
+                                     defaultValue: credits.serverValue ?? false, choices: MobileChoices.onOff)
+            } footer: {
+                Text("When no credits are known for an episode, reads the end of the episode for credit text to offer Next Episode.")
+            }
         }
         .navigationTitle("Playback")
         .navigationBarTitleDisplayMode(.inline)
         .task { await tracks.refresh() }
+        .task { await credits.refresh() }
     }
 
     private var audioFooter: LocalizedStringKey {

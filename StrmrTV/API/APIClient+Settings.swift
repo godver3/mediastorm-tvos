@@ -16,6 +16,9 @@ extension APIClient {
         /// The details page plays the trailer behind the header (`playback.autoPlayTrailersTV`;
         /// on the device's own settings it is top-level).
         var autoPlayTrailers = false
+        /// Frames near the end are read for credit text when no credits range is known
+        /// (`playback.creditsDetectionEnabled`, off by default).
+        var creditsDetectionEnabled = false
     }
 
     func playbackSettings() async -> PlaybackSettings {
@@ -24,17 +27,19 @@ extension APIClient {
             let creditsDetection: Bool?
             let disablePrequeue: Bool?
             let autoPlayTrailersTV: Bool?
+            let creditsDetectionEnabled: Bool?
             /// The `subtitle*` fields of the same object.
             let style: SubtitleStyle.Server?
             var autoSkip: Bool? { creditsAutoSkip ?? creditsDetection }
 
-            private enum CodingKeys: String, CodingKey { case creditsAutoSkip, creditsDetection, disablePrequeue, autoPlayTrailersTV }
+            private enum CodingKeys: String, CodingKey { case creditsAutoSkip, creditsDetection, disablePrequeue, autoPlayTrailersTV, creditsDetectionEnabled }
             init(from decoder: Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
                 creditsAutoSkip = try c.decodeIfPresent(Bool.self, forKey: .creditsAutoSkip)
                 creditsDetection = try c.decodeIfPresent(Bool.self, forKey: .creditsDetection)
                 disablePrequeue = try c.decodeIfPresent(Bool.self, forKey: .disablePrequeue)
                 autoPlayTrailersTV = try c.decodeIfPresent(Bool.self, forKey: .autoPlayTrailersTV)
+                creditsDetectionEnabled = try c.decodeIfPresent(Bool.self, forKey: .creditsDetectionEnabled)
                 style = try? SubtitleStyle.Server(from: decoder)
             }
         }
@@ -49,7 +54,8 @@ extension APIClient {
             creditsAutoSkip: d?.autoSkip ?? u?.autoSkip ?? false,
             prequeueOnOpen: !(d?.disablePrequeue ?? u?.disablePrequeue ?? false),
             subtitleStyle: d?.style.map { $0.merged(over: u?.style) } ?? u?.style,
-            autoPlayTrailers: d?.autoPlayTrailersTV ?? u?.autoPlayTrailersTV ?? false)
+            autoPlayTrailers: d?.autoPlayTrailersTV ?? u?.autoPlayTrailersTV ?? false,
+            creditsDetectionEnabled: d?.creditsDetectionEnabled ?? u?.creditsDetectionEnabled ?? false)
     }
 }
 

@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject private var session = AppSession.shared
     @ObservedObject private var logs = LogUploader.shared
     @ObservedObject private var trailers = TrailerSettingsStore.shared
+    @ObservedObject private var credits = CreditsDetectionSettingsStore.shared
     @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
     @ObservedObject private var logos = LogoSettingsStore.shared
     @ObservedObject private var clock = ClockSettingsStore.shared
@@ -37,6 +38,7 @@ struct SettingsView: View {
         .padding(.horizontal, 30)
         .task { await checkConnection() }
         .task { await trailers.refresh() }
+        .task { await credits.refresh() }
         .task { await TrackSettingsStore.shared.refresh() }
         .task { await SpoilerSettingsStore.shared.refresh() }
         .task { await BadgeSettingsStore.shared.refresh() }
@@ -105,6 +107,12 @@ struct SettingsView: View {
                               .init(value: false, name: String(localized: "Off")),
                           ])
                     .accessibilityHint(Text("Plays a title's trailer behind its details page"))
+                ChoiceRow(title: "Credits Detection", selection: $credits.override,
+                          defaultValue: credits.serverValue ?? false, choices: [
+                              .init(value: true, name: String(localized: "On")),
+                              .init(value: false, name: String(localized: "Off")),
+                          ])
+                    .accessibilityHint(Text("Reads the end of an episode for credits when none are known, to offer Next Episode"))
                 ChoiceRow(title: "Auto Switch Sources", selection: $autoSwitch.enabled, choices: [
                     .init(value: true, name: String(localized: "On")),
                     .init(value: false, name: String(localized: "Off")),
