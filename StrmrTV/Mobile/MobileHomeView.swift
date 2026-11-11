@@ -43,20 +43,15 @@ private struct MobileHomeContent: View {
     @ObservedObject private var style = HomeStyleStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var searching = false
-    @State private var surprisePick: DetailsTarget?
+    @Environment(\.mobilePush) private var push
     @State private var findingSurprise = false
     @State private var surpriseError: String?
     @State private var askingAI = false
     @State private var aiPrompt = ""
-    @State private var aiList: BrowseList?
 
     var body: some View {
         lifecycle(page)
             .environment(\.homeAction) { run($0) }
-            .navigationDestination(isPresented: $searching) { MobileSearchView() }
-            .navigationDestination(item: $surprisePick) { MobileDetailsView(target: $0) }
-            .navigationDestination(item: $aiList) { MobileListPage(list: $0) }
             .modifier(actionAlerts)
     }
 
@@ -115,7 +110,7 @@ private struct MobileHomeContent: View {
     }
 
     private var actionAlerts: ActionAlerts {
-        ActionAlerts(surpriseError: $surpriseError, askingAI: $askingAI, aiPrompt: $aiPrompt, aiList: $aiList)
+        ActionAlerts(surpriseError: $surpriseError, askingAI: $askingAI, aiPrompt: $aiPrompt) { push(BrowseList.askAI($0)) }
     }
 }
 
@@ -124,7 +119,8 @@ private struct ActionAlerts: ViewModifier {
     @Binding var surpriseError: String?
     @Binding var askingAI: Bool
     @Binding var aiPrompt: String
-    @Binding var aiList: BrowseList?
+    /// Opens the server's picks for a prompt.
+    let ask: (String) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -136,7 +132,7 @@ private struct ActionAlerts: ViewModifier {
                 TextField("A cozy mystery from the 90s", text: $aiPrompt)
                 Button("Ask") {
                     let prompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !prompt.isEmpty { aiList = .askAI(prompt) }
+                    if !prompt.isEmpty { ask(prompt) }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -186,7 +182,7 @@ private extension MobileHomeContent {
     private func run(_ action: HomeAction) {
         switch action {
         case .search:
-            searching = true
+            push(MobileSearchRoute())
         case .askAI:
             aiPrompt = ""
             askingAI = true
@@ -197,7 +193,7 @@ private extension MobileHomeContent {
             Task {
                 defer { findingSurprise = false }
                 do {
-                    surprisePick = DetailsTarget(try await APIClient.shared.surprise(filter: filter))
+                    push(DetailsTarget(try await APIClient.shared.surprise(filter: filter)))
                 } catch {
                     surpriseError = error.localizedDescription
                 }

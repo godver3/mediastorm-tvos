@@ -100,6 +100,7 @@ struct MobileMainView: View {
     private func stack(for section: MobileSection) -> some View {
         if section == .home {
             NavigationStack(path: $homePath) { section.screen.mobileDestinations() }
+                .environment(\.mobilePush) { homePath.append($0) }
         } else {
             NavigationStack { section.screen.mobileDestinations() }
         }

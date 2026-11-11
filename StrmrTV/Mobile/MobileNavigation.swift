@@ -9,7 +9,18 @@ extension View {
             .navigationDestination(for: PersonRef.self) { MobilePersonView(person: $0) }
             .navigationDestination(for: BrowseList.self) { MobileListPage(list: $0) }
             .navigationDestination(for: LibraryShowTarget.self) { MobileLibraryShowView(target: $0) }
+            .navigationDestination(for: MobileSearchRoute.self) { _ in MobileSearchView() }
     }
+}
+
+/// Search as a pushed page (Home's Watch Something Search card).
+struct MobileSearchRoute: Hashable {}
+
+extension EnvironmentValues {
+    /// Pushes a page onto Home's path-backed stack. Home's own pushes go through the path:
+    /// a `navigationDestination(isPresented:)` page in a path-backed stack is rebuilt when a
+    /// value link on it appends to the path, so a title tapped in Search reopened Search.
+    @Entry var mobilePush: (any Hashable) -> Void = { _ in }
 }
 
 /// An empty, failed or loading state inside a scroll view, rather than in an overlay on
