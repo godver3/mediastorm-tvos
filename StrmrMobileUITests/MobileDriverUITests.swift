@@ -6,7 +6,7 @@ import XCTest
 /// gets STRMR_DRIVER=1. Start it with `scripts/ios start`; endpoints are in `scripts/ios help`.
 @MainActor
 final class MobileDriverUITests: XCTestCase {
-    private let app = XCUIApplication(bundleIdentifier: "com.strmr.app.nx.mobile")
+    private let app = XCUIApplication(bundleIdentifier: "com.strmr.app.nx")
     private var serving = true
     private var issues: [String] = []
 

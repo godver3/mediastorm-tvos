@@ -85,17 +85,22 @@ final class MobileChromeVisibility {
         controls.setChrome(visible: visible, following: volumeGroup?.layer)
     }
 
-    /// AVKit's volume group is wider while its slider is open. Its closed width differs between
-    /// releases (44 pt round on iOS 27.2, 202 pt on 27.3), so the narrowest width seen counts as
-    /// closed and the slider as open only well past it.
+    /// AVKit's volume group is wider while its slider is open. Its closed width depends on the
+    /// layout: a 44 pt round button in portrait, a 202 pt inline slider in landscape. So the
+    /// narrowest width seen counts as closed per player width (each orientation has its own), and
+    /// the slider as open only well past it. One shared minimum read every landscape as an open
+    /// slider after any portrait layout and kept the menu row faded out there.
     private var volumeExpanded: Bool {
-        guard let volumeGroup, volumeGroup.window != nil, volumeGroup.bounds.width > 0 else { return false }
+        guard let root, let volumeGroup, volumeGroup.window != nil, volumeGroup.bounds.width > 0 else { return false }
         let widest = volumeGroup.subviews.lazy.filter { !$0.isHidden && $0.alpha > 0.05 }
             .reduce(volumeGroup.bounds.width) { max($0, $1.frame.width) }
-        volumeRestWidth = min(volumeRestWidth ?? widest, widest)
-        return widest > (volumeRestWidth ?? widest) + 24
+        let layout = root.bounds.width.rounded()
+        let rest = min(volumeRestWidths[layout] ?? widest, widest)
+        volumeRestWidths[layout] = rest
+        return widest > rest + 24
     }
-    private var volumeRestWidth: CGFloat?
+    /// The volume group's closed width, keyed by the player's width (portrait and landscape).
+    private var volumeRestWidths: [CGFloat: CGFloat] = [:]
 
     private var volumeLayout: String {
         guard let volumeGroup else { return "-" }
@@ -109,7 +114,7 @@ final class MobileChromeVisibility {
         lastSearch = now
         playbackGroup = Self.find(in: root) { Self.className($0).hasSuffix("PlaybackControlsView") }
         volumeGroup = Self.find(in: root) { Self.className($0).hasSuffix("VolumeControlsView") }
-        volumeRestWidth = nil
+        volumeRestWidths = [:]
         if let playbackGroup {
             log.info("found \(Self.className(playbackGroup)) volume=\(volumeGroup.map(Self.className) ?? "none")")
         }
@@ -123,7 +128,7 @@ final class MobileChromeVisibility {
         if volumeGroup?.window == nil, CACurrentMediaTime() - lastVolumeSearch > 0.5 {
             lastVolumeSearch = CACurrentMediaTime()
             volumeGroup = Self.find(in: root) { Self.className($0).hasSuffix("VolumeControlsView") }
-            volumeRestWidth = nil
+            volumeRestWidths = [:]
         }
         let safe = controls.bounds.inset(by: controls.safeAreaInsets)
         let shown = volumeGroup.map { $0.window != nil && $0.bounds.width > 0 && volumeShownWithinChrome($0) } ?? false
