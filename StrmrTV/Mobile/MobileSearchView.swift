@@ -10,6 +10,7 @@ struct MobileSearchView: View {
     @StateObject private var store = SearchStore()
     @State private var scope: Scope = .all
     @State private var recents = MobileRecentSearches()
+    @FocusState private var fieldFocused: Bool
 
     enum Scope: String, CaseIterable, Identifiable {
         case all, movies, shows
@@ -43,15 +44,30 @@ struct MobileSearchView: View {
                 content
                     .searchable(text: $store.query, placement: .navigationBarDrawer(displayMode: .always),
                                 prompt: "Movies, shows and people")
+                    .searchFocused($fieldFocused)
                     .searchScopes($scope, activation: .onSearchPresentation) {
                         ForEach(Scope.allCases) { Text($0.label).tag($0) }
                     }
                     .searchSuggestions { suggestions }
                     .onSubmit(of: .search) { recents.add(store.normalizedQuery) }
                     .task { store.loadTopTen() }
+                    .onReceive(NotificationCenter.default.publisher(for: .mobileSearchTabReselected)) { _ in
+                        focusField()
+                    }
             }
         }
         .navigationTitle("Search")
+    }
+
+    /// Pressing the Search tab again focuses the field. A press from a page pushed over
+    /// Search pops back here first, and focus set mid-pop is dropped, so it tries again
+    /// once the pop has finished.
+    private func focusField() {
+        fieldFocused = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(400))
+            if !fieldFocused { fieldFocused = true }
+        }
     }
 
     // MARK: Suggestions

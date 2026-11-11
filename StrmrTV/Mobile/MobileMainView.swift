@@ -40,12 +40,12 @@ struct MobileMainView: View {
         // Search is declared last, after More: the bar draws the search tab at its end, and
         // declared earlier its index no longer matched its place, so the selection lens aimed
         // at the last slot (Search) when moving to More and snapped back.
-        TabView {
+        TabView(selection: tabSelection) {
             ForEach(split.tabs.filter { $0 != .search }) { section in
-                Tab(section.title, systemImage: section.symbol) { stack(for: section) }
+                Tab(section.title, systemImage: section.symbol, value: section.rawValue) { stack(for: section) }
             }
             if !split.more.isEmpty {
-                Tab("More", systemImage: "ellipsis") {
+                Tab("More", systemImage: "ellipsis", value: Self.moreTab) {
                     NavigationStack(path: $morePath) {
                         MobileMoreList(sections: split.more)
                             .navigationDestination(for: MobileSection.self) { $0.screen }
@@ -54,7 +54,8 @@ struct MobileMainView: View {
                 }
             }
             if split.tabs.contains(.search) {
-                Tab(MobileSection.search.title, systemImage: MobileSection.search.symbol, role: .search) {
+                Tab(MobileSection.search.title, systemImage: MobileSection.search.symbol,
+                    value: MobileSection.search.rawValue, role: .search) {
                     stack(for: .search)
                 }
             }
@@ -80,6 +81,21 @@ struct MobileMainView: View {
         .mobileLongPressModals(customLists: stores.customLists, titles: stores.titles)
     }
 
+    private static let moreTab = "more"
+
+    /// The selected tab, kept in a box rather than `@State` so a tab switch doesn't re-run
+    /// this body (see `stores`). The setter also runs when the selected tab is pressed again,
+    /// which for Search focuses its field (`MobileSearchView`) and brings up the keyboard.
+    private var tabSelection: Binding<String> {
+        let box = stores.selectedTab
+        return Binding(get: { box.value }, set: { tab in
+            if tab == box.value, tab == MobileSection.search.rawValue {
+                NotificationCenter.default.post(name: .mobileSearchTabReselected, object: nil)
+            }
+            box.value = tab
+        })
+    }
+
     @ViewBuilder
     private func stack(for section: MobileSection) -> some View {
         if section == .home {
@@ -88,6 +104,11 @@ struct MobileMainView: View {
             NavigationStack { section.screen.mobileDestinations() }
         }
     }
+}
+
+extension Notification.Name {
+    /// The Search tab was pressed while already selected.
+    static let mobileSearchTabReselected = Notification.Name("mobileSearchTabReselected")
 }
 
 /// A top-level phone section, in the Expo mobile tab order.

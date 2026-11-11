@@ -9,6 +9,13 @@ final class MobileMainStores: ObservableObject {
     let customLists = CustomListsStore()
     let titles = TitleStateStore()
     let listShelves = ListShelvesStore()
+    /// The tab bar's selection (`MobileMainView.tabSelection`); not published.
+    let selectedTab = Box(MobileSection.home.rawValue)
+
+    final class Box {
+        var value: String
+        init(_ value: String) { self.value = value }
+    }
 }
 
 /// Which sections are tabs and which sit behind More. A compact-width tab bar holds five
