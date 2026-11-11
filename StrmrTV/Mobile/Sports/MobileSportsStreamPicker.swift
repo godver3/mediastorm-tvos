@@ -127,7 +127,8 @@ private struct MobileSportsStreamRow: View {
             }
             .frame(width: 56, height: 32)
             VStack(alignment: .leading, spacing: 2) {
-                Text(match.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                Text(match.rowTitle).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(3)
+                    .multilineTextAlignment(.leading)
                 let details = SportsStreamSearch.details(match)
                 Text(row.loading ? [details, String(localized: "Loading streams…")].filter { !$0.isEmpty }.joined(separator: " · ")
                      : details)

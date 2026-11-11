@@ -244,6 +244,10 @@ struct SportsStreamMatch: Decodable, Identifiable, Hashable {
     /// "<channel> · <stream>" for a picked stream, else the channel's name.
     var title: String { streamLabel.map { "\(channelName) · \($0)" } ?? channelName }
 
+    /// The picker row's headline: the picked stream's label (what sets a Stremio channel's
+    /// streams apart; the channel name moves to the details), else the channel's name.
+    var rowTitle: String { streamLabel ?? channelName }
+
     /// The channel as Live TV tunes it, with the picked stream.
     var channel: LiveChannel {
         LiveChannel(id: channelId, name: channelName, url: channelUrl, logo: channelLogo, group: nil,

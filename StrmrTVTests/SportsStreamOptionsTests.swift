@@ -29,6 +29,10 @@ final class SportsStreamOptionsTests: XCTestCase {
         let matches = [match(addon), match(plain, id: "c2", name: "TSN", tier: "possible")]
         let rows = SportsStreamOptions.rows(matches, lookups: [addon: .loaded([stream(3, "FHD"), stream(0, "SD")])])
         XCTAssertEqual(rows.map(\.match.title), ["ESPN · FHD", "ESPN · SD", "TSN"])
+        // The row leads with the stream (what tells them apart); the channel joins the details.
+        XCTAssertEqual(rows.map(\.match.rowTitle), ["FHD", "SD", "TSN"])
+        XCTAssertTrue(SportsStreamSearch.details(rows[0].match).hasPrefix("Source · ESPN"))
+        XCTAssertFalse(SportsStreamSearch.details(rows[2].match).contains("TSN"))
         XCTAssertEqual(rows.map(\.match.stremioStreamIndex), [3, 0, nil])
         XCTAssertEqual(rows.map(\.match.channel.stremioStreamIndex), [3, 0, nil])
         XCTAssertTrue(rows[0].match.isStrong)

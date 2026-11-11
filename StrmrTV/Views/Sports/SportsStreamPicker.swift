@@ -45,10 +45,12 @@ enum SportsStreamSearch {
         String(localized: "No channel looks like it carries this \(target.noun).")
     }
 
-    /// "Source · Program · Reason · 92%".
+    /// "Source · Program · Reason · 92%", with the channel after the source on a stream row
+    /// (its headline is the stream, `rowTitle`).
     static func details(_ match: SportsStreamMatch) -> String {
         let percent = match.confidence.map { "\(Int(($0 * 100).rounded()))%" }
-        return [match.sourceName, match.programTitle, match.matchReason, percent]
+        let channel = match.streamLabel == nil ? nil : match.channelName
+        return [match.sourceName, channel, match.programTitle, match.matchReason, percent]
             .compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
     }
 }
@@ -137,7 +139,7 @@ struct SportsStreamPicker: View {
             }
             .frame(width: 120, height: 68)
             VStack(alignment: .leading, spacing: 6) {
-                Text(match.title).font(.headline).lineLimit(1)
+                Text(match.rowTitle).font(.headline).lineLimit(2).multilineTextAlignment(.leading)
                 Text(row.loading ? [details(match), String(localized: "Loading streams…")].filter { !$0.isEmpty }
                         .joined(separator: " · ") : details(match))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
