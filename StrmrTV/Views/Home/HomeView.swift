@@ -169,6 +169,12 @@ struct HomeView: View {
                     .ignoresSafeArea(.container, edges: .top)
             }
         }
+        #if os(tvOS)
+        // The time of day, top right in the title-safe area, level with the tab bar.
+        .overlay(alignment: .topTrailing) {
+            ClockView().padding(.top, ClockView.top).ignoresSafeArea(.container, edges: .top)
+        }
+        #endif
         .task {
             store.watchlist = watchlist.items
             // Back on a view already loaded: its layout to Settings, and a reload if stale.

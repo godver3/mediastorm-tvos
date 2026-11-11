@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject private var trailers = TrailerSettingsStore.shared
     @ObservedObject private var autoSwitch = AutoSwitchSettingsStore.shared
     @ObservedObject private var logos = LogoSettingsStore.shared
+    @ObservedObject private var clock = ClockSettingsStore.shared
     @State private var status: ConnectionStatus = .checking
     @State private var confirmSignOut = false
     @State private var confirmChangeServer = false
@@ -86,6 +87,14 @@ struct SettingsView: View {
                 ChoiceRow(title: "Details Title Logo Size", selection: $logos.detailsScale,
                           choices: LogoScale.allCases.map { .init(value: $0, name: $0.label) })
                     .accessibilityHint(Text("Sizes titles' logos on details pages"))
+            }
+
+            Section("Appearance") {
+                ChoiceRow(title: "Show Clock", selection: $clock.enabled, choices: [
+                    .init(value: true, name: String(localized: "On")),
+                    .init(value: false, name: String(localized: "Off")),
+                ])
+                    .accessibilityHint(Text("Shows the time on Home and in the player's controls"))
             }
 
             Section("Playback") {

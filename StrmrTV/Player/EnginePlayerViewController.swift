@@ -13,6 +13,9 @@ class EnginePlayerViewController: AVPlayerViewController {
     let settingsHider = TransportSettingsHider()
     let subtitleOverlay = SubtitleOverlayView()
     let softwareSurface = AetherPlayerView()
+    /// The time of day while AVKit's transport bar is up (`+Clock`); the software route's HUD
+    /// has its own.
+    let clockLabel = PlayerClockLabel()
     private(set) var softwareSurfaceMounted = false
     /// The display's Match Content setting, read when the player appears.
     var matchContent = false
@@ -49,6 +52,7 @@ class EnginePlayerViewController: AVPlayerViewController {
         menu.allowedPressTypes = [NSNumber(value: UIPress.PressType.menu.rawValue)]
         menu.delegate = self
         view.addGestureRecognizer(menu)
+        installClock()
         #endif
         // iOS has no Menu button, and with its default touch types this recognizer took the
         // taps on the video that bring AVKit's controls back once they have hidden.
@@ -138,6 +142,7 @@ class EnginePlayerViewController: AVPlayerViewController {
             softwareSurface.removeFromSuperview()
         }
         softwareSurfaceMounted = mounted
+        if mounted { clockLabel.alpha = 0 }
         showsPlaybackControls = !mounted
         #if os(iOS)
         updateTouchClose(softwareMounted: mounted)

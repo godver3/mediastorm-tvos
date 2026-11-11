@@ -24,6 +24,8 @@ final class SoftwareTransportHUD: UIView {
     private let info: TransportInfoCard
     private var actionButton: TransportActionButton?
     private let preview = ScrubPreviewView()
+    /// The time of day, top right; fades with the bar (Settings › Appearance › Show Clock).
+    private let clockLabel = PlayerClockLabel()
     private var fraction: CGFloat = 0
     private var previewFraction: CGFloat = 0
     private var hideWork: DispatchWorkItem?
@@ -88,7 +90,7 @@ final class SoftwareTransportHUD: UIView {
 
         info.alpha = 0
         preview.alpha = 0
-        for view in [track, elapsed, remainingLabel, livePill, buttonRow, info] as [UIView] {
+        for view in [track, elapsed, remainingLabel, livePill, buttonRow, info, clockLabel] as [UIView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             chrome.addSubview(view)
         }
@@ -114,6 +116,8 @@ final class SoftwareTransportHUD: UIView {
             info.leadingAnchor.constraint(equalTo: track.leadingAnchor),
             info.bottomAnchor.constraint(equalTo: track.topAnchor, constant: -36),
             info.widthAnchor.constraint(lessThanOrEqualToConstant: 1300),
+            clockLabel.topAnchor.constraint(equalTo: chrome.topAnchor, constant: PlayerClock.top),
+            clockLabel.trailingAnchor.constraint(equalTo: track.trailingAnchor),
         ])
     }
 
