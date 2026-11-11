@@ -37,6 +37,25 @@ extension MobileDetailsModel {
         }
     }
 
+    /// Marks `episodes` now, or after confirmation when the change is big (`BulkWatchChange`).
+    func requestMark(_ watched: Bool, _ episodes: [Episode], scope: WatchedScope?,
+                     extent: BulkWatchChange.Extent, titles: TitleStateStore) {
+        guard !episodes.isEmpty else { return }
+        guard BulkWatchChange.needsConfirmation(extent, count: episodes.count) else {
+            markWatched(watched, episodes, scope: scope, titles: titles)
+            return
+        }
+        let change = BulkWatchChange(watched: watched, count: episodes.count, seriesName: target.name,
+                                     extent: extent) { [weak self] in
+            self?.markWatched(watched, episodes, scope: scope, titles: titles)
+        }
+        // Let the menu (or a season's context menu) finish closing before the dialog presents.
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            pendingBulkWatch = change
+        }
+    }
+
     func toggleWatched(_ episode: Episode, titles: TitleStateStore) {
         markWatched(!isWatched(episode), [episode], scope: nil, titles: titles)
     }

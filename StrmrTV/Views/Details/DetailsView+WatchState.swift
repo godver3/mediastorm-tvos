@@ -47,25 +47,25 @@ extension DetailsView {
         let latest = shape.excludable
         let rest = shape.ordered.filter { $0.number != latest }
         let aired = shape.aired(shape.ordered)
-        Button { markWatched(true, aired, scope: .show) } label: {
+        Button { requestMark(true, aired, scope: .show, extent: .wholeShow) } label: {
             Label("Mark All \(aired.count) as Watched", systemImage: "checkmark.circle")
         }
         .disabled(aired.isEmpty)
         if let latest {
             let restAired = shape.aired(rest)
-            Button { markWatched(true, restAired, scope: nil) } label: {
+            Button { requestMark(true, restAired, scope: nil, extent: .wholeShowExcept(season: latest)) } label: {
                 Label("All Except Season \(latest) as Watched", systemImage: "checkmark.circle")
             }
             .disabled(restAired.isEmpty)
         }
         let all = shape.ordered.flatMap(\.episodes)
-        Button { markWatched(false, all, scope: .show) } label: {
+        Button { requestMark(false, all, scope: .show, extent: .wholeShow) } label: {
             Label("Mark All \(all.count) as Unwatched", systemImage: "xmark.circle")
         }
         .disabled(all.isEmpty)
         if let latest {
             let restAll = rest.flatMap(\.episodes)
-            Button { markWatched(false, restAll, scope: nil) } label: {
+            Button { requestMark(false, restAll, scope: nil, extent: .wholeShowExcept(season: latest)) } label: {
                 Label("All Except Season \(latest) as Unwatched", systemImage: "xmark.circle")
             }
             .disabled(restAll.isEmpty)
@@ -79,11 +79,14 @@ extension DetailsView {
         let watchedCount = season.episodes.filter(isWatched).count
         let complete = !aired.isEmpty && aired.allSatisfy(isWatched)
         let name = WatchStateSeasons.name(season)
+        let changing = complete ? season.episodes.count : aired.count
+        // A season big enough to confirm closes the menu so the confirmation can present.
+        let asks = BulkWatchChange.needsConfirmation(.season(name), count: changing)
         return Button {
             if complete {
-                markWatched(false, season.episodes, scope: WatchStateSeasons.scope(season))
+                requestMark(false, season.episodes, scope: WatchStateSeasons.scope(season), extent: .season(name))
             } else {
-                markWatched(true, aired, scope: WatchStateSeasons.scope(season))
+                requestMark(true, aired, scope: WatchStateSeasons.scope(season), extent: .season(name))
             }
         } label: {
             if complete {
@@ -96,7 +99,25 @@ extension DetailsView {
             }
         }
         .disabled(aired.isEmpty && watchedCount == 0)
-        .menuActionDismissBehavior(.disabled)
+        .menuActionDismissBehavior(asks ? .enabled : .disabled)
+    }
+
+    /// Marks `episodes` now, or after confirmation when the change is big (`BulkWatchChange`).
+    private func requestMark(_ watched: Bool, _ episodes: [Episode], scope: WatchedScope?,
+                             extent: BulkWatchChange.Extent) {
+        guard !episodes.isEmpty else { return }
+        guard BulkWatchChange.needsConfirmation(extent, count: episodes.count) else {
+            markWatched(watched, episodes, scope: scope)
+            return
+        }
+        let change = BulkWatchChange(watched: watched, count: episodes.count, seriesName: target.name, extent: extent) {
+            markWatched(watched, episodes, scope: scope)
+        }
+        // Let the menu finish closing before the dialog presents.
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            pendingBulkWatch = change
+        }
     }
 
     /// The episodes flip at once (the open menu's checks with them); the page reloads after.

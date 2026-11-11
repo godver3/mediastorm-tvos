@@ -61,6 +61,7 @@ struct MobileDetailsView: View {
             model.prequeueOverrides = (nil, ManualTrackOverrides())
             Task { await model.load() }
         }
+        .bulkWatchConfirmation($model.pendingBulkWatch)
         .modifier(MobileDetailsPresentations(model: model))
         .modifier(MobileDetailsDownloads(model: model))
         .overlay(alignment: .bottom) { toastView }

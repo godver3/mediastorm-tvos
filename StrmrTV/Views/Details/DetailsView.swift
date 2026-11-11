@@ -40,6 +40,8 @@ struct DetailsView: View {
     @State var watchedOverrides: [String: Bool] = [:]
     @State var watchedBusy = false
     @State var watchedError: String?
+    /// A large watched change waiting on confirmation (`BulkWatchConfirmation`).
+    @State var pendingBulkWatch: BulkWatchChange?
     /// The More Options dialog (`DetailsView+More`).
     /// Source picker currently shown (movie, or a specific episode).
     @State var sourcePicker: SourcePickerTarget?
@@ -259,6 +261,7 @@ struct DetailsView: View {
             prequeueOverrides = (nil, ManualTrackOverrides())
             Task { await load() }
         }
+        .bulkWatchConfirmation($pendingBulkWatch)
         .fullScreenCover(isPresented: $showPrequeueTracks) { prequeueTracksPage }
         .fullScreenCover(isPresented: $customizingButtons) { DetailsButtonsSheet() }
         .modifier(libraryVersionsPresentation)

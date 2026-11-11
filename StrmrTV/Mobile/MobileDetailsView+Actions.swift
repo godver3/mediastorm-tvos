@@ -105,25 +105,25 @@ extension MobileDetailsView {
             let latest = shape.excludable
             let rest = shape.ordered.filter { $0.number != latest }
             let aired = shape.aired(shape.ordered)
-            Button { model.markWatched(true, aired, scope: .show, titles: titles) } label: {
+            Button { model.requestMark(true, aired, scope: .show, extent: .wholeShow, titles: titles) } label: {
                 Label("Mark All \(aired.count) as Watched", systemImage: "checkmark.circle")
             }
             .disabled(aired.isEmpty)
             if let latest {
                 let restAired = shape.aired(rest)
-                Button { model.markWatched(true, restAired, scope: nil, titles: titles) } label: {
+                Button { model.requestMark(true, restAired, scope: nil, extent: .wholeShowExcept(season: latest), titles: titles) } label: {
                     Label("All Except Season \(latest) as Watched", systemImage: "checkmark.circle")
                 }
                 .disabled(restAired.isEmpty)
             }
             let all = shape.ordered.flatMap(\.episodes)
-            Button { model.markWatched(false, all, scope: .show, titles: titles) } label: {
+            Button { model.requestMark(false, all, scope: .show, extent: .wholeShow, titles: titles) } label: {
                 Label("Mark All \(all.count) as Unwatched", systemImage: "xmark.circle")
             }
             .disabled(all.isEmpty)
             if let latest {
                 let restAll = rest.flatMap(\.episodes)
-                Button { model.markWatched(false, restAll, scope: nil, titles: titles) } label: {
+                Button { model.requestMark(false, restAll, scope: nil, extent: .wholeShowExcept(season: latest), titles: titles) } label: {
                     Label("All Except Season \(latest) as Unwatched", systemImage: "xmark.circle")
                 }
                 .disabled(restAll.isEmpty)
@@ -142,11 +142,14 @@ extension MobileDetailsView {
         let watchedCount = season.episodes.filter(model.isWatched).count
         let complete = !aired.isEmpty && aired.allSatisfy(model.isWatched)
         let name = WatchStateSeasons.name(season)
+        // A season big enough to confirm closes the menu so the confirmation can present.
+        let asks = BulkWatchChange.needsConfirmation(.season(name), count: complete ? season.episodes.count : aired.count)
         return Button {
             if complete {
-                model.markWatched(false, season.episodes, scope: WatchStateSeasons.scope(season), titles: titles)
+                model.requestMark(false, season.episodes, scope: WatchStateSeasons.scope(season),
+                                  extent: .season(name), titles: titles)
             } else {
-                model.markWatched(true, aired, scope: WatchStateSeasons.scope(season), titles: titles)
+                model.requestMark(true, aired, scope: WatchStateSeasons.scope(season), extent: .season(name), titles: titles)
             }
         } label: {
             if complete {
@@ -159,7 +162,7 @@ extension MobileDetailsView {
             }
         }
         .disabled(aired.isEmpty && watchedCount == 0)
-        .menuActionDismissBehavior(dismissesMenu ? .automatic : .disabled)
+        .menuActionDismissBehavior(dismissesMenu || asks ? .automatic : .disabled)
     }
 }
 

@@ -30,6 +30,8 @@ private struct WatchStateDialogs: ViewModifier {
     let onChanged: () async -> Void
     /// By Season… opens this once the first dialog is gone.
     @State private var bySeason: WatchStateRequest?
+    /// A large change waiting on confirmation, likewise once its dialog is gone.
+    @State private var pending: BulkWatchChange?
 
     func body(content: Content) -> some View {
         content
@@ -47,6 +49,7 @@ private struct WatchStateDialogs: ViewModifier {
             } message: { request in
                 Text(request.series.name)
             }
+            .bulkWatchConfirmation($pending)
     }
 
     @ViewBuilder
@@ -63,7 +66,8 @@ private struct WatchStateDialogs: ViewModifier {
         let aired = shape.aired(shape.ordered)
         if !aired.isEmpty {
             Button("Mark All \(aired.count) Episodes as Watched") {
-                apply(true, aired, of: request, scope: .show, done: String(localized: "Marked all episodes as watched"))
+                apply(true, aired, of: request, scope: .show, extent: .wholeShow,
+                      done: String(localized: "Marked all episodes as watched"))
             }
         }
         if let latest = shape.excludable {
@@ -71,7 +75,7 @@ private struct WatchStateDialogs: ViewModifier {
             let restAired = shape.aired(rest)
             if !restAired.isEmpty {
                 Button("Mark All Except Season \(latest) as Watched") {
-                    apply(true, restAired, of: request, scope: nil,
+                    apply(true, restAired, of: request, scope: nil, extent: .wholeShowExcept(season: latest),
                           done: String(localized: "Marked all but Season \(latest) as watched"))
                 }
             }
@@ -79,14 +83,15 @@ private struct WatchStateDialogs: ViewModifier {
         let all = shape.ordered.flatMap(\.episodes)
         if !all.isEmpty {
             Button("Mark All \(all.count) Episodes as Unwatched") {
-                apply(false, all, of: request, scope: .show, done: String(localized: "Marked all episodes as unwatched"))
+                apply(false, all, of: request, scope: .show, extent: .wholeShow,
+                      done: String(localized: "Marked all episodes as unwatched"))
             }
         }
         if let latest = shape.excludable {
             let rest = shape.ordered.filter { $0.number != latest }.flatMap(\.episodes)
             if !rest.isEmpty {
                 Button("Mark All Except Season \(latest) as Unwatched") {
-                    apply(false, rest, of: request, scope: nil,
+                    apply(false, rest, of: request, scope: nil, extent: .wholeShowExcept(season: latest),
                           done: String(localized: "Marked all but Season \(latest) as unwatched"))
                 }
             }
@@ -109,12 +114,13 @@ private struct WatchStateDialogs: ViewModifier {
             let scope = WatchStateSeasons.scope(season)
             if toWatch.contains(where: { !isWatched($0) }) {
                 Button("Mark \(name) as Watched") {
-                    apply(true, toWatch, of: request, scope: scope, done: String(localized: "Marked \(name) as watched"))
+                    apply(true, toWatch, of: request, scope: scope, extent: .season(name),
+                          done: String(localized: "Marked \(name) as watched"))
                 }
             }
             if watchedCount > 0 {
                 Button("Mark \(name) as Unwatched") {
-                    apply(false, season.episodes, of: request, scope: scope,
+                    apply(false, season.episodes, of: request, scope: scope, extent: .season(name),
                           done: String(localized: "Marked \(name) as unwatched"))
                 }
             }
@@ -130,9 +136,26 @@ private struct WatchStateDialogs: ViewModifier {
         }
     }
 
+    /// Big changes (`BulkWatchChange`) ask first, once this dialog is off screen.
     private func apply(_ watched: Bool, _ episodes: [Episode], of request: WatchStateRequest,
-                       scope: WatchedScope?, done: String) {
+                       scope: WatchedScope?, extent: BulkWatchChange.Extent? = nil, done: String) {
         guard !episodes.isEmpty else { return }
+        if let extent, BulkWatchChange.needsConfirmation(extent, count: episodes.count) {
+            let change = BulkWatchChange(watched: watched, count: episodes.count, seriesName: request.series.name,
+                                         extent: extent) {
+                write(watched, episodes, of: request, scope: scope, done: done)
+            }
+            Task {
+                try? await Task.sleep(for: .milliseconds(400))
+                pending = change
+            }
+            return
+        }
+        write(watched, episodes, of: request, scope: scope, done: done)
+    }
+
+    private func write(_ watched: Bool, _ episodes: [Episode], of request: WatchStateRequest,
+                       scope: WatchedScope?, done: String) {
         let titles = titles
         Task {
             do {

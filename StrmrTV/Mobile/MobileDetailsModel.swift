@@ -32,6 +32,8 @@ final class MobileDetailsModel: ObservableObject {
     @Published var contentPreference: ContentPreference?
     /// Watched changes made here, shown until the reload after the write lands (by episode ID).
     @Published var watchedOverrides: [String: Bool] = [:]
+    /// A large watched change waiting on confirmation (`BulkWatchConfirmation`).
+    @Published var pendingBulkWatch: BulkWatchChange?
     @Published var similar: [Title] = []
     @Published var collectionMovies: [Title] = []
     private var loadedCollectionID: Int?
