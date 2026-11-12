@@ -107,6 +107,8 @@ struct LandscapeCard: View {
                     Text(card.title).font(.title3.weight(.bold))
                 }
             }
+        } else if !card.collageURLs.isEmpty {
+            ArtCollage(urls: card.collageURLs, size: size)
         } else {
             face
             .overlay(alignment: .topLeading) {

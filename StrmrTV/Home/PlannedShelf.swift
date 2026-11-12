@@ -208,11 +208,7 @@ struct PlannedShelf: Identifiable, Sendable {
             return HomeShelf(id: id, title: config.title, cards: cards, cap: cap)
 
         case let .hub(links):
-            let cards = links.map { link in
-                HomeCard(id: "hub-\(link.id)", link: .list(link.list), title: link.name,
-                         subtitle: link.list.title, backdropURL: link.art,
-                         logoURL: link.logo, logoTile: link.art == nil)
-            }
+            let cards = await HubCards.cards(links, cap: cap)
             return HomeShelf(id: id, title: config.title, cards: cards, cap: cap)
 
         case .liveFavorites:

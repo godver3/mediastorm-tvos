@@ -50,6 +50,8 @@ struct HomeCard: Identifiable, Hashable {
     var newEpisode: NewEpisodeBadge?
     /// The card draws `logoURL` on a plain tile instead of artwork (services, hubs).
     var logoTile = false
+    /// A hub card's preview of its list: four titles' art, drawn 2×2 in place of artwork.
+    var collageURLs: [String] = []
     /// An SF Symbol drawn on a plain tile (Watch Something).
     var symbol: String?
     /// The content rating and genres, for the Home carousel's line (list titles only).

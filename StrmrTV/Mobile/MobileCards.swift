@@ -114,6 +114,8 @@ struct MobileCardArt: View {
                     Text(card.title).font(.headline)
                 }
             }
+        } else if !card.collageURLs.isEmpty {
+            ArtCollage(urls: card.collageURLs, size: size)
         } else {
             RemoteImage(url: Artwork.url(landscape ? card.artworkURL : (card.posterURL ?? card.artworkURL), size: "w500"),
                         size: size) { _ in
