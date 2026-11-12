@@ -43,6 +43,12 @@ final class AppSession: ObservableObject {
 
     var challengeContinuation: CheckedContinuation<Bool, Never>?
     var challengeTask: (profileID: String, task: Task<Bool, Never>)?
+    /// Resume lock state (`+ResumeLock`): when the app left the foreground, the server's
+    /// `display.alwaysShowProfileSelector` as last read, and whether the picker may be backed
+    /// out of (not when it came up to re-check a PIN profile).
+    var backgroundedAt: Date?
+    var alwaysShowProfileSelector = true
+    var profilePickRequired = false
 
     let api = APIClient.shared
     let defaults = UserDefaults.standard
@@ -57,7 +63,7 @@ final class AppSession: ObservableObject {
     /// "Use this profile automatically": opened at launch without the picker (or its PIN).
     var autoProfileID: String? { defaults.string(forKey: Key.autoProfileID) }
     /// Switching from Settings (rather than first pick) can be cancelled.
-    var canCancelProfilePick: Bool { profile != nil }
+    var canCancelProfilePick: Bool { profile != nil && !profilePickRequired }
 
     private init() {
         api.onSignedOut = { [weak self] in
@@ -82,6 +88,7 @@ final class AppSession: ObservableObject {
                                                object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.reconnectRemote() }
         }
+        observeBackgroundForResumeLock()
     }
 
     // MARK: Startup
@@ -332,12 +339,13 @@ final class AppSession: ObservableObject {
     }
 
     func cancelProfilePick() {
-        if profile != nil { phase = .ready }
+        if canCancelProfilePick { phase = .ready }
     }
 
     private func activate(_ chosen: Profile) async {
         api.activate(profileID: chosen.id, profileName: chosen.name)
         profile = chosen
+        profilePickRequired = false
         defaults.set(chosen.id, forKey: Key.lastProfileID)
         phase = .ready
         // Registration ties this device to the profile for per-device settings and
@@ -348,6 +356,7 @@ final class AppSession: ObservableObject {
             print("[AppSession] client registration failed: \(error.localizedDescription)")
         }
         reportDisplayCapabilities()
+        refreshResumeLockSetting()
         LogUploader.shared.start()
     }
 
