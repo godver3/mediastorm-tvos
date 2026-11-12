@@ -21,15 +21,7 @@ struct MobileMainView: View {
         HomeViewsStore.shared.configure(profileID: APIClient.shared.profileID)
     }
 
-    private var sections: [MobileSection] {
-        let kids = AppSession.shared.profile?.isKidsProfile == true
-        return MobileSection.allCases.filter { section in
-            guard let tab = section.menuTab else { return true }
-            // Kids profiles don't get Live TV (as in the Expo app).
-            if section == .live, kids { return false }
-            return menu.isVisible(tab)
-        }
-    }
+    private var sections: [MobileSection] { MobileSection.shown(menu: menu) }
 
     private var split: MobileTabSplit {
         MobileTabSplit(sections: sections, compact: sizeClass == .compact)
@@ -37,11 +29,14 @@ struct MobileMainView: View {
 
     var body: some View {
         let split = split
-        // Search is declared last, after More: the bar draws the search tab at its end, and
-        // declared earlier its index no longer matched its place, so the selection lens aimed
-        // at the last slot (Search) when moving to More and snapped back.
+        // Search keeps the bar's own search tab (drawn at the bar's end) while it's the last
+        // tab, as by default; moved elsewhere in Tab Order it's a plain tab in its place.
+        // The search tab is declared last, after More: declared earlier its index no longer
+        // matched its place, so the selection lens aimed at the last slot (Search) when moving
+        // to More and snapped back.
+        let pinSearch = split.tabs.last == .search || menu.order.isEmpty
         TabView(selection: tabSelection) {
-            ForEach(split.tabs.filter { $0 != .search }) { section in
+            ForEach(split.tabs.filter { !(pinSearch && $0 == .search) }) { section in
                 Tab(section.title, systemImage: section.symbol, value: section.rawValue) { stack(for: section) }
             }
             if !split.more.isEmpty {
@@ -53,7 +48,7 @@ struct MobileMainView: View {
                     }
                 }
             }
-            if split.tabs.contains(.search) {
+            if pinSearch, split.tabs.contains(.search) {
                 Tab(MobileSection.search.title, systemImage: MobileSection.search.symbol,
                     value: MobileSection.search.rawValue, role: .search) {
                     stack(for: .search)
@@ -112,11 +107,27 @@ extension Notification.Name {
     static let mobileSearchTabReselected = Notification.Name("mobileSearchTabReselected")
 }
 
-/// A top-level phone section, in the Expo mobile tab order.
+/// A top-level phone section, in the default order: the Expo mobile tab order, Search after
+/// Lists so it ends the iPhone bar, where its search button draws.
 enum MobileSection: String, CaseIterable, Identifiable, Hashable {
-    case home, watchlist, search, lists, calendar, recordings, live, sports, profiles, downloads, settings
+    case home, watchlist, lists, search, calendar, recordings, live, sports, profiles, downloads, settings
 
     var id: String { rawValue }
+
+    /// The sections shown on this device: Home, then the rest in this device's order
+    /// (Settings › Tabs › Tab Order). Search moves like the others.
+    @MainActor
+    static func shown(menu: MenuTabsStore) -> [MobileSection] {
+        let kids = AppSession.shared.profile?.isKidsProfile == true
+        let visible = allCases.filter { section in
+            guard let tab = section.menuTab else { return true }
+            // Kids profiles don't get Live TV (as in the Expo app).
+            if section == .live, kids { return false }
+            return menu.isVisible(tab)
+        }
+        let ordered = DeviceOrder.apply(menu.order, to: visible.filter { $0 != .home }, id: \.rawValue)
+        return visible.filter { $0 == .home } + ordered
+    }
 
     /// The profile menu entry that shows or hides it; nil for sections always shown.
     var menuTab: MenuTab? {

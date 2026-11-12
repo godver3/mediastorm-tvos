@@ -75,7 +75,7 @@ final class HomeStore: ObservableObject {
     /// Re-publishes when the top menu changes: Watch Something's Search card goes with
     /// the Search tab.
     private var menuChanges: AnyCancellable?
-    /// Re-publishes when rows are hidden or shown in Settings.
+    /// Re-publishes when rows are hidden, shown or reordered in Settings.
     private var hiddenChanges: AnyCancellable?
 
     init(view: String = HomeViews.all) {
@@ -84,9 +84,8 @@ final class HomeStore: ObservableObject {
         menuChanges = menu.$overrides.combineLatest(menu.$profileTabs)
             .dropFirst()
             .sink { [weak self] _ in Task { @MainActor in self?.publish() } }
-        hiddenChanges = HomeLayoutStore.shared.$hiddenShelves
-            .dropFirst()
-            .removeDuplicates()
+        hiddenChanges = HomeLayoutStore.shared.$hiddenShelves.dropFirst().removeDuplicates().map { _ in () }
+            .merge(with: ShelfOrderStore.shared.$order.dropFirst().removeDuplicates().map { _ in () })
             .sink { [weak self] _ in Task { @MainActor in self?.publish() } }
     }
 
@@ -338,10 +337,10 @@ final class HomeStore: ObservableObject {
         return false
     }
 
-    /// The planned rows minus those hidden in Settings › Home Layout.
+    /// The planned rows minus those hidden in Settings › Home Layout, in this device's order.
     private var visiblePlan: [PlannedShelf] {
         let layout = HomeLayoutStore.shared
-        return plan.filter { !layout.isHidden($0.id) }
+        return ShelfOrderStore.shared.ordered(plan.filter { !layout.isHidden($0.id) }, id: \.id)
     }
 
     private func publish() {

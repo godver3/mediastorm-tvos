@@ -8,6 +8,7 @@ import SwiftUI
 struct MobileHomeRowsSettingsView: View {
     @ObservedObject private var layout = HomeLayoutStore.shared
     @ObservedObject private var style = HomeStyleStore.shared
+    @ObservedObject private var shelfOrder = ShelfOrderStore.shared
 
     var body: some View {
         Form {
@@ -27,8 +28,11 @@ struct MobileHomeRowsSettingsView: View {
                 if layout.shelves.isEmpty {
                     Text("Open Home to list its rows.").foregroundStyle(.secondary)
                 }
-                ForEach(layout.shelves) { shelf in
+                ForEach(shelfOrder.ordered(layout.shelves, id: \.id)) { shelf in
                     MobileShelfStylePicker(shelf: shelf)
+                }
+                if !layout.shelves.isEmpty {
+                    NavigationLink("Row Order") { MobileRowOrderView() }
                 }
             } header: {
                 Text("Rows")
@@ -97,6 +101,7 @@ struct MobileMenuSettingsView: View {
                                              .init(value: false, name: String(localized: "Hidden")),
                                          ])
                 }
+                NavigationLink("Tab Order") { MobileTabOrderView() }
             } footer: {
                 Text("Home, Profiles, Downloads and Settings are always shown. Live is never shown on kids profiles. On iPhone the first four sections are tabs and the rest are under More.")
             }

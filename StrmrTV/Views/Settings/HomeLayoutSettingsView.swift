@@ -5,6 +5,7 @@ import SwiftUI
 struct HomeLayoutSettingsView: View {
     @ObservedObject private var layout = HomeLayoutStore.shared
     @ObservedObject private var style = HomeStyleStore.shared
+    @ObservedObject private var shelfOrder = ShelfOrderStore.shared
 
     var body: some View {
         Form {
@@ -69,8 +70,11 @@ struct HomeLayoutSettingsView: View {
                 if layout.shelves.isEmpty {
                     Text("Open Home to list its rows.").foregroundStyle(.secondary)
                 }
-                ForEach(layout.shelves) { shelf in
+                ForEach(shelfOrder.ordered(layout.shelves, id: \.id)) { shelf in
                     ShelfStylePicker(shelf: shelf)
+                }
+                if !layout.shelves.isEmpty {
+                    NavigationLink("Row Order") { RowOrderSettingsView() }
                 }
                 if !layout.shelfStyles.isEmpty || !layout.hiddenShelves.isEmpty {
                     Button("Reset All Rows to Default") { layout.resetShelfStyles() }
@@ -78,7 +82,7 @@ struct HomeLayoutSettingsView: View {
             } header: {
                 Text("Rows")
             } footer: {
-                Text("Hidden rows are left off Home on this device. As in the Expo app, Continue Watching, My Upcoming, Watch Something, Dashboard, Streaming Services, Recently Watched and collection rows default to wide cards; other rows to posters.")
+                Text("Hidden rows are left off Home on this device; Row Order sets their order here. As in the Expo app, Continue Watching, My Upcoming, Watch Something, Dashboard, Streaming Services, Recently Watched and collection rows default to wide cards; other rows to posters.")
             }
         }
         .settingsSubpage()
@@ -192,5 +196,20 @@ private struct ShelfStylePicker: View {
                 layout.setStyle(nil, for: shelf.id)
             }
         }
+    }
+}
+
+/// Settings › Home Layout › Row Order: Home's rows in this device's order.
+private struct RowOrderSettingsView: View {
+    @ObservedObject private var layout = HomeLayoutStore.shared
+    @ObservedObject private var order = ShelfOrderStore.shared
+
+    var body: some View {
+        let items = order.ordered(layout.shelves, id: \.id).map { ReorderItem(id: $0.id, name: $0.title) }
+        ReorderSettingsView(title: "Row Order", items: items,
+                            footer: "Select a row to pick it up, move it with Up and Down, and select again to put it down. Saved on this device only; rows added to the profile later keep their place after the row before them.",
+                            isCustom: order.isCustom,
+                            move: { order.move($0, to: $1, in: items.map(\.id)) },
+                            reset: order.reset)
     }
 }

@@ -22,13 +22,14 @@ struct MenuSettingsView: View {
                     OverridePicker(tab.label, selection: menu.binding(for: tab), options: [true, false],
                                    profileValue: menu.profileShows(tab)) { $0 ? "Shown" : "Hidden" }
                 }
+                NavigationLink("Tab Order") { TabOrderSettingsView() }
                 if !menu.overrides.isEmpty {
                     Button("Reset All to Default") { menu.resetOverrides() }
                 }
             } header: {
                 Text("Tabs")
             } footer: {
-                Text("Home and Settings are always shown. Live is never shown on kids profiles.")
+                Text("Home and Settings are always shown, first and last. Live is never shown on kids profiles. Tab Order sets the order of the others on this device.")
             }
             Section {
                 ForEach(homeViews.ids.filter { $0 != HomeViews.all }, id: \.self) { view in
@@ -46,5 +47,22 @@ struct MenuSettingsView: View {
         .settingsSubpage()
         .settingsListMargins(80)
         .task { await homeViews.refresh() }
+    }
+}
+
+/// Settings › Menu › Tab Order: the tabs between Home and Settings, in this device's order.
+private struct TabOrderSettingsView: View {
+    @ObservedObject private var menu = MenuTabsStore.shared
+    @ObservedObject private var homeViews = HomeViewsStore.shared
+
+    var body: some View {
+        let items = menu.orderedTabIDs(homeViews: homeViews).map { id in
+            ReorderItem(id: id, name: MenuTab(rawValue: id)?.title ?? homeViews.label(id))
+        }
+        ReorderSettingsView(title: "Tab Order", items: items,
+                            footer: "Select a tab to pick it up, move it with Up and Down, and select again to put it down. Saved on this device only. Home stays first and Settings last; Movies, Shows and pages turned on under Home Views are listed too.",
+                            isCustom: !menu.order.isEmpty,
+                            move: { menu.moveTab($0, to: $1, in: items.map(\.id)) },
+                            reset: menu.resetTabOrder)
     }
 }

@@ -33,70 +33,11 @@ struct MainTabs: View {
             Tab(homeTabTitle, systemImage: "house", value: .home) {
                 homeStack(view: homeTabView, path: $homePath, viewChoices: homeViewChoices)
             }
-            ForEach(viewTabs, id: \.self) { view in
-                Tab(homeViews.label(view), systemImage: homeViews.icon(view), value: MainTab.homeView(view)) {
-                    homeStack(view: view, path: viewPath(view))
-                }
-            }
-            // Kids profiles don't get Live TV (as in the Expo app).
-            if menu.isVisible(.live), AppSession.shared.profile?.isKidsProfile != true {
-                Tab("Live", systemImage: "dot.radiowaves.left.and.right", value: .live) {
-                    NavigationStack { LiveView() }.pinsSideMenu()
-                }
-            }
-            // Kids profiles get it too: the Expo menu gates only Live.
-            if menu.isVisible(.recordings) {
-                Tab("Recordings", systemImage: "record.circle", value: .recordings) {
-                    NavigationStack { RecordingsView() }.pinsSideMenu()
-                }
-            }
-            // Off unless the profile's list names it, as in the Expo menu.
-            if menu.isVisible(.sports) {
-                Tab("Sports", systemImage: "trophy", value: .sports) {
-                    NavigationStack { SportsHubView() }.pinsSideMenu()
-                }
-            }
-            if menu.isVisible(.watchlist) {
-                Tab("Watchlist", systemImage: "bookmark", value: .watchlist) {
-                    NavigationStack {
-                        WatchlistView()
-                            .navigationDestination(for: DetailsTarget.self, destination: details)
-                            .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
-                    }
-                    .pinsSideMenu()
-                }
-            }
-            if menu.isVisible(.lists) {
-                Tab("Lists", systemImage: "list.bullet.rectangle", value: .lists) {
-                    NavigationStack {
-                        ListsView()
-                            .navigationDestination(for: BrowseList.self) { ListPage(list: $0).pinsSideMenu() }
-                            .navigationDestination(for: LibraryShowTarget.self) { LibraryShowView(target: $0).pinsSideMenu() }
-                            .navigationDestination(for: DetailsTarget.self, destination: details)
-                            .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
-                    }
-                    .pinsSideMenu()
-                }
-            }
-            // Kids profiles get it too: the Expo menu doesn't gate it.
-            if menu.isVisible(.calendar) {
-                Tab("Calendar", systemImage: "calendar", value: .calendar) {
-                    NavigationStack {
-                        CalendarView()
-                            .navigationDestination(for: DetailsTarget.self, destination: details)
-                            .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
-                    }
-                    .pinsSideMenu()
-                }
-            }
-            if menu.isVisible(.search) {
-                Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
-                    NavigationStack {
-                        SearchView()
-                            .navigationDestination(for: DetailsTarget.self, destination: details)
-                            .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
-                    }
-                    .pinsSideMenu()
+            // Movies, Shows and pages with tabs, then the menu's sections, in this device's
+            // order (Settings › Menu › Tab Order).
+            ForEach(orderedTabs, id: \.self) { item in
+                Tab(tabTitle(item), systemImage: tabSymbol(item), value: item, role: item == .search ? .search : nil) {
+                    tabContent(item)
                 }
             }
             Tab("Settings", systemImage: "gear", value: .settings) {
@@ -139,6 +80,53 @@ struct MainTabs: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Describe what you're in the mood for.")
+        }
+    }
+
+    /// A tab's screen: a Home view's rows, or a menu section in its navigation stack.
+    @ViewBuilder
+    private func tabContent(_ item: MainTab) -> some View {
+        switch item {
+        case let .homeView(view):
+            homeStack(view: view, path: viewPath(view))
+        case .live:
+            NavigationStack { LiveView() }.pinsSideMenu()
+        case .recordings:
+            NavigationStack { RecordingsView() }.pinsSideMenu()
+        case .sports:
+            NavigationStack { SportsHubView() }.pinsSideMenu()
+        case .watchlist:
+            NavigationStack {
+                WatchlistView()
+                    .navigationDestination(for: DetailsTarget.self, destination: details)
+                    .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
+            }
+            .pinsSideMenu()
+        case .lists:
+            NavigationStack {
+                ListsView()
+                    .navigationDestination(for: BrowseList.self) { ListPage(list: $0).pinsSideMenu() }
+                    .navigationDestination(for: LibraryShowTarget.self) { LibraryShowView(target: $0).pinsSideMenu() }
+                    .navigationDestination(for: DetailsTarget.self, destination: details)
+                    .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
+            }
+            .pinsSideMenu()
+        case .calendar:
+            NavigationStack {
+                CalendarView()
+                    .navigationDestination(for: DetailsTarget.self, destination: details)
+                    .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
+            }
+            .pinsSideMenu()
+        case .search:
+            NavigationStack {
+                SearchView()
+                    .navigationDestination(for: DetailsTarget.self, destination: details)
+                    .navigationDestination(for: PersonRef.self) { PersonPage(person: $0).pinsSideMenu() }
+            }
+            .pinsSideMenu()
+        case .home, .settings:
+            EmptyView()
         }
     }
 

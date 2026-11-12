@@ -39,13 +39,32 @@ final class MenuTabsStore: ObservableObject {
         /// The profile's list as last loaded, by profile id, so the menu doesn't change
         /// shape once the server answers at launch.
         static let profileTabs = "menuTabs.profileTabs"
+        /// This device's tab order (Settings › Menu › Tab Order), by tab id.
+        static let order = "menuTabs.order"
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let saved = defaults.dictionary(forKey: Keys.overrides) as? [String: Bool] ?? [:]
         _overrides = Published(initialValue: saved)
+        _order = Published(initialValue: defaults.stringArray(forKey: Keys.order) ?? [])
     }
+
+    /// The tabs between Home and Settings in this device's order, by id (a `MenuTab` raw
+    /// value or a Home view id); empty for the default order. See `DeviceOrder.apply`.
+    @Published private(set) var order: [String] {
+        didSet { defaults.set(order, forKey: Keys.order) }
+    }
+
+    /// Moves `id` to `target`'s place among `shown`, the tabs as the editor lists them.
+    func moveTab(_ id: String, to target: String, in shown: [String]) {
+        order = DeviceOrder.move(id, to: target, in: shown)
+    }
+
+    /// Saves `shown` as the order (the phone's drag list hands over the whole list).
+    func setTabOrder(_ shown: [String]) { order = shown }
+
+    func resetTabOrder() { order = [] }
 
     /// The profile's visible tabs, as last loaded.
     @Published private(set) var profileTabs: Set<String> = MenuTab.serverDefault
