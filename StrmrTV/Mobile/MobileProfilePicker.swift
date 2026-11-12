@@ -23,7 +23,7 @@ struct MobileProfilePicker: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                BrandMark(height: 150)
+                BrandMark(height: 150, profiles: true)
                 Text("Who's Watching?").font(.title2.weight(.semibold))
 
                 if session.profiles.isEmpty {

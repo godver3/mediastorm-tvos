@@ -47,8 +47,29 @@ struct PublicBranding: Decodable, Equatable {
     let homeTvImageUrl: String?
 
     /// The wide logo the Expo app's sign-in shows (loading logo, else the mobile logo).
-    var logoPath: String? {
-        [loadingLogoUrl, homeMobileLogoUrl].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+    var logoPath: String? { Self.first(loadingLogoUrl, homeMobileLogoUrl) }
+
+    /// The profile picker's image, as in the Expo app: the TV home image on TV
+    /// (else the mobile logo), the mobile logo on phones and tablets (else the TV image).
+    func profilePickerPath(tv: Bool) -> String? {
+        tv ? Self.first(homeTvImageUrl, homeMobileLogoUrl) : Self.first(homeMobileLogoUrl, homeTvImageUrl)
+    }
+
+    /// Resolves a branding path against the server. Uploads are stored as
+    /// `/branding/images/<slot>?v=…`, which the server serves under `/api`.
+    static func resolve(_ path: String?, server: URL) -> URL? {
+        guard let path = path?.trimmingCharacters(in: .whitespaces), !path.isEmpty else { return nil }
+        if let url = URL(string: path), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            return url
+        }
+        var base = server.absoluteString
+        while base.hasSuffix("/") { base.removeLast() }
+        let relative = path.hasPrefix("/") ? path : "/" + path
+        return URL(string: base + (relative.hasPrefix("/api/") ? relative : "/api" + relative))
+    }
+
+    private static func first(_ paths: String?...) -> String? {
+        paths.compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
     }
 }
 

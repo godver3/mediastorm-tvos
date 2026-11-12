@@ -31,6 +31,8 @@ final class AppSession: ObservableObject {
     @Published internal(set) var isHomeDirect = false
     /// The server's custom logo (admin UI → Appearance & Branding), when one is uploaded.
     @Published private(set) var brandLogoURL: URL?
+    /// The server's profile-picker image (TV home image on TV, mobile logo on iOS), when uploaded.
+    @Published private(set) var brandProfilesURL: URL?
     /// Shown on the login screen after an involuntary sign-out.
     @Published var loginNotice: String?
     /// A request hit a locked profile; `RootView` asks for its PIN. Set by `+PINChallenge`.
@@ -267,12 +269,19 @@ final class AppSession: ObservableObject {
         api.baseURL = url
         api.session = AuthSession.load()
         brandLogoURL = nil
+        brandProfilesURL = nil
         Task {
             serverVersion = await api.serverVersion()
         }
         Task {
-            guard let path = await api.publicBranding()?.logoPath, serverURL == url else { return }
-            brandLogoURL = URL(string: path, relativeTo: url)?.absoluteURL
+            guard let branding = await api.publicBranding(), serverURL == url else { return }
+            brandLogoURL = PublicBranding.resolve(branding.logoPath, server: url)
+            #if os(tvOS)
+            let tv = true
+            #else
+            let tv = false
+            #endif
+            brandProfilesURL = PublicBranding.resolve(branding.profilePickerPath(tv: tv), server: url)
         }
     }
 

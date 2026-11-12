@@ -16,7 +16,7 @@ struct ProfilePickerView: View {
     var body: some View {
         VStack(spacing: 56) {
             VStack(spacing: 30) {
-                BrandMark(height: 250)
+                BrandMark(height: 250, profiles: true)
                 Text("Who's Watching?").font(.title3.weight(.semibold))
             }
 

@@ -61,10 +61,12 @@ struct BrandMark: View {
     var height: CGFloat
     /// Rounded tile, for surfaces whose background differs from the logo's own.
     var tile = false
+    /// Profile pickers show the server's profile-picker image (as the Expo app does).
+    var profiles = false
 
     var body: some View {
         Group {
-            if let url = session.brandLogoURL {
+            if let url = profiles ? session.brandProfilesURL : session.brandLogoURL {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
                         image.resizable().aspectRatio(contentMode: .fit)
