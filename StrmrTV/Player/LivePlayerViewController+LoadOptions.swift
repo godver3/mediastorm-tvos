@@ -21,6 +21,7 @@ extension LivePlayerViewController {
             // 45 MB of it and missed the 25 s first-frame deadline. 8 MiB is a few seconds of
             // such a channel, still the PMT and several keyframes.
             options.probesize = Self.liveDirectProbeBytes
+            options.maxAnalyzeDuration = Self.liveDirectAnalyzeMicroseconds
             options.liveEdgeCushionSeconds = Self.liveDirectCushionSeconds
             options.dvrWindowSeconds = timeshiftWindow
         }
@@ -28,6 +29,11 @@ extension LivePlayerViewController {
     }
 
     static let liveDirectProbeBytes: Int64 = 8 << 20
+
+    /// A TS stream never tells FFmpeg it has found every stream, so the probe runs to its budget,
+    /// and in bytes that budget is slower the lower the bitrate: 8 MiB of a 5 Mbps 1080p sports
+    /// channel is ~13 s of real time. Capping it by time as well opens any bitrate in ~3 s.
+    static let liveDirectAnalyzeMicroseconds: Int64 = 3_000_000
 
     /// Broadcast muxers (an HDHomeRun's ATSC feed) send each AC-3 frame up to ~0.8 s after the video
     /// of the same timestamp. At the bare edge the software clock starts on the first keyframe, so

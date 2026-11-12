@@ -13,8 +13,11 @@ import Foundation
 /// usually reports the failure first. A stream that has opened and is being demuxed is only
 /// slow, not dead: a provider delivering a 4K channel below real time fills the join's
 /// holdback late (18 s of media took ~30 s on a reported Sportsnet 4K line), so it gets until
-/// `directStartSlowDeadline`. HLS reads the same provider and can't fix that, so a fallback
-/// reached through a deadline is tried for this tune but never remembered for the source.
+/// `directStartSlowDeadline`. A fallback reached through a deadline is remembered like any
+/// other once it proves itself: HLS reads the same provider, but a direct stream that keeps
+/// missing its deadline while the server's HLS session starts in seconds (a Stremio sports
+/// channel: 25 s of black, then HLS in 3 s, on every tune) is the wrong route for the source,
+/// and a slow provider fails the fallback's stall-free probation instead.
 ///
 /// Once a direct stream of a source has shown a frame on this device it never falls back:
 /// direct is known to work there, so a later failure is the provider's, which HLS can't fix.
@@ -45,9 +48,8 @@ extension LivePlayerViewController {
     }
 
     /// A direct stream that never played: tunes once more as HLS. False when that doesn't
-    /// apply (an HLS tune, one that played, or the fallback already tried). `rememberable`:
-    /// the direct stream failed outright, so a working fallback may be kept for the source.
-    func fallBackToHLS(_ reason: String, rememberable: Bool = true) -> Bool {
+    /// apply (an HLS tune, one that played, or the fallback already tried).
+    func fallBackToHLS(_ reason: String) -> Bool {
         guard !didFinish, tuneIsDirect, !tunePlayed, hlsMode == .asConfigured else { return false }
         guard !directWorkedForSource else {
             log.notice("live hls: direct stream failed before playing (\(reason)), but direct has played for this source before; not falling back")
@@ -55,7 +57,6 @@ extension LivePlayerViewController {
         }
         log.notice("live hls: direct stream failed before playing (\(reason)); retrying as hls")
         hlsMode = .fallback
-        hlsFallbackRememberable = rememberable
         // Close the direct stream's provider connection before the session opens another.
         engine.stop()
         tune(after: 0.3)
@@ -87,7 +88,7 @@ extension LivePlayerViewController {
     private func directStartFailed(after deadline: TimeInterval) {
         guard !tunePlayed else { return }
         let reason = "no first frame in \(Int(deadline)) s"
-        guard !fallBackToHLS(reason, rememberable: false) else { return }
+        guard !fallBackToHLS(reason) else { return }
         log.error("live direct stream: \(reason)")
         // A Stremio channel has other streams of the broadcast to try.
         if channel.hasStremioSources { failOrFailOver(reason) }
@@ -120,10 +121,6 @@ extension LivePlayerViewController {
         hlsProofTimer?.invalidate()
         hlsProofStalled = false
         guard hlsMode == .fallback else { return }
-        guard hlsFallbackRememberable else {
-            log.notice("live hls: fallback after a slow direct start; not remembered for the source")
-            return
-        }
         hlsProofTimer = Timer.scheduledTimer(withTimeInterval: Self.hlsProofDuration, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.confirmHLS() }
         }

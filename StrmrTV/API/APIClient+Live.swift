@@ -80,6 +80,10 @@ extension APIClient {
             "mediaType": "channel", "title": programTitle ?? channel.name,
             "channelId": channel.playbackId ?? channel.id, "channelName": channel.name,
             "liveSourceUrl": channel.url,
+            // A transmuxed direct stream (a Stremio HLS channel) as MPEG-TS, not fragmented MP4:
+            // the engine leaves a live source seekable, and on a seekable fragmented MP4 FFmpeg
+            // reads fragment after fragment for an index and never finishes opening.
+            "container": "ts",
         ]
         if let profileName, !profileName.isEmpty { q["profileName"] = profileName }
         if let v = channel.sourceId { q["sourceId"] = v; q["liveSourceId"] = v }

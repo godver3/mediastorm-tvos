@@ -57,8 +57,6 @@ final class LivePlayerViewController: EnginePlayerViewController {
     var tunePlayed = false
     var hlsProofTimer: Timer?
     var hlsProofStalled = false
-    /// The fallback came from an outright direct failure, not a deadline.
-    var hlsFallbackRememberable = true
     /// A direct stream of this channel's source has played on this device (`LiveHLSPreference`).
     var directWorkedForSource = false
     var directStartTimer: Timer?
