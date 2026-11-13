@@ -32,6 +32,9 @@ struct HomeCarouselControls: View {
     /// How far a focused button reaches below its resting frame (its growth and shadow);
     /// the rows' scroll view leaves this much room under the controls.
     static let focusRoom: CGFloat = 40
+    /// The carousel's inset from the side safe area: the rows' (`ShelfRow`), so the text,
+    /// buttons and dots line up with the row titles under them.
+    static let margin: CGFloat = 80
     /// The invisible stops either side of the buttons.
     static let previous = HomeFocus(shelf: HomeCarousel.focusShelf, card: "previous")
     static let next = HomeFocus(shelf: HomeCarousel.focusShelf, card: "next")

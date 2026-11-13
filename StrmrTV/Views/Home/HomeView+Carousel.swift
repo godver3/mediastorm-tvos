@@ -101,7 +101,8 @@ extension HomeView {
                 .overlay(alignment: .bottomLeading) {
                     HomeCarouselControls(shelf: shelf, focused: $focused, index: $carouselIndex,
                                          entry: carouselButton, advancedAt: carouselAdvancedAt)
-                        // The scroll view's content keeps to the 80 pt side safe area already.
+                        // Inside the side safe area by the rows' margin, as their titles are.
+                        .padding(.horizontal, HomeCarouselControls.margin)
                         .padding(.bottom, (size.oneShelf || peek > 0 ? 0 : safeBottom) + HomeCarouselControls.focusRoom)
                 }
                 .id(Self.carouselSlotID)
@@ -112,14 +113,19 @@ extension HomeView {
     /// `focusRoom` below it: the room under the carousel's buttons, which under hero text
     /// falls on the bottom safe area. Without the carousel up it is the plain clip, so the next
     /// row never peeks below the focused one. With Peek Next Row the buttons sit inside the
-    /// viewport, so it is the plain clip throughout (the peeking row stops at the viewport's foot).
+    /// viewport, and the peeking row runs on to the screen's bottom edge: under hero text the
+    /// viewport ends on the bottom safe area, and clipped there the row stopped short of the
+    /// edge with the carousel's art showing under it.
     @ViewBuilder
-    func carouselClip(_ rows: some View, carousel: Bool) -> some View {
+    func carouselClip(_ rows: some View, carousel: Bool, size: HeroSize) -> some View {
         if carousel {
+            let overflow = !carouselShown ? 0
+                : carouselPeek > 0 ? (size.oneShelf ? safeBottom : 0)
+                : HomeCarouselControls.focusRoom
             rows.scrollClipDisabled()
                 .mask(alignment: .top) {
                     Rectangle()
-                        .padding(.bottom, carouselShown && carouselPeek == 0 ? -HomeCarouselControls.focusRoom : 0)
+                        .padding(.bottom, -overflow)
                         // To the screen's sides: the scroll view runs edge to edge, but a shape
                         // keeps out of the 80 pt side safe area, and cut the rows' cards off
                         // there as they scrolled.

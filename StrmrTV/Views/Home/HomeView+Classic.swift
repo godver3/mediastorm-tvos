@@ -120,7 +120,7 @@ extension HomeView {
                             .id(slot.id)
                         }
                     }
-                }, carousel: carousel)
+                }, carousel: carousel, size: size)
                 .scrollDisabled(true)
                 .scrollIndicators(.hidden)
                 .onChange(of: focused?.shelf) { old, shelf in

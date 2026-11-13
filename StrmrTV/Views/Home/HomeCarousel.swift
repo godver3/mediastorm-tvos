@@ -45,13 +45,11 @@ struct HomeCarousel: View {
                 .id(current?.id)
                 .transition(.opacity)
         }
-        .padding(.leading, 80)
+        // Inside the side safe area, as the rows' titles and cards are (80 pt in from it).
+        .padding(.leading, HomeCarouselControls.margin)
         // Just above the buttons, which sit on the bottom safe area (or `controlsLift` above it).
         .padding(.bottom, controlsLift + HomeCarouselControls.height + 30 * textScale)
-        // The text keeps to the safe area top and bottom; sideways it lines up with
-        // the rows' 80 pt margin from the screen edge.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-        .ignoresSafeArea(.container, edges: .horizontal)
         // The whole physical screen, safe area ignored on every edge, as Classic's hero
         // backdrop: aspect-fill, framed and cropped the same. Fixed: it only crossfades.
         .background {
