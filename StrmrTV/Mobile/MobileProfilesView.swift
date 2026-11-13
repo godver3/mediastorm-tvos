@@ -15,6 +15,7 @@ struct MobileProfilesView: View {
     @State private var usage: APIClient.StreamUsage?
     @State private var message: String?
     @State private var error: String?
+    @StateObject private var parentAuthorization = ParentAuthorizationPrompt()
 
     var body: some View {
         List {
@@ -69,6 +70,7 @@ struct MobileProfilesView: View {
         } message: { _ in
             Text("Its watch history, watchlist and settings are deleted from the server. This can't be undone.")
         }
+        .parentAuthorizationAlert(parentAuthorization)
     }
 
     private func row(_ profile: Profile) -> some View {
@@ -181,9 +183,10 @@ struct MobileProfilesView: View {
     private func delete(_ profile: Profile) async {
         deleting = nil
         do {
-            try await APIClient.shared.deleteProfile(profile.id)
+            try await parentAuthorization.run { try await APIClient.shared.deleteProfile(profile.id, accountPassword: $0) }
             message = String(localized: "Deleted profile “\(profile.name)”.")
             await reload()
+        } catch is CancellationError {
         } catch {
             self.error = error.localizedDescription
         }

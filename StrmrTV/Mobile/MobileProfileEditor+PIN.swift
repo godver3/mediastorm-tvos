@@ -12,6 +12,7 @@ struct MobileProfilePINView: View {
     @State private var saving = false
     @State private var error: String?
     @FocusState private var field: Field?
+    @StateObject private var parentAuthorization = ParentAuthorizationPrompt()
 
     private enum Field { case pin, confirm }
 
@@ -47,6 +48,7 @@ struct MobileProfilePINView: View {
                 }
             }
             .interactiveDismissDisabled(saving)
+            .parentAuthorizationAlert(parentAuthorization)
             .onAppear { field = .pin }
         }
     }
@@ -76,9 +78,10 @@ struct MobileProfilePINView: View {
         Task {
             defer { saving = false }
             do {
-                try await APIClient.shared.setProfilePIN(profile.id, pin)
+                try await parentAuthorization.run { try await APIClient.shared.setProfilePIN(profile.id, pin, accountPassword: $0) }
                 await onSaved()
                 dismiss()
+            } catch is CancellationError {
             } catch {
                 self.error = error.localizedDescription
             }

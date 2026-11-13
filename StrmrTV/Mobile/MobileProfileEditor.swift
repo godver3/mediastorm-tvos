@@ -16,6 +16,7 @@ struct MobileProfileEditor: View {
     @State private var confirmRemovePIN = false
     @State private var confirmDelete = false
     @State private var editingPIN = false
+    @StateObject private var parentAuthorization = ParentAuthorizationPrompt()
 
     init(profile: Profile) {
         _profile = State(initialValue: profile)
@@ -63,7 +64,7 @@ struct MobileProfileEditor: View {
                 Toggle("Kids Profile", isOn: $kids)
                     .onChange(of: kids) { _, on in
                         guard on != (profile.isKidsProfile == true) else { return }
-                        save { try await $0.setKidsProfile(profile.id, on) }
+                        save { api in try await parentAuthorization.run { try await api.setKidsProfile(profile.id, on, accountPassword: $0) } }
                     }
             } footer: {
                 Text("Kids profiles see only titles their content rating or allowed lists permit, and no Live TV. Ratings and lists are set in the server's web UI.")
@@ -76,7 +77,7 @@ struct MobileProfileEditor: View {
                         .confirmationDialog("Remove the PIN from “\(profile.name)”?", isPresented: $confirmRemovePIN,
                                             titleVisibility: .visible) {
                             Button("Remove PIN", role: .destructive) {
-                                save { try await $0.clearProfilePIN(profile.id) }
+                                save { api in try await parentAuthorization.run { try await api.clearProfilePIN(profile.id, accountPassword: $0) } }
                             }
                         } message: {
                             Text("Anyone using this device will be able to open the profile.")
@@ -111,6 +112,7 @@ struct MobileProfileEditor: View {
         .navigationBarTitleDisplayMode(.inline)
         .disabled(working)
         .overlay { if working { ProgressView() } }
+        .parentAuthorizationAlert(parentAuthorization)
         .sheet(isPresented: $editingPIN) {
             MobileProfilePINView(profile: profile) { await refresh() }
         }
@@ -131,6 +133,8 @@ struct MobileProfileEditor: View {
             defer { working = false }
             do {
                 _ = try await edit(APIClient.shared)
+            } catch is CancellationError {
+                // The account password prompt was cancelled; the refresh restores the form.
             } catch {
                 self.error = error.localizedDescription
             }
@@ -152,9 +156,10 @@ struct MobileProfileEditor: View {
         Task {
             defer { working = false }
             do {
-                try await APIClient.shared.deleteProfile(profile.id)
+                try await parentAuthorization.run { try await APIClient.shared.deleteProfile(profile.id, accountPassword: $0) }
                 try? await session.reloadProfiles()
                 dismiss()
+            } catch is CancellationError {
             } catch {
                 self.error = error.localizedDescription
             }

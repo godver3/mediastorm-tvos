@@ -55,6 +55,9 @@ enum APIError: LocalizedError {
         static let masterRequired = "master_required"
         static let profileNotFound = "profile_not_found"
         static let rateLimited = "rate_limited"
+        /// A parental-controls change (kids profile, PIN, deleting a profile) needs the
+        /// account password in `X-Account-Password`.
+        static let parentAuthorizationRequired = "parent_authorization_required"
         static let defaultPassword = "default_password"
     }
 

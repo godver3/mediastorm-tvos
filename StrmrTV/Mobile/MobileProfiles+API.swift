@@ -47,21 +47,33 @@ extension APIClient {
         try await send("PUT", "/api/users/\(Self.segment(id))/color", body: ["color": color])
     }
 
+    // Kids profile, PIN and delete are parental controls: for an ordinary account the server
+    // answers `parent_authorization_required` until the account password comes with the change
+    // (`ParentAuthorizationPrompt` asks for it). An administrator account needs none.
+
     @discardableResult
-    func setKidsProfile(_ id: String, _ isKids: Bool) async throws -> Profile {
-        try await send("PUT", "/api/users/\(Self.segment(id))/kids-profile", jsonObject: ["isKidsProfile": isKids])
+    func setKidsProfile(_ id: String, _ isKids: Bool, accountPassword: String? = nil) async throws -> Profile {
+        try await send("PUT", "/api/users/\(Self.segment(id))/kids-profile", jsonObject: ["isKidsProfile": isKids],
+                       headers: Self.parentAuthorization(accountPassword))
     }
 
-    func setProfilePIN(_ id: String, _ pin: String) async throws {
-        try await sendRaw("PUT", "/api/users/\(Self.segment(id))/pin", body: ["pin": pin])
+    func setProfilePIN(_ id: String, _ pin: String, accountPassword: String? = nil) async throws {
+        try await sendRaw("PUT", "/api/users/\(Self.segment(id))/pin", body: ["pin": pin],
+                          headers: Self.parentAuthorization(accountPassword))
     }
 
-    func clearProfilePIN(_ id: String) async throws {
-        try await sendRaw("DELETE", "/api/users/\(Self.segment(id))/pin")
+    func clearProfilePIN(_ id: String, accountPassword: String? = nil) async throws {
+        try await sendRaw("DELETE", "/api/users/\(Self.segment(id))/pin", headers: Self.parentAuthorization(accountPassword))
     }
 
-    func deleteProfile(_ id: String) async throws {
-        try await sendRaw("DELETE", "/api/users/\(Self.segment(id))")
+    func deleteProfile(_ id: String, accountPassword: String? = nil) async throws {
+        try await sendRaw("DELETE", "/api/users/\(Self.segment(id))", headers: Self.parentAuthorization(accountPassword))
+    }
+
+    /// `X-Account-Password`, Base64 so any character (and surrounding spaces) survives a header.
+    private static func parentAuthorization(_ password: String?) -> [String: String] {
+        guard let password, !password.isEmpty else { return [:] }
+        return ["X-Account-Password": "base64:" + Data(password.utf8).base64EncodedString()]
     }
 }
 #endif
