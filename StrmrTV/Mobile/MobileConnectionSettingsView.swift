@@ -12,7 +12,7 @@ struct MobileConnectionSettingsView: View {
     @ObservedObject private var monitor = MobileNetworkMonitor.shared
     @ObservedObject private var selector = MobileConnectionSelector.shared
     @ObservedObject private var wifi = MobileWiFiSSID.shared
-    @State private var irohPath: String?
+    @State private var irohRoute: IrohRoute = .detecting
     @State private var checking = false
     @State private var checkResult: String?
     @State private var journal: [MobileReconnectJournal.Entry] = []
@@ -50,7 +50,13 @@ struct MobileConnectionSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             journal = MobileReconnectJournal.entries.reversed()
-            await refreshIrohPath()
+        }
+        .task(id: session.isRemote) {
+            // iroh can upgrade a relayed link to direct (or fall back) at any time.
+            while !Task.isCancelled {
+                await refreshIrohPath()
+                try? await Task.sleep(for: IrohRoute.pollInterval)
+            }
         }
         .refreshable {
             await selector.refreshSettings()
@@ -231,10 +237,10 @@ struct MobileConnectionSettingsView: View {
     private var remoteStatusText: String {
         if session.isHomeDirect { return String(localized: "Standing by (on home network)") }
         guard connection.status == .online else { return String(localized: "Reconnecting…") }
-        switch irohPath {
-        case "direct": return String(localized: "Connected · Direct")
-        case "relay": return String(localized: "Connected · Relay")
-        default: return String(localized: "Connected · Detecting path")
+        switch irohRoute {
+        case .direct: return String(localized: "Connected · Direct")
+        case .relay: return String(localized: "Connected · Relay")
+        case .detecting: return String(localized: "Connected · Detecting path")
         }
     }
 
@@ -257,8 +263,8 @@ struct MobileConnectionSettingsView: View {
     // MARK: Actions
 
     private func refreshIrohPath() async {
-        guard session.isRemote else { irohPath = nil; return }
-        irohPath = await IrohBridge.pathDiagnostics()["selectedPath"] as? String
+        guard session.isRemote else { irohRoute = .detecting; return }
+        irohRoute = await IrohRoute.current()
     }
 
     private func checkNow() async {

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject private var logos = LogoSettingsStore.shared
     @ObservedObject private var clock = ClockSettingsStore.shared
     @State private var status: ConnectionStatus = .checking
+    @State private var route: IrohRoute = .detecting
     @State private var confirmSignOut = false
     @State private var confirmChangeServer = false
 
@@ -37,6 +38,7 @@ struct SettingsView: View {
         // Title-safe margins; the list's own margins hold the focus lift.
         .padding(.horizontal, 30)
         .task { await checkConnection() }
+        .task(id: session.isRemote) { await pollRoute() }
         .task { await trailers.refresh() }
         .task { await credits.refresh() }
         .task { await TrackSettingsStore.shared.refresh() }
@@ -61,6 +63,9 @@ struct SettingsView: View {
                     ? String(localized: "Remote access (iroh)")
                     : session.serverURL.map(ServerAddress.display) ?? "—")
                 SettingsRow(title: "Status", value: statusText, systemImage: statusSymbol)
+                if session.isRemote {
+                    SettingsRow(title: "Route", value: route.label, systemImage: route.systemImage)
+                }
                 Button("Check Connection") { Task { await checkConnection() } }
                     .accessibilityHint(Text("Checks that the server is reachable"))
                 SpeedTestRows()
@@ -183,6 +188,16 @@ struct SettingsView: View {
         guard let v = session.serverVersion else { return "—" }
         if let build = v.buildId, !build.isEmpty { return "\(v.version) (\(build))" }
         return v.version
+    }
+
+    /// Direct or relay, refreshed while Settings is on screen: iroh can upgrade a relayed
+    /// link to direct (or fall back) at any time.
+    private func pollRoute() async {
+        guard session.isRemote else { return }
+        while !Task.isCancelled {
+            route = await IrohRoute.current()
+            try? await Task.sleep(for: IrohRoute.pollInterval)
+        }
     }
 
     private func checkConnection() async {

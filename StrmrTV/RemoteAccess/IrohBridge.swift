@@ -52,12 +52,13 @@ enum IrohBridge {
         _ = try? await call { iroh_network_change() }
     }
 
-    /// Whether the connection runs direct or through a relay, for Settings.
+    /// Whether the connection runs direct or through a relay, for Settings. Unlike the other
+    /// calls its JSON has no `"ok"` envelope (only a bridge panic adds `"ok":false`).
     static func pathDiagnostics() async -> [String: Any] {
-        (try? await call { iroh_get_path_diagnostics() }) ?? [:]
+        (try? await call(envelope: false) { iroh_get_path_diagnostics() }) ?? [:]
     }
 
-    private static func call(_ body: @escaping @Sendable () -> UnsafeMutablePointer<CChar>?) async throws -> [String: Any] {
+    private static func call(envelope: Bool = true, _ body: @escaping @Sendable () -> UnsafeMutablePointer<CChar>?) async throws -> [String: Any] {
         let text: String? = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let pointer = body()
@@ -68,7 +69,7 @@ enum IrohBridge {
         guard let text, let data = text.data(using: .utf8),
               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { throw Failure(message: "The bridge returned nothing") }
-        guard json["ok"] as? Bool == true else {
+        guard envelope ? json["ok"] as? Bool == true : json["ok"] as? Bool != false else {
             throw Failure(message: json["error"] as? String ?? "Remote access failed")
         }
         return json
