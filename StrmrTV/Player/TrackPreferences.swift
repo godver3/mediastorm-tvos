@@ -130,7 +130,10 @@ struct TrackPreferences {
 
     /// Compares ISO 639-1/639-2 (B or T) tags by normalizing both through Locale.
     static func sameLanguage(_ a: String?, _ b: String?) -> Bool {
-        guard let a, let b else { return a == nil && b == nil }
+        // Untagged tracks (nil, blank, `und`, `unknown`) are one group, however each side spells it.
+        let aUntagged = ClientTrackSelector.isUntagged(a), bUntagged = ClientTrackSelector.isUntagged(b)
+        if aUntagged || bUntagged { return aUntagged && bUntagged }
+        guard let a, let b else { return false }
         return normalize(a) == normalize(b)
     }
 

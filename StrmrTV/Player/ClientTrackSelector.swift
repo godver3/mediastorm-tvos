@@ -128,12 +128,14 @@ enum ClientTrackSelector {
         let selectable = streams.filter { !isUnsupported($0.codec) }
         guard !selectable.isEmpty else { return -1 }
         if mode == "forced-only" {
-            return selectable.first { isForced($0) && matches($0.language ?? "", $0.title, language) }?.index ?? -1
+            return selectable.first { isForced($0) && matches($0.language ?? "", $0.title, language) }?.index
+                ?? untagged(selectable, forced: true)
         }
         guard !language.isEmpty else { return -1 }
         let candidates = selectable.filter { !isForced($0) && matches($0.language ?? "", $0.title, language) }
         guard let first = candidates.first else {
-            return selectable.first { isForced($0) && matches($0.language ?? "", $0.title, language) }?.index ?? -1
+            return selectable.first { isForced($0) && matches($0.language ?? "", $0.title, language) }?.index
+                ?? untagged(selectable, forced: false)
         }
         let title = { (s: Stream) in s.title.lowercased() }
         let sdh = { (s: Stream) in ["sdh", "deaf", "hard of hearing"].contains(where: title(s).contains) }
@@ -148,6 +150,20 @@ enum ClientTrackSelector {
             if let hit = candidates.first(where: rule) { return hit.index }
         }
         return first.index
+    }
+
+    /// `findUntaggedSubtitleTrack`: with no language match, the first track with no language tag
+    /// (forced or not, as asked, never signs/songs), often a file's only subtitle; else -1.
+    static func untagged(_ streams: [Stream], forced: Bool) -> Int {
+        streams.first {
+            isUntagged($0.language) && isForced($0) == forced
+                && !($0.title.lowercased().contains("sign") || $0.title.lowercased().contains("song"))
+        }?.index ?? -1
+    }
+
+    /// `IsUntaggedLanguage`: blank, `und`, `unk` / `unknown` or `mis`.
+    static func isUntagged(_ language: String?) -> Bool {
+        ["", "und", "unk", "unknown", "mis"].contains((language ?? "").trimmingCharacters(in: .whitespaces).lowercased())
     }
 
     // MARK: Helpers
