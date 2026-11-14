@@ -35,6 +35,7 @@ enum IrohBridge {
     /// Starts (or reuses) the loopback proxy that tunnels HTTP to the server over iroh.
     /// Returns its base URL, `http://127.0.0.1:<port>`, without the `/api` the bridge appends.
     static func startProxy(invite: String) async throws -> URL {
+        await IrohBridgeLog.start()
         let result = try await call { invite.withCString { iroh_start_proxy($0) } }
         guard let raw = result["url"] as? String, var url = URL(string: raw) else { throw Failure(message: "The bridge returned no address") }
         if url.lastPathComponent == "api" { url.deleteLastPathComponent() }
