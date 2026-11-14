@@ -34,7 +34,7 @@ struct MobileCard: View {
         VStack(alignment: .leading, spacing: 6) {
             MobileCardLink(card: card, onHide: onHide,
                            preview: AnyView(MobileCardArt(card: card, landscape: landscape, size: size))) {
-                MobileCardArt(card: card, landscape: landscape, size: size)
+                MobileCardArt(card: card, landscape: landscape, size: size, captionOverlay: !landscape)
             }
             if landscape {
                 Text(card.title).font(.footnote.weight(.semibold)).lineLimit(1)
@@ -60,7 +60,7 @@ struct MobileGridCard: View {
                     .aspectRatio(landscape ? 16 / 9 : 2 / 3, contentMode: .fit)
                     .overlay {
                         GeometryReader { geo in
-                            MobileCardArt(card: card, landscape: landscape, size: geo.size)
+                            MobileCardArt(card: card, landscape: landscape, size: geo.size, captionOverlay: !showsCaption)
                         }
                     }
             }
@@ -79,6 +79,9 @@ struct MobileCardArt: View {
     let card: HomeCard
     let landscape: Bool
     let size: CGSize
+    /// The card shows no caption under it: draw the title and line over the art when the
+    /// server asks for them (`HomeCard.forceTitleOverlay`).
+    var captionOverlay = false
 
     var body: some View {
         face
@@ -89,6 +92,23 @@ struct MobileCardArt: View {
                     MobileBadges(badge: card.badge, watch: card.watchBadge, unwatchedCount: card.unwatchedCount,
                                  isNew: card.newEpisode != nil)
                         .padding(6)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if captionOverlay, card.forceTitleOverlay, card.symbol == nil, !card.logoTile {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(card.title).font(.caption.weight(.semibold)).lineLimit(2)
+                        Text(card.subtitle).font(.caption2).foregroundStyle(.white.opacity(0.85)).lineLimit(3)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(8)
+                    .frame(width: size.width, alignment: .leading)
+                    .background(LinearGradient(colors: [.clear, .black.opacity(0.8), .black.opacity(0.95)],
+                                               startPoint: .top, endPoint: .bottom))
+                    .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: MobileCardMetrics.cornerRadius,
+                                                      bottomTrailingRadius: MobileCardMetrics.cornerRadius,
+                                                      style: .continuous))
+                    .allowsHitTesting(false)
                 }
             }
             .overlay(alignment: .bottom) {

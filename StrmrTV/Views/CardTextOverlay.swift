@@ -38,6 +38,8 @@ struct CardTextOverlay: View {
     let size: CGSize
     let poster: Bool
     let hasProgress: Bool
+    /// More than one line for shelf context (a chart's country, week and season).
+    var subtitleLines = 1
 
     /// Type scale for the card size (1 at the Large 270 pt card).
     private var scale: CGFloat { max(size.height / ShelfRow.baseCardHeight, 0.6) }
@@ -52,7 +54,7 @@ struct CardTextOverlay: View {
                 Text(subtitle)
                     .font(.system(size: (poster ? 18 : 21) * scale))
                     .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(1)
+                    .lineLimit(subtitleLines)
             }
         }
         .foregroundStyle(.white)

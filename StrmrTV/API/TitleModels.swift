@@ -46,6 +46,13 @@ struct Title: Decodable, Identifiable, Hashable {
     let unwatchedCount: Int?
     /// Multi-source ratings (IMDb, Rotten Tomatoes, …), hydrated from MDBList when enabled.
     let ratings: [Rating]?
+    /// Shelf-specific context in place of the year/type line, such as a chart's country,
+    /// week and season (list rows only).
+    var cardSubtitle: String?
+    /// Shelf-specific card art in place of the backdrop.
+    var cardImage: ImageRef?
+    /// Keep the shelf context readable where the layout hides card text.
+    var forceTitleOverlay: Bool?
 
     var isMovie: Bool { mediaType == "movie" }
 }

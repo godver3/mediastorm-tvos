@@ -59,6 +59,9 @@ struct HomeCard: Identifiable, Hashable {
     var genres: [String] = []
     /// The one episode the card stands for, for its long press's Mark as Watched.
     var episode: CardEpisode?
+    /// The server asks for the title and `subtitle` (shelf context such as a chart's
+    /// country and week) over the art when the layout would otherwise hide them.
+    var forceTitleOverlay = false
 
     var target: DetailsTarget? {
         if case let .details(target) = link { target } else { nil }
@@ -140,11 +143,13 @@ struct HomeCard: Identifiable, Hashable {
         link = .details(DetailsTarget(title))
         posterURL = title.textPoster?.url ?? title.poster?.url
         self.title = title.name
-        subtitle = Self.kindLine(year: title.year, isMovie: title.isMovie)
+        let context = title.cardSubtitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        subtitle = context?.isEmpty == false ? context! : Self.kindLine(year: title.year, isMovie: title.isMovie)
         overview = title.overview
         backdropURL = title.backdrop?.url
         logoURL = title.logo?.url
-        artworkURL = title.backdrop?.url ?? title.poster?.url
+        artworkURL = title.cardImage?.url ?? title.backdrop?.url ?? title.poster?.url
+        forceTitleOverlay = title.forceTitleOverlay == true
         progress = 0
         badge = rank.map { CardBadge(text: "#\($0)") } ?? ReleaseBadge.forTitle(title)
         watchBadge = CardBadge.forWatchState(title.watchState)

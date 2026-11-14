@@ -74,9 +74,10 @@ struct LandscapeCard: View {
                 if showsInfo {
                     ExpandedCardInfo(card: card, size: size, hasProgress: ProgressBar.shows(card.progress))
                         .transition(.opacity)
-                } else if text.overlays(poster: poster) {
+                } else if text.overlays(poster: poster) || forcedOverlay {
                     CardTextOverlay(title: card.title, subtitle: card.subtitle, size: size, poster: poster,
-                                    hasProgress: ProgressBar.shows(card.progress))
+                                    hasProgress: ProgressBar.shows(card.progress),
+                                    subtitleLines: forcedOverlay ? 3 : 1)
                 }
             }
             // Over the text's gradient: under it, the 95 % black at the card's foot dimmed the
@@ -93,6 +94,11 @@ struct LandscapeCard: View {
 
     /// A card drawing artwork (not a symbol or logo tile).
     private var hasArt: Bool { card.symbol == nil && !card.logoTile }
+
+    /// Shelf context the server wants readable, on a card that would otherwise hide it.
+    private var forcedOverlay: Bool {
+        card.forceTitleOverlay && hasArt && text != .below && !text.overlays(poster: poster)
+    }
 
     @ViewBuilder
     private var tileOrArt: some View {
